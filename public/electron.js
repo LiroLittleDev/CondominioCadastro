@@ -1,0 +1,272 @@
+const { app, BrowserWindow, ipcMain } = require('electron');
+const path = require('path');
+
+// Configuração do Knex para conectar ao banco de dados
+const knex = require('knex')({
+  client: 'sqlite3',
+  connection: {
+    filename: path.join(__dirname, '../db/condominio.db') // Corrigido para o caminho correto
+  },
+  useNullAsDefault: true
+});
+
+function createWindow() {
+  const mainWindow = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    webPreferences: {
+      // --- ESTA É A CONFIGURAÇÃO CORRETA E SEGURA ---
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true, // Protege contra vulnerabilidades
+      nodeIntegration: false // Impede que o frontend acesse o Node.js diretamente
+    }
+  });
+
+  mainWindow.loadURL('http://localhost:3000');
+}
+
+// Handler para buscar blocos
+ipcMain.handle('get-blocos', async () => {
+  try {
+    const blocos = await knex('blocos').select('*');
+    return blocos;
+  } catch (error) {
+    console.error('Erro ao buscar blocos:', error);
+    return [];
+  }
+});
+// --- NOVOS HANDLERS PARA ENTRADAS E UNIDADES ---
+
+ipcMain.handle('get-entradas', async (event, blocoId) => {
+  try {
+    const entradas = await knex('entradas').where('bloco_id', blocoId).select('*');
+    return entradas;
+  } catch (error) {
+    console.error('Erro ao buscar entradas:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('get-unidades', async (event, entradaId) => {
+  try {
+    const unidades = await knex('unidades').where('entrada_id', entradaId).select('*');
+    return unidades;
+  } catch (error) {
+    console.error('Erro ao buscar unidades:', error);
+    return [];
+  }
+});
+
+
+ipcMain.handle('get-pessoa-details', async (event, pessoaId) => {
+  try {
+    const pessoa = await knex('pessoas').where('id', pessoaId).first();
+    return pessoa;
+  } catch (error) {
+    console.error('Erro ao buscar detalhes da pessoa:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('get-veiculos-by-pessoa', async (event, pessoaId) => {
+  try {
+    const veiculos = await knex('veiculos').where('pessoa_id', pessoaId).select('*');
+    return veiculos;
+  } catch (error) {
+    console.error('Erro ao buscar veículos da pessoa:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('get-unidade-details', async (event, unidadeId) => {
+  try {
+    // Esta consulta busca a unidade e junta os nomes do bloco e da entrada
+    const unidade = await knex('unidades')
+      .join('entradas', 'unidades.entrada_id', '=', 'entradas.id')
+      .join('blocos', 'entradas.bloco_id', '=', 'blocos.id')
+      .where('unidades.id', unidadeId)
+      .select(
+        'unidades.id as unidade_id',
+        'unidades.numero_apartamento',
+        'entradas.letra as letra_entrada',
+        'blocos.nome as nome_bloco'
+      )
+      .first(); // .first() para pegar apenas um resultado
+    return unidade;
+  } catch (error) {
+    console.error('Erro ao buscar detalhes da unidade:', error);
+    return null;
+  }
+});
+
+// Em public/electron.js, substitua o handler getPessoasByUnidade por este:
+ipcMain.handle('getPessoasByUnidade', async (event, unidadeId) => {
+  try {
+    const pessoas = await knex('vinculos')
+      .join('pessoas', 'vinculos.pessoa_id', '=', 'pessoas.id')
+      .where('vinculos.unidade_id', unidadeId)
+      .where('vinculos.status', 'Ativo')
+      .select(
+        'pessoas.*', // Seleciona todos os campos da tabela pessoas (id, nome, cpf, etc)
+        'vinculos.tipo_vinculo',
+        'vinculos.id as vinculo_id'
+      );
+    return pessoas;
+  } catch (error) {
+    console.error('Erro ao buscar pessoas da unidade:', error);
+    return [];
+  }
+});
+
+
+ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
+  try {
+    await knex.transaction(async (trx) => {
+      // Verifica se a pessoa já existe pelo CPF
+      let pessoaExistente = await trx('pessoas').where('cpf', pessoa.cpf).first();
+      let pessoaId;
+
+      if (pessoaExistente) {
+        // Se já existe, usa o ID existente
+        pessoaId = pessoaExistente.id;
+      } else {
+        // Se não existe, insere a nova pessoa e obtém o ID
+        const [novaPessoaIdObj] = await trx('pessoas').insert(pessoa).returning('id');
+        pessoaId = typeof novaPessoaIdObj === 'object' ? novaPessoaIdObj.id : novaPessoaIdObj;
+      }
+
+      // Cria o novo vínculo com o ID da pessoa e o ID da unidade
+      await trx('vinculos').insert({
+        pessoa_id: pessoaId,
+        unidade_id: vinculo.unidadeId,
+        tipo_vinculo: vinculo.tipoVinculo,
+        data_inicio: new Date().toISOString().split('T')[0], // Data de hoje
+        status: 'Ativo'
+      });
+    });
+    return { success: true, message: 'Pessoa vinculada com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao criar pessoa e vínculo:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Adicione este novo handler em public/electron.js
+
+// Adicione este novo handler em public/electron.js
+ipcMain.handle('update-pessoa', async (event, pessoaId, pessoaData) => {
+  try {
+    // Procura por CPF duplicado, excluindo a pessoa atual da busca
+    const pessoaExistente = await knex('pessoas')
+      .where('cpf', pessoaData.cpf)
+      .whereNot('id', pessoaId)
+      .first();
+
+    if (pessoaExistente) {
+      return { success: false, message: 'Este CPF já está cadastrado para outra pessoa.' };
+    }
+
+    // Atualiza os dados da pessoa no banco de dados
+    await knex('pessoas')
+      .where({ id: pessoaId })
+      .update({
+        nome_completo: pessoaData.nome_completo,
+        cpf: pessoaData.cpf,
+        email: pessoaData.email,
+        telefone: pessoaData.telefone
+      });
+    return { success: true, message: 'Dados da pessoa atualizados com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao atualizar pessoa:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+ipcMain.handle('desvincular-pessoa', async (event, vinculoId) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    await knex('vinculos')
+      .where({ id: vinculoId })
+      .update({
+        status: 'Inativo',
+        data_fim: today
+      });
+    return { success: true, message: 'Pessoa desvinculada com sucesso.' };
+  } catch (error) {
+    console.error('Erro ao desvincular pessoa:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Handler para criar a estrutura inicial
+ipcMain.handle('run-setup', async () => {
+  try {
+    const blocosExistentes = await knex('blocos').select('id').first();
+    if (blocosExistentes) {
+      return { success: false, message: 'A estrutura já foi criada anteriormente.' };
+    }
+
+    const estrutura = {
+      '1-6,9,12-15,18': ['A', 'B'],
+      '7-8,11,16-17': ['A', 'B', 'C'],
+      '10': ['A']
+    };
+
+    const aptsPorEntrada = {
+      'A': ['101', '102', '201', '202', '301', '302'],
+      'B': ['103', '104', '203', '204', '303', '304'],
+      'C': ['105', '106', '205', '206', '305', '306']
+    };
+
+    await knex.transaction(async (trx) => {
+      for (let i = 1; i <= 18; i++) {
+        const blocoNome = `Bloco ${i}`;
+        const [blocoIdObj] = await trx('blocos').insert({ nome: blocoNome }).returning('id');
+        const blocoId = typeof blocoIdObj === 'object' ? blocoIdObj.id : blocoIdObj;
+        
+        let entradasParaCriar = [];
+        for (const range in estrutura) {
+          const numeros = range.split(',').flatMap(r => {
+            if (r.includes('-')) {
+              const [start, end] = r.split('-').map(Number);
+              return Array.from({ length: end - start + 1 }, (_, k) => start + k);
+            }
+            return Number(r);
+          });
+          if (numeros.includes(i)) {
+            entradasParaCriar = estrutura[range];
+            break;
+          }
+        }
+
+        for (const letraEntrada of entradasParaCriar) {
+          const [entradaIdObj] = await trx('entradas').insert({ letra: letraEntrada, bloco_id: blocoId }).returning('id');
+          const entradaId = typeof entradaIdObj === 'object' ? entradaIdObj.id : entradaIdObj;
+          const apartamentos = aptsPorEntrada[letraEntrada];
+          
+          const apartamentosParaInserir = apartamentos.map(numApt => ({
+            numero_apartamento: numApt,
+            entrada_id: entradaId
+          }));
+          await trx('unidades').insert(apartamentosParaInserir);
+        }
+      }
+    });
+
+    return { success: true, message: 'Estrutura do condomínio criada com sucesso! 18 blocos, entradas e 240 unidades cadastradas.' };
+
+  } catch (error) {
+    console.error('Erro ao criar estrutura:', error);
+    return { success: false, message: `Erro ao criar estrutura: ${error.message}` };
+  }
+});
+
+app.whenReady().then(createWindow);
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
