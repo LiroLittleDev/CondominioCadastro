@@ -29,7 +29,8 @@ function UnidadePage() {
   const navigate = useNavigate();
   const [unidade, setUnidade] = useState(null);
   const [pessoas, setPessoas] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true)
+  
 
   const [vincularModalOpen, setVincularModalOpen] = useState(false);
   const [editarModalOpen, setEditarModalOpen] = useState(false);
