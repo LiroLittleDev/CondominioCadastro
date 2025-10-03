@@ -57,6 +57,21 @@ ipcMain.handle('get-unidades', async (event, entradaId) => {
   }
 });
 
+ipcMain.handle('create-veiculo', async (event, veiculoData) => {
+  try {
+    // Verifica se a placa já existe
+    const veiculoExistente = await knex('veiculos').where('placa', veiculoData.placa).first();
+    if (veiculoExistente) {
+      return { success: false, message: 'Esta placa já está cadastrada no sistema.' };
+    }
+
+    await knex('veiculos').insert(veiculoData);
+    return { success: true, message: 'Veículo cadastrado com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao criar veículo:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
 
 ipcMain.handle('get-pessoa-details', async (event, pessoaId) => {
   try {
@@ -75,6 +90,34 @@ ipcMain.handle('get-veiculos-by-pessoa', async (event, pessoaId) => {
   } catch (error) {
     console.error('Erro ao buscar veículos da pessoa:', error);
     return [];
+  }
+});
+
+ipcMain.handle('delete-veiculo', async (event, veiculoId) => {
+  try {
+    await knex('veiculos').where({ id: veiculoId }).del();
+    return { success: true, message: 'Veículo excluído com sucesso.' };
+  } catch (error) {
+    console.error('Erro ao excluir veículo:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+ipcMain.handle('update-veiculo', async (event, veiculoId, veiculoData) => {
+  try {
+    const veiculoExistente = await knex('veiculos')
+      .where('placa', veiculoData.placa)
+      .whereNot('id', veiculoId)
+      .first();
+    if (veiculoExistente) {
+      return { success: false, message: 'Esta placa já está cadastrada para outro veículo.' };
+    }
+
+    await knex('veiculos').where({ id: veiculoId }).update(veiculoData);
+    return { success: true, message: 'Veículo atualizado com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao atualizar veículo:', error);
+    return { success: false, message: `Erro: ${error.message}` };
   }
 });
 
@@ -195,6 +238,84 @@ ipcMain.handle('desvincular-pessoa', async (event, vinculoId) => {
   } catch (error) {
     console.error('Erro ao desvincular pessoa:', error);
     return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+ipcMain.handle('get-dashboard-stats', async () => {
+  try {
+    const [totalUnidades] = await knex('unidades').count('id as count');
+    const [totalPessoas] = await knex('pessoas').count('id as count');
+    const [totalVeiculos] = await knex('veiculos').count('id as count');
+
+    return {
+      unidades: totalUnidades.count,
+      pessoas: totalPessoas.count,
+      veiculos: totalVeiculos.count,
+    };
+  } catch (error) {
+    console.error('Erro ao buscar estatísticas:', error);
+    return { unidades: 0, pessoas: 0, veiculos: 0 };
+  }
+});
+
+ipcMain.handle('search-geral', async (event, termo) => {
+  // Se o termo de busca for muito curto, não faz nada
+  if (!termo || termo.length < 2) {
+    return [];
+  }
+
+  // O '%' é um coringa que nos permite buscar por partes de uma palavra
+  const termoBusca = `%${termo}%`;
+
+  try {
+    // Executa todas as buscas em paralelo para máxima eficiência
+    const [pessoas, veiculos, unidades] = await Promise.all([
+      // Busca Pessoas por nome completo OU por CPF
+      knex('pessoas')
+        .where('nome_completo', 'like', termoBusca)
+        .orWhere('cpf', 'like', termoBusca)
+        .select('id', 'nome_completo', 'cpf'),
+
+      // Busca Veículos por placa, marca OU modelo, e já traz o ID do dono
+      knex('veiculos')
+        .join('pessoas', 'veiculos.pessoa_id', '=', 'pessoas.id')
+        .where('placa', 'like', termoBusca)
+        .orWhere('veiculos.marca', 'like', termoBusca)
+        .orWhere('veiculos.modelo', 'like', termoBusca)
+        .select('veiculos.id as veiculo_id', 'veiculos.placa', 'veiculos.modelo', 'pessoas.id as pessoa_id'),
+
+      // Busca Unidades por número do apartamento
+      knex('unidades')
+        .join('entradas', 'unidades.entrada_id', 'entradas.id')
+        .join('blocos', 'entradas.bloco_id', 'blocos.id')
+        .where('numero_apartamento', 'like', termoBusca)
+        .select('unidades.id', 'numero_apartamento', 'blocos.nome as nome_bloco')
+    ]);
+
+    // Formata os resultados de cada busca em um padrão único para a interface
+    const resultadosFormatados = [
+      ...pessoas.map(p => ({
+        tipo: 'Pessoa',
+        label: `${p.nome_completo} (CPF: ${p.cpf})`,
+        path: `/pessoa/${p.id}`
+      })),
+      ...veiculos.map(v => ({
+        tipo: 'Veículo',
+        label: `Veículo Placa: ${v.placa} (${v.modelo})`,
+        path: `/pessoa/${v.pessoa_id}` // Leva para o perfil do dono do veículo
+      })),
+      ...unidades.map(u => ({
+        tipo: 'Unidade',
+        label: `Unidade: ${u.nome_bloco} / Apto ${u.numero_apartamento}`,
+        path: `/unidade/${u.id}`
+      }))
+    ];
+
+    return resultadosFormatados;
+
+  } catch (error) {
+    console.error('Erro na busca geral:', error);
+    return [];
   }
 });
 

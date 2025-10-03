@@ -1,70 +1,99 @@
-# Getting Started with Create React App
+# SGC Desktop - Sistema de Gestão Condominial
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Sistema desktop para gestão de condomínios desenvolvido com React e Electron.
 
-## Available Scripts
+## 📋 Funcionalidades
 
-In the project directory, you can run:
+- **Gestão de Blocos**: Cadastro e gerenciamento de blocos do condomínio
+- **Gestão de Unidades**: Controle de apartamentos e entradas
+- **Cadastro de Pessoas**: Registro de moradores e proprietários
+- **Controle de Veículos**: Cadastro de veículos vinculados aos moradores
+- **Sistema de Vínculos**: Relacionamento entre pessoas e unidades
 
-### `npm start`
+## 🛠️ Tecnologias
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Frontend**: React 19.2.0
+- **UI Framework**: Material-UI (MUI)
+- **Desktop**: Electron 38.2.1
+- **Banco de Dados**: SQLite3
+- **ORM**: Knex.js
+- **Roteamento**: React Router DOM
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 📦 Instalação
 
-### `npm test`
+1. Clone o repositório:
+```bash
+git clone <repository-url>
+cd sgc-desktop
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+2. Instale as dependências:
+```bash
+npm install
+```
 
-### `npm run build`
+3. Execute as migrações do banco:
+```bash
+npx knex migrate:latest
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## 🚀 Execução
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Modo Desenvolvimento Web
+```bash
+npm start
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Modo Electron (Desktop)
+```bash
+npm run electron:start
+```
 
-### `npm run eject`
+### Build para Produção
+```bash
+npm run build
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 📁 Estrutura do Projeto
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```
+sgc-desktop/
+├── db/                     # Banco de dados SQLite
+│   ├── migrations/         # Migrações do banco
+│   └── condominio.db      # Arquivo do banco
+├── public/                 # Arquivos públicos do Electron
+│   ├── electron.js        # Processo principal do Electron
+│   └── preload.js         # Script de preload
+├── src/
+│   ├── components/        # Componentes React
+│   ├── pages/            # Páginas da aplicação
+│   └── App.js            # Componente principal
+└── package.json
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## 🗄️ Estrutura do Banco de Dados
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+- **blocos**: Blocos do condomínio
+- **entradas**: Entradas de cada bloco
+- **unidades**: Apartamentos/unidades
+- **pessoas**: Cadastro de moradores
+- **veiculos**: Veículos dos moradores
+- **vinculos**: Relacionamento pessoa-unidade
 
-## Learn More
+## 📱 Páginas Disponíveis
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- **Início**: Dashboard principal
+- **Blocos**: Gestão de blocos e unidades
+- **Veículos**: Cadastro e controle de veículos
+- **Configurações**: Configurações do sistema
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## 🔧 Scripts Disponíveis
 
-### Code Splitting
+- `npm start`: Inicia o servidor de desenvolvimento
+- `npm run build`: Gera build de produção
+- `npm test`: Executa os testes
+- `npm run electron:start`: Inicia a aplicação Electron
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## 📄 Licença
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Este projeto é privado e de uso interno.

@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
 import BusinessIcon from "@mui/icons-material/Business";
-import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+
 import SettingsIcon from "@mui/icons-material/Settings";
 
 // Imports do roteador
@@ -22,9 +22,7 @@ import { HashRouter, Routes, Route, Link } from "react-router-dom";
 // Importa nossas páginas
 import HomePage from "./pages/HomePage";
 import UnidadePage from "./pages/UnidadePage";
-import BlocosPage from "./pages/BlocosPage";
-import PessoaPage from './pages/PessoaPage';
-import VeiculosPage from "./pages/VeiculosPage";
+import BlocosPage from "./pages/BlocosPage";import PessoaPage from './pages/PessoaPage';
 import SettingsPage from "./pages/SettingsPage";
 
 const drawerWidth = 240;
@@ -78,13 +76,6 @@ function App() {
               <ListItemText primary="Blocos" />
             </ListItem>
 
-            <ListItem button component={Link} to="/veiculos">
-              <ListItemIcon>
-                <DirectionsCarIcon />
-              </ListItemIcon>
-              <ListItemText primary="Veículos" />
-            </ListItem>
-
             <ListItem button component={Link} to="/configuracoes">
               <ListItemIcon>
                 <SettingsIcon />
@@ -107,7 +98,6 @@ function App() {
             <Route path="/blocos" element={<BlocosPage />} />
             <Route path="/pessoa/:pessoaId" element={<PessoaPage />} />
             <Route path="/unidade/:unidadeId" element={<UnidadePage />} />
-            <Route path="/veiculos" element={<VeiculosPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
           </Routes>
         </Box>

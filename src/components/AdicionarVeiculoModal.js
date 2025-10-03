@@ -1,5 +1,5 @@
-import React from 'react';
-import { Modal, Box, Typography, Button } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Modal, Box, Typography, Button, TextField, Select, MenuItem, FormControl, InputLabel, CircularProgress, Alert } from '@mui/material';
 
 const style = {
   position: 'absolute',
@@ -13,23 +13,75 @@ const style = {
   p: 4,
 };
 
-function AdicionarVeiculoModal({ open, handleClose, pessoa }) {
+function AdicionarVeiculoModal({ open, handleClose, pessoa, onSuccess }) {
+  const [placa, setPlaca] = useState('');
+  const [marca, setMarca] = useState('');
+  const [modelo, setModelo] = useState('');
+  const [cor, setCor] = useState('');
+  const [tipo, setTipo] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setPlaca('');
+      setMarca('');
+      setModelo('');
+      setCor('');
+      setTipo('');
+      setError('');
+      setLoading(false);
+    }
+  }, [open]);
+
+  const handleSubmit = async () => {
+    if (!placa || !marca || !modelo || !cor || !tipo) {
+      setError('Todos os campos são obrigatórios.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+
+    const veiculoData = { placa, marca, modelo, cor, tipo, pessoa_id: pessoa.id };
+    const result = await window.api.createVeiculo(veiculoData);
+    setLoading(false);
+
+    if (result.success) {
+      onSuccess();
+    } else {
+      setError(result.message);
+    }
+  };
+
   if (!pessoa) return null;
 
   return (
     <Modal open={open} onClose={handleClose}>
       <Box sx={style}>
-        <Typography variant="h6" component="h2">
+        <Typography variant="h6" component="h2" gutterBottom>
           Adicionar Veículo para: {pessoa.nome_completo}
         </Typography>
         
-        <Typography sx={{ mt: 2 }}>
-          Formulário de cadastro de veículo (Placa, Modelo, Cor...) virá aqui.
-        </Typography>
+        <TextField label="Placa" fullWidth margin="normal" value={placa} onChange={e => setPlaca(e.target.value)} required />
+        <TextField label="Marca" fullWidth margin="normal" value={marca} onChange={e => setMarca(e.target.value)} required />
+        <TextField label="Modelo" fullWidth margin="normal" value={modelo} onChange={e => setModelo(e.target.value)} required />
+        <TextField label="Cor" fullWidth margin="normal" value={cor} onChange={e => setCor(e.target.value)} required />
         
+        <FormControl fullWidth margin="normal" required>
+          <InputLabel id="tipo-veiculo-label">Tipo</InputLabel>
+          <Select labelId="tipo-veiculo-label" value={tipo} label="Tipo" onChange={e => setTipo(e.target.value)}>
+            <MenuItem value="Carro">Carro</MenuItem>
+            <MenuItem value="Moto">Moto</MenuItem>
+          </Select>
+        </FormControl>
+
+        {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+
         <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button onClick={handleClose}>Cancelar</Button>
-          <Button variant="contained" sx={{ ml: 1 }}>Salvar Veículo</Button>
+          <Button onClick={handleClose} disabled={loading}>Cancelar</Button>
+          <Button variant="contained" sx={{ ml: 1 }} onClick={handleSubmit} disabled={loading}>
+            {loading ? <CircularProgress size={24} /> : 'Salvar Veículo'}
+          </Button>
         </Box>
       </Box>
     </Modal>

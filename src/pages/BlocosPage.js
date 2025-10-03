@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, List, ListItem, ListItemIcon, ListItemText, CircularProgress, Paper, Breadcrumbs, Link, Box, IconButton } from '@mui/material';
+import { Typography, CircularProgress, Paper, Breadcrumbs, Link, Box, IconButton, Grid } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import HomeWorkIcon from '@mui/icons-material/HomeWork';
@@ -85,38 +85,9 @@ function BlocosPage() {
       navigateToBlocos();
     }
   };
-  
-  const renderListItem = (item) => {
-    // ... (o código da função renderListItem continua o mesmo)
-    if (view === 'blocos') {
-        return (
-          <ListItem button key={item.id} onClick={() => handleBlocoClick(item)}>
-            <ListItemIcon><HomeWorkIcon /></ListItemIcon>
-            <ListItemText primary={item.nome} />
-          </ListItem>
-        );
-      }
-      if (view === 'entradas') {
-        return (
-          <ListItem button key={item.id} onClick={() => handleEntradaClick(item)}>
-            <ListItemIcon><FolderIcon /></ListItemIcon>
-            <ListItemText primary={`Entrada ${item.letra}`} />
-          </ListItem>
-        );
-      }
-      if (view === 'unidades') {
-        return (
-          <ListItem button key={item.id} onClick={() => handleUnidadeClick(item)}>
-            <ListItemIcon><MeetingRoomIcon /></ListItemIcon>
-            <ListItemText primary={`Apartamento ${item.numero_apartamento}`} />
-          </ListItem>
-        );
-      }
-      return null;
-  };
 
 
-  return (
+ return (
     <div>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
         {view !== 'blocos' && (
@@ -141,15 +112,55 @@ function BlocosPage() {
         )}
       </Breadcrumbs>
 
-      <Paper elevation={2}>
-        {loading ? (
-          <div style={{ padding: '20px', textAlign: 'center' }}><CircularProgress /></div>
-        ) : (
-          <List component="nav">
-            {items.map(item => renderListItem(item))}
-          </List>
-        )}
-      </Paper>
+      {/* --- A LÓGICA DE EXIBIÇÃO AGORA É UMA GRADE ÚNICA --- */}
+      {loading ? (
+        <div style={{ padding: '20px', textAlign: 'center' }}><CircularProgress /></div>
+      ) : (
+        <Grid container spacing={3}>
+          {items.map(item => {
+            // Define o conteúdo do card baseado na view atual
+            let cardContent = null;
+            if (view === 'blocos') {
+              cardContent = {
+                icon: <HomeWorkIcon sx={{ fontSize: 40, mb: 1 }} color="primary" />,
+                text: item.nome,
+                onClick: () => handleBlocoClick(item),
+              };
+            } else if (view === 'entradas') {
+              cardContent = {
+                icon: <FolderIcon sx={{ fontSize: 40, mb: 1 }} color="secondary" />,
+                text: `Entrada ${item.letra}`,
+                onClick: () => handleEntradaClick(item),
+              };
+            } else if (view === 'unidades') {
+              cardContent = {
+                icon: <MeetingRoomIcon sx={{ fontSize: 40, mb: 1 }} />,
+                text: `Apto ${item.numero_apartamento}`,
+                onClick: () => handleUnidadeClick(item),
+              };
+            }
+
+            return (
+              <Grid item xs={6} sm={4} md={3} key={item.id}>
+                <Paper 
+                  elevation={3}
+                  onClick={cardContent.onClick}
+                  sx={{ 
+                    p: 2, 
+                    textAlign: 'center', 
+                    cursor: 'pointer', 
+                    '&:hover': { backgroundColor: 'action.hover', transform: 'scale(1.02)' },
+                    transition: 'transform 0.15s ease-in-out',
+                  }}
+                >
+                  {cardContent.icon}
+                  <Typography variant="subtitle1">{cardContent.text}</Typography>
+                </Paper>
+              </Grid>
+            );
+          })}
+        </Grid>
+      )}
     </div>
   );
 }

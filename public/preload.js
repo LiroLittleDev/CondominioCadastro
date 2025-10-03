@@ -21,4 +21,9 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("get-pessoa-details", pessoaId),
   getVeiculosByPessoa: (pessoaId) =>
     ipcRenderer.invoke("get-veiculos-by-pessoa", pessoaId),
+  createVeiculo: (veiculoData) => ipcRenderer.invoke('create-veiculo', veiculoData),
+  deleteVeiculo: (veiculoId) => ipcRenderer.invoke('delete-veiculo', veiculoId),
+  updateVeiculo: (veiculoId, veiculoData) => ipcRenderer.invoke('update-veiculo', veiculoId, veiculoData),
+  getDashboardStats: () => ipcRenderer.invoke('get-dashboard-stats'),
+  searchGeral: (termo) => ipcRenderer.invoke('search-geral', termo),
 });
