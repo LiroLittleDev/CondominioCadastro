@@ -97,3 +97,4 @@ sgc-desktop/
 ## 📄 Licença
 
 Este projeto é privado e de uso interno.
+=======
