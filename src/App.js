@@ -22,6 +22,8 @@ import { HashRouter, Routes, Route, Link } from "react-router-dom";
 // Importa nossas páginas
 import HomePage from "./pages/HomePage";
 import UnidadePage from "./pages/UnidadePage";
+import PessoasListPage from './pages/PessoasListPage';
+import VeiculosListPage from './pages/VeiculosListPage';
 import BlocosPage from "./pages/BlocosPage";import PessoaPage from './pages/PessoaPage';
 import SettingsPage from "./pages/SettingsPage";
 
@@ -97,6 +99,8 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/blocos" element={<BlocosPage />} />
             <Route path="/pessoa/:pessoaId" element={<PessoaPage />} />
+            <Route path="/pessoas" element={<PessoasListPage />} />
+            <Route path="/veiculos" element={<VeiculosListPage />} />
             <Route path="/unidade/:unidadeId" element={<UnidadePage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
           </Routes>
