@@ -1,13 +1,13 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
+const { app, BrowserWindow, ipcMain } = require("electron");
+const path = require("path");
 
 // Configuração do Knex para conectar ao banco de dados
-const knex = require('knex')({
-  client: 'sqlite3',
+const knex = require("knex")({
+  client: "sqlite3",
   connection: {
-    filename: path.join(__dirname, '../db/condominio.db') // Corrigido para o caminho correto
+    filename: path.join(__dirname, "../db/condominio.db"), // Corrigido para o caminho correto
   },
-  useNullAsDefault: true
+  useNullAsDefault: true,
 });
 
 function createWindow() {
@@ -16,157 +16,242 @@ function createWindow() {
     height: 800,
     webPreferences: {
       // --- ESTA É A CONFIGURAÇÃO CORRETA E SEGURA ---
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, "preload.js"),
       contextIsolation: true, // Protege contra vulnerabilidades
-      nodeIntegration: false // Impede que o frontend acesse o Node.js diretamente
-    }
+      nodeIntegration: false, // Impede que o frontend acesse o Node.js diretamente
+    },
   });
 
-  mainWindow.loadURL('http://localhost:3000');
+  mainWindow.loadURL("http://localhost:3000");
 }
 
-// Handler para buscar blocos
-ipcMain.handle('get-blocos', async () => {
+ipcMain.handle("get-all-veiculos", async () => {
   try {
-    const blocos = await knex('blocos').select('*');
+    const veiculos = await knex("veiculos")
+      .join("pessoas", "veiculos.pessoa_id", "=", "pessoas.id")
+      .select("veiculos.*", "pessoas.nome_completo as proprietario_nome")
+      .orderBy("veiculos.marca", "asc");
+    return veiculos;
+  } catch (error) {
+    console.error("Erro ao buscar todos os veículos:", error);
+    return [];
+  }
+});
+
+// Substitua o handler 'get-filtered-pessoas' por este em public/electron.js
+
+ipcMain.handle('get-filtered-pessoas', async (event, filters) => {
+  try {
+    // 1. A sub-consulta encontra o ID do último vínculo de cada pessoa (seja ativo ou inativo)
+    const subquery = knex('vinculos')
+      .select('pessoa_id', knex.raw('MAX(id) as max_id'))
+      .groupBy('pessoa_id');
+
+    // 2. A consulta principal junta tudo
+    const query = knex('pessoas')
+      .join(subquery.as('recentes'), 'pessoas.id', '=', 'recentes.pessoa_id')
+      .join('vinculos', 'recentes.max_id', '=', 'vinculos.id')
+      .join('unidades', 'vinculos.unidade_id', '=', 'unidades.id')
+      .join('entradas', 'unidades.entrada_id', '=', 'entradas.id')
+      .join('blocos', 'entradas.bloco_id', '=', 'blocos.id')
+      .select(
+        'pessoas.*',
+        'vinculos.tipo_vinculo as vinculos',
+        'vinculos.status',
+        // --- A LÓGICA DA CORREÇÃO ESTÁ AQUI ---
+        // Usa um 'CASE' do SQL para mostrar o endereço SOMENTE SE o status for 'Ativo'
+        knex.raw("CASE WHEN vinculos.status = 'Ativo' THEN blocos.nome ELSE '' END as nome_bloco"),
+        knex.raw("CASE WHEN vinculos.status = 'Ativo' THEN unidades.numero_apartamento ELSE '' END as numero_apartamento")
+      );
+    
+    // 3. O filtro para mostrar inativos é aplicado na consulta principal
+    if (!filters.showInactive) {
+      query.where('vinculos.status', 'Ativo');
+    }
+
+    if (filters.tipoVinculo) {
+      query.where('vinculos.tipo_vinculo', filters.tipoVinculo);
+    }
+
+    query.orderBy('pessoas.nome_completo', filters.sortBy || 'asc');
+
+    const pessoas = await query;
+    return pessoas;
+  } catch (error) {
+    console.error('Erro ao buscar pessoas filtradas:', error);
+    return [];
+  }
+});
+
+ipcMain.handle("get-vinculo-types", async () => {
+  try {
+    const tipos = await knex("vinculos")
+      .distinct("tipo_vinculo")
+      .orderBy("tipo_vinculo", "asc");
+    return tipos.map((t) => t.tipo_vinculo); // Retorna um array de strings
+  } catch (error) {
+    console.error("Erro ao buscar tipos de vínculo:", error);
+    return [];
+  }
+});
+
+// Handler para buscar blocos
+ipcMain.handle("get-blocos", async () => {
+  try {
+    const blocos = await knex("blocos").select("*");
     return blocos;
   } catch (error) {
-    console.error('Erro ao buscar blocos:', error);
+    console.error("Erro ao buscar blocos:", error);
     return [];
   }
 });
 // --- NOVOS HANDLERS PARA ENTRADAS E UNIDADES ---
 
-ipcMain.handle('get-entradas', async (event, blocoId) => {
+ipcMain.handle("get-entradas", async (event, blocoId) => {
   try {
-    const entradas = await knex('entradas').where('bloco_id', blocoId).select('*');
+    const entradas = await knex("entradas")
+      .where("bloco_id", blocoId)
+      .select("*");
     return entradas;
   } catch (error) {
-    console.error('Erro ao buscar entradas:', error);
+    console.error("Erro ao buscar entradas:", error);
     return [];
   }
 });
 
-ipcMain.handle('get-unidades', async (event, entradaId) => {
+ipcMain.handle("get-unidades", async (event, entradaId) => {
   try {
-    const unidades = await knex('unidades').where('entrada_id', entradaId).select('*');
+    const unidades = await knex("unidades")
+      .where("entrada_id", entradaId)
+      .select("*");
     return unidades;
   } catch (error) {
-    console.error('Erro ao buscar unidades:', error);
+    console.error("Erro ao buscar unidades:", error);
     return [];
   }
 });
 
-ipcMain.handle('create-veiculo', async (event, veiculoData) => {
+ipcMain.handle("create-veiculo", async (event, veiculoData) => {
   try {
     // Verifica se a placa já existe
-    const veiculoExistente = await knex('veiculos').where('placa', veiculoData.placa).first();
+    const veiculoExistente = await knex("veiculos")
+      .where("placa", veiculoData.placa)
+      .first();
     if (veiculoExistente) {
-      return { success: false, message: 'Esta placa já está cadastrada no sistema.' };
+      return {
+        success: false,
+        message: "Esta placa já está cadastrada no sistema.",
+      };
     }
 
-    await knex('veiculos').insert(veiculoData);
-    return { success: true, message: 'Veículo cadastrado com sucesso!' };
+    await knex("veiculos").insert(veiculoData);
+    return { success: true, message: "Veículo cadastrado com sucesso!" };
   } catch (error) {
-    console.error('Erro ao criar veículo:', error);
+    console.error("Erro ao criar veículo:", error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
 
-ipcMain.handle('get-pessoa-details', async (event, pessoaId) => {
+ipcMain.handle("get-pessoa-details", async (event, pessoaId) => {
   try {
-    const pessoa = await knex('pessoas').where('id', pessoaId).first();
+    const pessoa = await knex("pessoas").where("id", pessoaId).first();
     return pessoa;
   } catch (error) {
-    console.error('Erro ao buscar detalhes da pessoa:', error);
+    console.error("Erro ao buscar detalhes da pessoa:", error);
     return null;
   }
 });
 
-ipcMain.handle('get-veiculos-by-pessoa', async (event, pessoaId) => {
+ipcMain.handle("get-veiculos-by-pessoa", async (event, pessoaId) => {
   try {
-    const veiculos = await knex('veiculos').where('pessoa_id', pessoaId).select('*');
+    const veiculos = await knex("veiculos")
+      .where("pessoa_id", pessoaId)
+      .select("*");
     return veiculos;
   } catch (error) {
-    console.error('Erro ao buscar veículos da pessoa:', error);
+    console.error("Erro ao buscar veículos da pessoa:", error);
     return [];
   }
 });
 
-ipcMain.handle('delete-veiculo', async (event, veiculoId) => {
+ipcMain.handle("delete-veiculo", async (event, veiculoId) => {
   try {
-    await knex('veiculos').where({ id: veiculoId }).del();
-    return { success: true, message: 'Veículo excluído com sucesso.' };
+    await knex("veiculos").where({ id: veiculoId }).del();
+    return { success: true, message: "Veículo excluído com sucesso." };
   } catch (error) {
-    console.error('Erro ao excluir veículo:', error);
+    console.error("Erro ao excluir veículo:", error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
 
-ipcMain.handle('update-veiculo', async (event, veiculoId, veiculoData) => {
+ipcMain.handle("update-veiculo", async (event, veiculoId, veiculoData) => {
   try {
-    const veiculoExistente = await knex('veiculos')
-      .where('placa', veiculoData.placa)
-      .whereNot('id', veiculoId)
+    const veiculoExistente = await knex("veiculos")
+      .where("placa", veiculoData.placa)
+      .whereNot("id", veiculoId)
       .first();
     if (veiculoExistente) {
-      return { success: false, message: 'Esta placa já está cadastrada para outro veículo.' };
+      return {
+        success: false,
+        message: "Esta placa já está cadastrada para outro veículo.",
+      };
     }
 
-    await knex('veiculos').where({ id: veiculoId }).update(veiculoData);
-    return { success: true, message: 'Veículo atualizado com sucesso!' };
+    await knex("veiculos").where({ id: veiculoId }).update(veiculoData);
+    return { success: true, message: "Veículo atualizado com sucesso!" };
   } catch (error) {
-    console.error('Erro ao atualizar veículo:', error);
+    console.error("Erro ao atualizar veículo:", error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
 
-ipcMain.handle('get-unidade-details', async (event, unidadeId) => {
+ipcMain.handle("get-unidade-details", async (event, unidadeId) => {
   try {
     // Esta consulta busca a unidade e junta os nomes do bloco e da entrada
-    const unidade = await knex('unidades')
-      .join('entradas', 'unidades.entrada_id', '=', 'entradas.id')
-      .join('blocos', 'entradas.bloco_id', '=', 'blocos.id')
-      .where('unidades.id', unidadeId)
+    const unidade = await knex("unidades")
+      .join("entradas", "unidades.entrada_id", "=", "entradas.id")
+      .join("blocos", "entradas.bloco_id", "=", "blocos.id")
+      .where("unidades.id", unidadeId)
       .select(
-        'unidades.id as unidade_id',
-        'unidades.numero_apartamento',
-        'entradas.letra as letra_entrada',
-        'blocos.nome as nome_bloco'
+        "unidades.id as unidade_id",
+        "unidades.numero_apartamento",
+        "entradas.letra as letra_entrada",
+        "blocos.nome as nome_bloco"
       )
       .first(); // .first() para pegar apenas um resultado
     return unidade;
   } catch (error) {
-    console.error('Erro ao buscar detalhes da unidade:', error);
+    console.error("Erro ao buscar detalhes da unidade:", error);
     return null;
   }
 });
 
 // Em public/electron.js, substitua o handler getPessoasByUnidade por este:
-ipcMain.handle('getPessoasByUnidade', async (event, unidadeId) => {
+ipcMain.handle("getPessoasByUnidade", async (event, unidadeId) => {
   try {
-    const pessoas = await knex('vinculos')
-      .join('pessoas', 'vinculos.pessoa_id', '=', 'pessoas.id')
-      .where('vinculos.unidade_id', unidadeId)
-      .where('vinculos.status', 'Ativo')
+    const pessoas = await knex("vinculos")
+      .join("pessoas", "vinculos.pessoa_id", "=", "pessoas.id")
+      .where("vinculos.unidade_id", unidadeId)
+      .where("vinculos.status", "Ativo")
       .select(
-        'pessoas.*', // Seleciona todos os campos da tabela pessoas (id, nome, cpf, etc)
-        'vinculos.tipo_vinculo',
-        'vinculos.id as vinculo_id'
+        "pessoas.*", // Seleciona todos os campos da tabela pessoas (id, nome, cpf, etc)
+        "vinculos.tipo_vinculo",
+        "vinculos.id as vinculo_id"
       );
     return pessoas;
   } catch (error) {
-    console.error('Erro ao buscar pessoas da unidade:', error);
+    console.error("Erro ao buscar pessoas da unidade:", error);
     return [];
   }
 });
 
-
-ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
+ipcMain.handle("create-pessoa-e-vinculo", async (event, pessoa, vinculo) => {
   try {
     await knex.transaction(async (trx) => {
       // Verifica se a pessoa já existe pelo CPF
-      let pessoaExistente = await trx('pessoas').where('cpf', pessoa.cpf).first();
+      let pessoaExistente = await trx("pessoas")
+        .where("cpf", pessoa.cpf)
+        .first();
       let pessoaId;
 
       if (pessoaExistente) {
@@ -174,22 +259,27 @@ ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
         pessoaId = pessoaExistente.id;
       } else {
         // Se não existe, insere a nova pessoa e obtém o ID
-        const [novaPessoaIdObj] = await trx('pessoas').insert(pessoa).returning('id');
-        pessoaId = typeof novaPessoaIdObj === 'object' ? novaPessoaIdObj.id : novaPessoaIdObj;
+        const [novaPessoaIdObj] = await trx("pessoas")
+          .insert(pessoa)
+          .returning("id");
+        pessoaId =
+          typeof novaPessoaIdObj === "object"
+            ? novaPessoaIdObj.id
+            : novaPessoaIdObj;
       }
 
       // Cria o novo vínculo com o ID da pessoa e o ID da unidade
-      await trx('vinculos').insert({
+      await trx("vinculos").insert({
         pessoa_id: pessoaId,
         unidade_id: vinculo.unidadeId,
         tipo_vinculo: vinculo.tipoVinculo,
-        data_inicio: new Date().toISOString().split('T')[0], // Data de hoje
-        status: 'Ativo'
+        data_inicio: new Date().toISOString().split("T")[0], // Data de hoje
+        status: "Ativo",
       });
     });
-    return { success: true, message: 'Pessoa vinculada com sucesso!' };
+    return { success: true, message: "Pessoa vinculada com sucesso!" };
   } catch (error) {
-    console.error('Erro ao criar pessoa e vínculo:', error);
+    console.error("Erro ao criar pessoa e vínculo:", error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
@@ -197,55 +287,57 @@ ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
 // Adicione este novo handler em public/electron.js
 
 // Adicione este novo handler em public/electron.js
-ipcMain.handle('update-pessoa', async (event, pessoaId, pessoaData) => {
+ipcMain.handle("update-pessoa", async (event, pessoaId, pessoaData) => {
   try {
     // Procura por CPF duplicado, excluindo a pessoa atual da busca
-    const pessoaExistente = await knex('pessoas')
-      .where('cpf', pessoaData.cpf)
-      .whereNot('id', pessoaId)
+    const pessoaExistente = await knex("pessoas")
+      .where("cpf", pessoaData.cpf)
+      .whereNot("id", pessoaId)
       .first();
 
     if (pessoaExistente) {
-      return { success: false, message: 'Este CPF já está cadastrado para outra pessoa.' };
+      return {
+        success: false,
+        message: "Este CPF já está cadastrado para outra pessoa.",
+      };
     }
 
     // Atualiza os dados da pessoa no banco de dados
-    await knex('pessoas')
-      .where({ id: pessoaId })
-      .update({
-        nome_completo: pessoaData.nome_completo,
-        cpf: pessoaData.cpf,
-        email: pessoaData.email,
-        telefone: pessoaData.telefone
-      });
-    return { success: true, message: 'Dados da pessoa atualizados com sucesso!' };
+    await knex("pessoas").where({ id: pessoaId }).update({
+      nome_completo: pessoaData.nome_completo,
+      cpf: pessoaData.cpf,
+      email: pessoaData.email,
+      telefone: pessoaData.telefone,
+    });
+    return {
+      success: true,
+      message: "Dados da pessoa atualizados com sucesso!",
+    };
   } catch (error) {
-    console.error('Erro ao atualizar pessoa:', error);
+    console.error("Erro ao atualizar pessoa:", error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
 
-ipcMain.handle('desvincular-pessoa', async (event, vinculoId) => {
+ipcMain.handle("desvincular-pessoa", async (event, vinculoId) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    await knex('vinculos')
-      .where({ id: vinculoId })
-      .update({
-        status: 'Inativo',
-        data_fim: today
-      });
-    return { success: true, message: 'Pessoa desvinculada com sucesso.' };
+    const today = new Date().toISOString().split("T")[0];
+    await knex("vinculos").where({ id: vinculoId }).update({
+      status: "Inativo",
+      data_fim: today,
+    });
+    return { success: true, message: "Pessoa desvinculada com sucesso." };
   } catch (error) {
-    console.error('Erro ao desvincular pessoa:', error);
+    console.error("Erro ao desvincular pessoa:", error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
 
-ipcMain.handle('get-dashboard-stats', async () => {
+ipcMain.handle("get-dashboard-stats", async () => {
   try {
-    const [totalUnidades] = await knex('unidades').count('id as count');
-    const [totalPessoas] = await knex('pessoas').count('id as count');
-    const [totalVeiculos] = await knex('veiculos').count('id as count');
+    const [totalUnidades] = await knex("unidades").count("id as count");
+    const [totalPessoas] = await knex("pessoas").count("id as count");
+    const [totalVeiculos] = await knex("veiculos").count("id as count");
 
     return {
       unidades: totalUnidades.count,
@@ -253,12 +345,12 @@ ipcMain.handle('get-dashboard-stats', async () => {
       veiculos: totalVeiculos.count,
     };
   } catch (error) {
-    console.error('Erro ao buscar estatísticas:', error);
+    console.error("Erro ao buscar estatísticas:", error);
     return { unidades: 0, pessoas: 0, veiculos: 0 };
   }
 });
 
-ipcMain.handle('search-geral', async (event, termo) => {
+ipcMain.handle("search-geral", async (event, termo) => {
   // Se o termo de busca for muito curto, não faz nada
   if (!termo || termo.length < 2) {
     return [];
@@ -271,104 +363,123 @@ ipcMain.handle('search-geral', async (event, termo) => {
     // Executa todas as buscas em paralelo para máxima eficiência
     const [pessoas, veiculos, unidades] = await Promise.all([
       // Busca Pessoas por nome completo OU por CPF
-      knex('pessoas')
-        .where('nome_completo', 'like', termoBusca)
-        .orWhere('cpf', 'like', termoBusca)
-        .select('id', 'nome_completo', 'cpf'),
+      knex("pessoas")
+        .where("nome_completo", "like", termoBusca)
+        .orWhere("cpf", "like", termoBusca)
+        .select("id", "nome_completo", "cpf"),
 
       // Busca Veículos por placa, marca OU modelo, e já traz o ID do dono
-      knex('veiculos')
-        .join('pessoas', 'veiculos.pessoa_id', '=', 'pessoas.id')
-        .where('placa', 'like', termoBusca)
-        .orWhere('veiculos.marca', 'like', termoBusca)
-        .orWhere('veiculos.modelo', 'like', termoBusca)
-        .select('veiculos.id as veiculo_id', 'veiculos.placa', 'veiculos.modelo', 'pessoas.id as pessoa_id'),
+      knex("veiculos")
+        .join("pessoas", "veiculos.pessoa_id", "=", "pessoas.id")
+        .where("placa", "like", termoBusca)
+        .orWhere("veiculos.marca", "like", termoBusca)
+        .orWhere("veiculos.modelo", "like", termoBusca)
+        .select(
+          "veiculos.id as veiculo_id",
+          "veiculos.placa",
+          "veiculos.modelo",
+          "pessoas.id as pessoa_id"
+        ),
 
       // Busca Unidades por número do apartamento
-      knex('unidades')
-        .join('entradas', 'unidades.entrada_id', 'entradas.id')
-        .join('blocos', 'entradas.bloco_id', 'blocos.id')
-        .where('numero_apartamento', 'like', termoBusca)
-        .select('unidades.id', 'numero_apartamento', 'blocos.nome as nome_bloco')
+      knex("unidades")
+        .join("entradas", "unidades.entrada_id", "entradas.id")
+        .join("blocos", "entradas.bloco_id", "blocos.id")
+        .where("numero_apartamento", "like", termoBusca)
+        .select(
+          "unidades.id",
+          "numero_apartamento",
+          "blocos.nome as nome_bloco"
+        ),
     ]);
 
     // Formata os resultados de cada busca em um padrão único para a interface
     const resultadosFormatados = [
-      ...pessoas.map(p => ({
-        tipo: 'Pessoa',
+      ...pessoas.map((p) => ({
+        tipo: "Pessoa",
         label: `${p.nome_completo} (CPF: ${p.cpf})`,
-        path: `/pessoa/${p.id}`
+        path: `/pessoa/${p.id}`,
       })),
-      ...veiculos.map(v => ({
-        tipo: 'Veículo',
+      ...veiculos.map((v) => ({
+        tipo: "Veículo",
         label: `Veículo Placa: ${v.placa} (${v.modelo})`,
-        path: `/pessoa/${v.pessoa_id}` // Leva para o perfil do dono do veículo
+        path: `/pessoa/${v.pessoa_id}`, // Leva para o perfil do dono do veículo
       })),
-      ...unidades.map(u => ({
-        tipo: 'Unidade',
+      ...unidades.map((u) => ({
+        tipo: "Unidade",
         label: `Unidade: ${u.nome_bloco} / Apto ${u.numero_apartamento}`,
-        path: `/unidade/${u.id}`
-      }))
+        path: `/unidade/${u.id}`,
+      })),
     ];
 
     return resultadosFormatados;
-
   } catch (error) {
-    console.error('Erro na busca geral:', error);
+    console.error("Erro na busca geral:", error);
     return [];
   }
 });
 
-ipcMain.handle('delete-pessoa', async (event, pessoaId) => {
+ipcMain.handle("delete-pessoa", async (event, pessoaId) => {
   try {
     await knex.transaction(async (trx) => {
       // 1. Apaga todos os vínculos associados à pessoa
-      await trx('vinculos').where('pessoa_id', pessoaId).del();
+      await trx("vinculos").where("pessoa_id", pessoaId).del();
       // 2. Apaga todos os veículos associados à pessoa
-      await trx('veiculos').where('pessoa_id', pessoaId).del();
+      await trx("veiculos").where("pessoa_id", pessoaId).del();
       // 3. Finalmente, apaga a pessoa
-      await trx('pessoas').where('id', pessoaId).del();
+      await trx("pessoas").where("id", pessoaId).del();
     });
-    return { success: true, message: 'Pessoa e todos os seus dados foram excluídos permanentemente.' };
+    return {
+      success: true,
+      message: "Pessoa e todos os seus dados foram excluídos permanentemente.",
+    };
   } catch (error) {
-    console.error('Erro ao excluir pessoa:', error);
+    console.error("Erro ao excluir pessoa:", error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
 
-
 // Handler para criar a estrutura inicial
-ipcMain.handle('run-setup', async () => {
+ipcMain.handle("run-setup", async () => {
   try {
-    const blocosExistentes = await knex('blocos').select('id').first();
+    const blocosExistentes = await knex("blocos").select("id").first();
     if (blocosExistentes) {
-      return { success: false, message: 'A estrutura já foi criada anteriormente.' };
+      return {
+        success: false,
+        message: "A estrutura já foi criada anteriormente.",
+      };
     }
 
     const estrutura = {
-      '1-6,9,12-15,18': ['A', 'B'],
-      '7-8,11,16-17': ['A', 'B', 'C'],
-      '10': ['A']
+      "1-6,9,12-15,18": ["A", "B"],
+      "7-8,11,16-17": ["A", "B", "C"],
+      10: ["A"],
     };
 
     const aptsPorEntrada = {
-      'A': ['101', '102', '201', '202', '301', '302'],
-      'B': ['103', '104', '203', '204', '303', '304'],
-      'C': ['105', '106', '205', '206', '305', '306']
+      A: ["101", "102", "201", "202", "301", "302"],
+      B: ["103", "104", "203", "204", "303", "304"],
+      C: ["105", "106", "205", "206", "305", "306"],
     };
 
     await knex.transaction(async (trx) => {
       for (let i = 1; i <= 18; i++) {
         const blocoNome = `Bloco ${i}`;
-        const [blocoIdObj] = await trx('blocos').insert({ nome: blocoNome }).returning('id');
-        const blocoId = typeof blocoIdObj === 'object' ? blocoIdObj.id : blocoIdObj;
-        
+        const [blocoIdObj] = await trx("blocos")
+          .insert({ nome: blocoNome })
+          .returning("id");
+        const blocoId =
+          typeof blocoIdObj === "object" ? blocoIdObj.id : blocoIdObj;
+
         let entradasParaCriar = [];
         for (const range in estrutura) {
-          const numeros = range.split(',').flatMap(r => {
-            if (r.includes('-')) {
-              const [start, end] = r.split('-').map(Number);
-              return Array.from({ length: end - start + 1 }, (_, k) => start + k);
+          const numeros = range.split(",").flatMap((r) => {
+            if (r.includes("-")) {
+              const [start, end] = r.split("-").map(Number);
+              return Array.from(
+                { length: end - start + 1 },
+                (_, k) => start + k
+              );
             }
             return Number(r);
           });
@@ -379,33 +490,42 @@ ipcMain.handle('run-setup', async () => {
         }
 
         for (const letraEntrada of entradasParaCriar) {
-          const [entradaIdObj] = await trx('entradas').insert({ letra: letraEntrada, bloco_id: blocoId }).returning('id');
-          const entradaId = typeof entradaIdObj === 'object' ? entradaIdObj.id : entradaIdObj;
+          const [entradaIdObj] = await trx("entradas")
+            .insert({ letra: letraEntrada, bloco_id: blocoId })
+            .returning("id");
+          const entradaId =
+            typeof entradaIdObj === "object" ? entradaIdObj.id : entradaIdObj;
           const apartamentos = aptsPorEntrada[letraEntrada];
-          
-          const apartamentosParaInserir = apartamentos.map(numApt => ({
+
+          const apartamentosParaInserir = apartamentos.map((numApt) => ({
             numero_apartamento: numApt,
-            entrada_id: entradaId
+            entrada_id: entradaId,
           }));
-          await trx('unidades').insert(apartamentosParaInserir);
+          await trx("unidades").insert(apartamentosParaInserir);
         }
       }
     });
 
-    return { success: true, message: 'Estrutura do condomínio criada com sucesso! 18 blocos, entradas e 240 unidades cadastradas.' };
-
+    return {
+      success: true,
+      message:
+        "Estrutura do condomínio criada com sucesso! 18 blocos, entradas e 240 unidades cadastradas.",
+    };
   } catch (error) {
-    console.error('Erro ao criar estrutura:', error);
-    return { success: false, message: `Erro ao criar estrutura: ${error.message}` };
+    console.error("Erro ao criar estrutura:", error);
+    return {
+      success: false,
+      message: `Erro ao criar estrutura: ${error.message}`,
+    };
   }
 });
 
 app.whenReady().then(createWindow);
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
 });
 
-app.on('activate', () => {
+app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
