@@ -43,4 +43,6 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("create-vinculo", vinculoData),
   transferirPessoa: (transferData) =>
     ipcRenderer.invoke("transferir-pessoa", transferData),
+  findPessoaByCpf: (cpf) => ipcRenderer.invoke('find-pessoa-by-cpf', cpf),
+  deleteVinculo: (vinculoId) => ipcRenderer.invoke('delete-vinculo', vinculoId),
 });

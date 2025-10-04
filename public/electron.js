@@ -23,22 +23,18 @@ function createWindow() {
   });
 
   mainWindow.loadURL("http://localhost:3000");
-
 }
 
-ipcMain.handle('create-vinculo', async (event, vinculoData) => {
+
+
+// Adicione este novo handler em public/electron.js
+ipcMain.handle("find-pessoa-by-cpf", async (event, cpf) => {
   try {
-    await knex('vinculos').insert({
-      pessoa_id: vinculoData.pessoaId,
-      unidade_id: vinculoData.unidadeId,
-      tipo_vinculo: vinculoData.tipoVinculo,
-      data_inicio: new Date().toISOString().split('T')[0],
-      status: 'Ativo'
-    });
-    return { success: true, message: 'Pessoa vinculada com sucesso!' };
+    const pessoa = await knex("pessoas").where({ cpf }).first();
+    return pessoa || null; // Retorna a pessoa ou nulo se não encontrar
   } catch (error) {
-    console.error('Erro ao criar vínculo:', error);
-    return { success: false, message: `Erro: ${error.message}` };
+    console.error("Erro ao buscar pessoa por CPF:", error);
+    return null;
   }
 });
 
@@ -73,36 +69,97 @@ ipcMain.handle('transferir-pessoa', async (event, transferData) => {
 });
 
 
-ipcMain.handle('get-vinculos-by-pessoa', async (event, pessoaId) => {
+// Substitua o handler 'create-pessoa-e-vinculo' por este em public/electron.js
+
+ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
+  if (!pessoa.cpf || pessoa.cpf.trim() === '') {
+    return { success: false, message: 'O CPF é obrigatório para criar um vínculo.' };
+  }
+
   try {
-    const vinculos = await knex('vinculos')
-      .where('pessoa_id', pessoaId)
-      .join('unidades', 'vinculos.unidade_id', 'unidades.id')
-      .join('entradas', 'unidades.entrada_id', 'entradas.id')
-      .join('blocos', 'entradas.bloco_id', 'blocos.id')
+    let message = '';
+    await knex.transaction(async (trx) => {
+      let pessoaExistente = await trx('pessoas').where('cpf', pessoa.cpf).first();
+      let pessoaId;
+
+      if (pessoaExistente) {
+        pessoaId = pessoaExistente.id;
+        message = 'Pessoa já existente vinculada com sucesso!';
+      } else {
+        const [novaPessoaIdObj] = await trx('pessoas').insert(pessoa).returning('id');
+        pessoaId = typeof novaPessoaIdObj === 'object' ? novaPessoaIdObj.id : novaPessoaIdObj;
+        message = 'Nova pessoa cadastrada e vinculada com sucesso!';
+      }
+
+      // Se o novo vínculo for 'Morador' ou 'Inquilino'...
+      if (['Morador', 'Inquilino'].includes(vinculo.tipoVinculo)) {
+        // ...verifica se a pessoa já tem um desses vínculos ativos em QUALQUER unidade.
+        const vinculoResidencialAtivo = await trx('vinculos')
+          .where({ pessoa_id: pessoaId, status: 'Ativo' })
+          .whereIn('tipo_vinculo', ['Morador', 'Inquilino'])
+          .first();
+        
+        if (vinculoResidencialAtivo) {
+          throw new Error('Esta pessoa já possui um vínculo residencial ativo. Use a função "Transferir" no perfil da pessoa.');
+        }
+      }
+
+      const vinculoExistente = await trx('vinculos').where({
+        pessoa_id: pessoaId,
+        unidade_id: vinculo.unidadeId,
+        tipo_vinculo: vinculo.tipoVinculo
+      }).first();
+
+      if (vinculoExistente) {
+        throw new Error('Esta pessoa já possui exatamente este mesmo vínculo nesta unidade.');
+      }
+
+      await trx('vinculos').insert({
+        pessoa_id: pessoaId,
+        unidade_id: vinculo.unidadeId,
+        tipo_vinculo: vinculo.tipoVinculo,
+        data_inicio: new Date().toISOString().split('T')[0],
+        status: 'Ativo'
+      });
+    });
+    return { success: true, message: message };
+  } catch (error) {
+    console.error('Erro no processo de vínculo:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+
+ipcMain.handle("get-vinculos-by-pessoa", async (event, pessoaId) => {
+  try {
+    const vinculos = await knex("vinculos")
+      .where("pessoa_id", pessoaId)
+      .join("unidades", "vinculos.unidade_id", "unidades.id")
+      .join("entradas", "unidades.entrada_id", "entradas.id")
+      .join("blocos", "entradas.bloco_id", "blocos.id")
       .select(
-        'vinculos.*',
-        'blocos.nome as nome_bloco',
-        'unidades.numero_apartamento'
+        "vinculos.*",
+        "blocos.nome as nome_bloco",
+        "unidades.numero_apartamento"
       )
-      .orderBy('vinculos.status', 'asc') // Ativos primeiro
-      .orderBy('vinculos.id', 'desc');   // Mais recentes primeiro
+      .orderBy("vinculos.status", "asc") // Ativos primeiro
+      .orderBy("vinculos.id", "desc"); // Mais recentes primeiro
     return vinculos;
   } catch (error) {
-    console.error('Erro ao buscar vínculos da pessoa:', error);
+    console.error("Erro ao buscar vínculos da pessoa:", error);
     return [];
   }
 });
 
 // Adicione este novo handler em public/electron.js
-ipcMain.handle('update-vinculo', async (event, vinculoId, novoTipo) => {
+ipcMain.handle("update-vinculo", async (event, vinculoId, novoTipo) => {
   try {
-    await knex('vinculos').where({ id: vinculoId }).update({
-      tipo_vinculo: novoTipo
+    await knex("vinculos").where({ id: vinculoId }).update({
+      tipo_vinculo: novoTipo,
     });
-    return { success: true, message: 'Vínculo atualizado com sucesso!' };
+    return { success: true, message: "Vínculo atualizado com sucesso!" };
   } catch (error) {
-    console.error('Erro ao atualizar vínculo:', error);
+    console.error("Erro ao atualizar vínculo:", error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
@@ -120,46 +177,49 @@ ipcMain.handle("get-all-veiculos", async () => {
   }
 });
 
-
-ipcMain.handle('get-filtered-pessoas', async (event, filters) => {
+ipcMain.handle("get-filtered-pessoas", async (event, filters) => {
   try {
     // 1. A sub-consulta encontra o ID do último vínculo de cada pessoa (seja ativo ou inativo)
-    const subquery = knex('vinculos')
-      .select('pessoa_id', knex.raw('MAX(id) as max_id'))
-      .groupBy('pessoa_id');
+    const subquery = knex("vinculos")
+      .select("pessoa_id", knex.raw("MAX(id) as max_id"))
+      .groupBy("pessoa_id");
 
     // 2. A consulta principal junta tudo
-    const query = knex('pessoas')
-      .join(subquery.as('recentes'), 'pessoas.id', '=', 'recentes.pessoa_id')
-      .join('vinculos', 'recentes.max_id', '=', 'vinculos.id')
-      .join('unidades', 'vinculos.unidade_id', '=', 'unidades.id')
-      .join('entradas', 'unidades.entrada_id', '=', 'entradas.id')
-      .join('blocos', 'entradas.bloco_id', '=', 'blocos.id')
+    const query = knex("pessoas")
+      .join(subquery.as("recentes"), "pessoas.id", "=", "recentes.pessoa_id")
+      .join("vinculos", "recentes.max_id", "=", "vinculos.id")
+      .join("unidades", "vinculos.unidade_id", "=", "unidades.id")
+      .join("entradas", "unidades.entrada_id", "=", "entradas.id")
+      .join("blocos", "entradas.bloco_id", "=", "blocos.id")
       .select(
-        'pessoas.*',
-        'vinculos.tipo_vinculo as vinculos',
-        'vinculos.status',
+        "pessoas.*",
+        "vinculos.tipo_vinculo as vinculos",
+        "vinculos.status",
         // --- A LÓGICA DA CORREÇÃO ESTÁ AQUI ---
         // Usa um 'CASE' do SQL para mostrar o endereço SOMENTE SE o status for 'Ativo'
-        knex.raw("CASE WHEN vinculos.status = 'Ativo' THEN blocos.nome ELSE '' END as nome_bloco"),
-        knex.raw("CASE WHEN vinculos.status = 'Ativo' THEN unidades.numero_apartamento ELSE '' END as numero_apartamento")
+        knex.raw(
+          "CASE WHEN vinculos.status = 'Ativo' THEN blocos.nome ELSE '' END as nome_bloco"
+        ),
+        knex.raw(
+          "CASE WHEN vinculos.status = 'Ativo' THEN unidades.numero_apartamento ELSE '' END as numero_apartamento"
+        )
       );
-    
+
     // 3. O filtro para mostrar inativos é aplicado na consulta principal
     if (!filters.showInactive) {
-      query.where('vinculos.status', 'Ativo');
+      query.where("vinculos.status", "Ativo");
     }
 
     if (filters.tipoVinculo) {
-      query.where('vinculos.tipo_vinculo', filters.tipoVinculo);
+      query.where("vinculos.tipo_vinculo", filters.tipoVinculo);
     }
 
-    query.orderBy('pessoas.nome_completo', filters.sortBy || 'asc');
+    query.orderBy("pessoas.nome_completo", filters.sortBy || "asc");
 
     const pessoas = await query;
     return pessoas;
   } catch (error) {
-    console.error('Erro ao buscar pessoas filtradas:', error);
+    console.error("Erro ao buscar pessoas filtradas:", error);
     return [];
   }
 });
@@ -326,47 +386,6 @@ ipcMain.handle("getPessoasByUnidade", async (event, unidadeId) => {
   }
 });
 
-ipcMain.handle("create-pessoa-e-vinculo", async (event, pessoa, vinculo) => {
-  try {
-    await knex.transaction(async (trx) => {
-      // Verifica se a pessoa já existe pelo CPF
-      let pessoaExistente = await trx("pessoas")
-        .where("cpf", pessoa.cpf)
-        .first();
-      let pessoaId;
-
-      if (pessoaExistente) {
-        // Se já existe, usa o ID existente
-        pessoaId = pessoaExistente.id;
-      } else {
-        // Se não existe, insere a nova pessoa e obtém o ID
-        const [novaPessoaIdObj] = await trx("pessoas")
-          .insert(pessoa)
-          .returning("id");
-        pessoaId =
-          typeof novaPessoaIdObj === "object"
-            ? novaPessoaIdObj.id
-            : novaPessoaIdObj;
-      }
-
-      // Cria o novo vínculo com o ID da pessoa e o ID da unidade
-      await trx("vinculos").insert({
-        pessoa_id: pessoaId,
-        unidade_id: vinculo.unidadeId,
-        tipo_vinculo: vinculo.tipoVinculo,
-        data_inicio: new Date().toISOString().split("T")[0], // Data de hoje
-        status: "Ativo",
-      });
-    });
-    return { success: true, message: "Pessoa vinculada com sucesso!" };
-  } catch (error) {
-    console.error("Erro ao criar pessoa e vínculo:", error);
-    return { success: false, message: `Erro: ${error.message}` };
-  }
-});
-
-// Adicione este novo handler em public/electron.js
-
 // Adicione este novo handler em public/electron.js
 ipcMain.handle("update-pessoa", async (event, pessoaId, pessoaData) => {
   try {
@@ -431,71 +450,74 @@ ipcMain.handle("get-dashboard-stats", async () => {
   }
 });
 
-ipcMain.handle("search-geral", async (event, termo) => {
-  // Se o termo de busca for muito curto, não faz nada
+// Substitua o handler 'search-geral' por este em public/electron.js
+
+ipcMain.handle('search-geral', async (event, termo) => {
   if (!termo || termo.length < 2) {
     return [];
   }
-
-  // O '%' é um coringa que nos permite buscar por partes de uma palavra
   const termoBusca = `%${termo}%`;
 
   try {
-    // Executa todas as buscas em paralelo para máxima eficiência
-    const [pessoas, veiculos, unidades] = await Promise.all([
-      // Busca Pessoas por nome completo OU por CPF
-      knex("pessoas")
-        .where("nome_completo", "like", termoBusca)
-        .orWhere("cpf", "like", termoBusca)
-        .select("id", "nome_completo", "cpf"),
-
-      // Busca Veículos por placa, marca OU modelo, e já traz o ID do dono
-      knex("veiculos")
-        .join("pessoas", "veiculos.pessoa_id", "=", "pessoas.id")
-        .where("placa", "like", termoBusca)
-        .orWhere("veiculos.marca", "like", termoBusca)
-        .orWhere("veiculos.modelo", "like", termoBusca)
+    const [vinculosPessoa, veiculos, unidades] = await Promise.all([
+      // NOVA LÓGICA DE BUSCA: Busca por vínculos de pessoas que correspondem ao termo
+      knex('vinculos')
+        .join('pessoas', 'vinculos.pessoa_id', 'pessoas.id')
+        .join('unidades', 'vinculos.unidade_id', 'unidades.id')
+        .join('entradas', 'unidades.entrada_id', 'entradas.id')
+        .join('blocos', 'entradas.bloco_id', 'blocos.id')
+        .where('vinculos.status', 'Ativo')
+        .andWhere(function() {
+          this.where('pessoas.nome_completo', 'like', termoBusca)
+              .orWhere('pessoas.cpf', 'like', termoBusca)
+        })
         .select(
-          "veiculos.id as veiculo_id",
-          "veiculos.placa",
-          "veiculos.modelo",
-          "pessoas.id as pessoa_id"
+          'pessoas.id as pessoa_id',
+          'pessoas.nome_completo',
+          'vinculos.tipo_vinculo',
+          'blocos.nome as nome_bloco',
+          'unidades.numero_apartamento'
         ),
 
-      // Busca Unidades por número do apartamento
-      knex("unidades")
-        .join("entradas", "unidades.entrada_id", "entradas.id")
-        .join("blocos", "entradas.bloco_id", "blocos.id")
-        .where("numero_apartamento", "like", termoBusca)
-        .select(
-          "unidades.id",
-          "numero_apartamento",
-          "blocos.nome as nome_bloco"
-        ),
+      // A busca por veículos continua a mesma
+      knex('veiculos')
+        .join('pessoas', 'veiculos.pessoa_id', '=', 'pessoas.id')
+        .where('placa', 'like', termoBusca)
+        .orWhere('veiculos.marca', 'like', termoBusca)
+        .orWhere('veiculos.modelo', 'like', termoBusca)
+        .select('veiculos.id as veiculo_id', 'veiculos.placa', 'veiculos.modelo', 'pessoas.id as pessoa_id'),
+
+      // A busca por unidades continua a mesma
+      knex('unidades')
+        .join('entradas', 'unidades.entrada_id', 'entradas.id')
+        .join('blocos', 'entradas.bloco_id', 'blocos.id')
+        .where('numero_apartamento', 'like', termoBusca)
+        .select('unidades.id', 'numero_apartamento', 'blocos.nome as nome_bloco')
     ]);
 
-    // Formata os resultados de cada busca em um padrão único para a interface
     const resultadosFormatados = [
-      ...pessoas.map((p) => ({
-        tipo: "Pessoa",
-        label: `${p.nome_completo} (CPF: ${p.cpf})`,
-        path: `/pessoa/${p.id}`,
+      // Formata os resultados da nova busca de vínculos
+      ...vinculosPessoa.map(v => ({
+        tipo: v.tipo_vinculo, // O tipo agora é dinâmico (Proprietário, Morador...)
+        label: `${v.nome_completo} (${v.nome_bloco} - Apto ${v.numero_apartamento})`,
+        path: `/pessoa/${v.pessoa_id}`
       })),
-      ...veiculos.map((v) => ({
-        tipo: "Veículo",
+      ...veiculos.map(v => ({
+        tipo: 'Veículo',
         label: `Veículo Placa: ${v.placa} (${v.modelo})`,
-        path: `/pessoa/${v.pessoa_id}`, // Leva para o perfil do dono do veículo
+        path: `/pessoa/${v.pessoa_id}`
       })),
-      ...unidades.map((u) => ({
-        tipo: "Unidade",
+      ...unidades.map(u => ({
+        tipo: 'Unidade',
         label: `Unidade: ${u.nome_bloco} / Apto ${u.numero_apartamento}`,
-        path: `/unidade/${u.id}`,
-      })),
+        path: `/unidade/${u.id}`
+      }))
     ];
 
     return resultadosFormatados;
+
   } catch (error) {
-    console.error("Erro na busca geral:", error);
+    console.error('Erro na busca geral:', error);
     return [];
   }
 });
