@@ -1,4 +1,4 @@
-import React, { useState, useEffect, LoadingMenuItem } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal, Box, Typography, Button, FormControl, InputLabel, Select, MenuItem, Grid, CircularProgress, Alert } from '@mui/material';
 
 const style = {
@@ -99,6 +99,14 @@ function TransferirPessoaModal({ open, handleClose, pessoa, vinculoAtivo, onSucc
       setError(result.message);
     }
   };
+
+  if (!pessoa) return null;
+
+  const LoadingMenuItem = () => (
+    <MenuItem disabled>
+      <CircularProgress size={20} sx={{ margin: 'auto' }} />
+    </MenuItem>
+  );
 
   return (
     <Modal open={open} onClose={handleClose}>
