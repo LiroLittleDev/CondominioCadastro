@@ -23,6 +23,7 @@ import EditNoteIcon from "@mui/icons-material/EditNote";
 import EditarVinculoModal from "../components/EditarVinculoModal";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import TransferirPessoaModal from "../components/TransferirPessoaModal";
+import LinkOffIcon from "@mui/icons-material/LinkOff";
 
 function PessoaPage() {
   const { pessoaId } = useParams();
@@ -49,6 +50,53 @@ function PessoaPage() {
 
   const vinculosAtivos = vinculos.filter((v) => v.status === "Ativo");
   const vinculosInativos = vinculos.filter((v) => v.status === "Inativo");
+
+  // Adicione estas duas funções dentro de PessoaPage
+  const handleDesvincular = async (vinculo) => {
+    if (
+      window.confirm(
+        `Tem certeza que deseja desvincular '${pessoa.nome_completo}' da unidade ${vinculo.nome_bloco}/${vinculo.numero_apartamento}?`
+      )
+    ) {
+      const result = await window.api.desvincularPessoa(vinculo.id);
+      if (result.success) {
+        fetchData();
+      } else {
+        alert(`Erro ao desvincular: ${result.message}`);
+      }
+    }
+  };
+
+  // Adicione esta função dentro de PessoaPage
+  const handleDeleteAllInactive = async () => {
+    if (
+      window.confirm(
+        `Tem certeza que deseja apagar PERMANENTEMENTE TODOS os ${vinculosInativos.length} vínculos anteriores desta pessoa?`
+      )
+    ) {
+      const result = await window.api.deleteAllInactiveVinculos(pessoa.id);
+      if (result.success) {
+        fetchData();
+      } else {
+        alert(`Erro: ${result.message}`);
+      }
+    }
+  };
+
+  const handleDeleteVinculo = async (vinculo) => {
+    if (
+      window.confirm(
+        `ATENÇÃO: Tem certeza que deseja apagar PERMANENTEMENTE o registro histórico de que '${pessoa.nome_completo}' esteve na unidade ${vinculo.nome_bloco}/${vinculo.numero_apartamento}?`
+      )
+    ) {
+      const result = await window.api.deleteVinculo(vinculo.id);
+      if (result.success) {
+        fetchData();
+      } else {
+        alert(`Erro ao excluir: ${result.message}`);
+      }
+    }
+  };
 
   const handleDeletePessoa = async () => {
     if (!pessoa) return;
@@ -165,9 +213,7 @@ function PessoaPage() {
             startIcon={<SwapHorizIcon />}
             onClick={handleOpenTransferirModal}
           >
-            {vinculosAtivos.length > 0
-              ? "Transferir"
-              : "Vincular Pessoa"}
+            {vinculosAtivos.length > 0 ? "Transferir" : "Vincular Pessoa"}
           </Button>
           <Box>
             <Button
@@ -221,6 +267,15 @@ function PessoaPage() {
                   >
                     <EditNoteIcon />
                   </IconButton>
+                  {/* BOTÃO PARA DESVINCULAR */}
+                  <IconButton
+                    edge="end"
+                    aria-label="desvincular"
+                    onClick={() => handleDesvincular(vinculo)}
+                    sx={{ ml: 1 }}
+                  >
+                    <LinkOffIcon />
+                  </IconButton>
                 </Box>
               </ListItem>
             ))
@@ -233,23 +288,57 @@ function PessoaPage() {
       </Paper>
 
       <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Vínculos Anteriores
-        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 1,
+          }}
+        >
+          <Typography variant="h6">Vínculos Anteriores</Typography>
+          {/* O botão só aparece se houver vínculos para apagar */}
+          {vinculosInativos.length > 0 && (
+            <Button
+              size="small"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleDeleteAllInactive}
+            >
+              Excluir Histórico
+            </Button>
+          )}
+        </Box>
         <List disablePadding>
           {vinculosInativos.length > 0 ? (
-            vinculosInativos.map((vinculo) => (
-              <ListItem key={vinculo.id} divider>
-                <ListItemText
-                  primary={vinculo.tipo_vinculo}
-                  secondary={`${vinculo.nome_bloco} - Apto ${
-                    vinculo.numero_apartamento
-                  } | Encerrado em: ${new Date(
-                    vinculo.data_fim
-                  ).toLocaleDateString("pt-BR")}`}
-                />
-              </ListItem>
-            ))
+            vinculosInativos.map((vinculo) =>
+              // No map de vinculosInativos, adicione o secondaryAction
+              vinculosInativos.map((vinculo) => (
+                <ListItem
+                  key={vinculo.id}
+                  divider
+                  secondaryAction={
+                    <IconButton
+                      edge="end"
+                      aria-label="delete-historico"
+                      onClick={() => handleDeleteVinculo(vinculo)}
+                      sx={{ color: "error.main" }}
+                    >
+                      <DeleteIcon />
+                    </IconButton>
+                  }
+                >
+                  <ListItemText
+                    primary={vinculo.tipo_vinculo}
+                    secondary={`${vinculo.nome_bloco} - Apto ${
+                      vinculo.numero_apartamento
+                    } | Encerrado em: ${new Date(
+                      vinculo.data_fim
+                    ).toLocaleDateString("pt-BR")}`}
+                  />
+                </ListItem>
+              ))
+            )
           ) : (
             <Typography variant="body2" color="text.secondary">
               Nenhum vínculo anterior registrado.
@@ -350,13 +439,12 @@ function PessoaPage() {
       />
 
       <TransferirPessoaModal
-  open={transferirModalOpen}
-  handleClose={handleCloseTransferirModal}
-  pessoa={pessoa}
-
-  vinculoAtivo={vinculosAtivos.length > 0 ? vinculosAtivos[0] : null}
-  onSuccess={handleSuccess}
-/>
+        open={transferirModalOpen}
+        handleClose={handleCloseTransferirModal}
+        pessoa={pessoa}
+        vinculoAtivo={vinculosAtivos.length > 0 ? vinculosAtivos[0] : null}
+        onSuccess={handleSuccess}
+      />
     </Box>
   );
 }

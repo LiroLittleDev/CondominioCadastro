@@ -25,7 +25,27 @@ function createWindow() {
   mainWindow.loadURL("http://localhost:3000");
 }
 
+// Adicione este novo handler em public/electron.js
+ipcMain.handle('delete-all-inactive-vinculos', async (event, pessoaId) => {
+  try {
+    await knex('vinculos').where({ pessoa_id: pessoaId, status: 'Inativo' }).del();
+    return { success: true, message: 'Todos os vínculos históricos foram excluídos.' };
+  } catch (error) {
+    console.error('Erro ao excluir vínculos históricos:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
 
+// Adicione este novo handler em public/electron.js
+ipcMain.handle('delete-vinculo', async (event, vinculoId) => {
+  try {
+    await knex('vinculos').where({ id: vinculoId }).del();
+    return { success: true, message: 'Registro de vínculo histórico excluído permanentemente.' };
+  } catch (error) {
+    console.error('Erro ao excluir vínculo:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
 
 // Adicione este novo handler em public/electron.js
 ipcMain.handle("find-pessoa-by-cpf", async (event, cpf) => {
@@ -152,14 +172,34 @@ ipcMain.handle("get-vinculos-by-pessoa", async (event, pessoaId) => {
 });
 
 // Adicione este novo handler em public/electron.js
-ipcMain.handle("update-vinculo", async (event, vinculoId, novoTipo) => {
+// Substitua o handler 'update-vinculo' por este:
+ipcMain.handle('update-vinculo', async (event, vinculoId, novoTipo) => {
   try {
-    await knex("vinculos").where({ id: vinculoId }).update({
-      tipo_vinculo: novoTipo,
+    // --- A NOVA REGRA DE NEGÓCIO ESTÁ AQUI ---
+    if (['Morador', 'Inquilino', 'Moradia Temporária'].includes(novoTipo)) {
+      // Pega o ID da pessoa a partir do vínculo que estamos editando
+      const vinculoAtual = await knex('vinculos').where({ id: vinculoId }).first();
+      if (vinculoAtual) {
+        // Verifica se a pessoa já tem OUTRO vínculo residencial ativo
+        const outroVinculoResidencial = await knex('vinculos')
+          .where('pessoa_id', vinculoAtual.pessoa_id)
+          .where('status', 'Ativo')
+          .whereNot('id', vinculoId) // Exclui o próprio vínculo da busca
+          .whereIn('tipo_vinculo', ['Morador', 'Inquilino', 'Moradia Temporária'])
+          .first();
+
+        if (outroVinculoResidencial) {
+          throw new Error('Não é possível alterar para esta categoria, pois a pessoa já possui outro vínculo residencial ativo.');
+        }
+      }
+    }
+
+    await knex('vinculos').where({ id: vinculoId }).update({
+      tipo_vinculo: novoTipo
     });
-    return { success: true, message: "Vínculo atualizado com sucesso!" };
+    return { success: true, message: 'Vínculo atualizado com sucesso!' };
   } catch (error) {
-    console.error("Erro ao atualizar vínculo:", error);
+    console.error('Erro ao atualizar vínculo:', error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
