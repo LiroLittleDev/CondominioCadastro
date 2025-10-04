@@ -31,7 +31,16 @@ contextBridge.exposeInMainWorld("api", {
   desvincularPessoa: (vinculoId) =>
     ipcRenderer.invoke("desvincular-pessoa", vinculoId),
   deletePessoa: (pessoaId) => ipcRenderer.invoke("delete-pessoa", pessoaId),
-  getFilteredPessoas: (filters) => ipcRenderer.invoke('get-filtered-pessoas', filters),
-  getVinculoTypes: () => ipcRenderer.invoke('get-vinculo-types'),
-  getAllVeiculos: () => ipcRenderer.invoke('get-all-veiculos'),
+  getFilteredPessoas: (filters) =>
+    ipcRenderer.invoke("get-filtered-pessoas", filters),
+  getVinculoTypes: () => ipcRenderer.invoke("get-vinculo-types"),
+  getAllVeiculos: () => ipcRenderer.invoke("get-all-veiculos"),
+  updateVinculo: (vinculoId, novoTipo) =>
+    ipcRenderer.invoke("update-vinculo", vinculoId, novoTipo),
+  getVinculosByPessoa: (pessoaId) =>
+    ipcRenderer.invoke("get-vinculos-by-pessoa", pessoaId),
+  createVinculo: (vinculoData) =>
+    ipcRenderer.invoke("create-vinculo", vinculoData),
+  transferirPessoa: (transferData) =>
+    ipcRenderer.invoke("transferir-pessoa", transferData),
 });

@@ -23,7 +23,89 @@ function createWindow() {
   });
 
   mainWindow.loadURL("http://localhost:3000");
+
 }
+
+ipcMain.handle('create-vinculo', async (event, vinculoData) => {
+  try {
+    await knex('vinculos').insert({
+      pessoa_id: vinculoData.pessoaId,
+      unidade_id: vinculoData.unidadeId,
+      tipo_vinculo: vinculoData.tipoVinculo,
+      data_inicio: new Date().toISOString().split('T')[0],
+      status: 'Ativo'
+    });
+    return { success: true, message: 'Pessoa vinculada com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao criar vínculo:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Handler para a operação de transferência
+ipcMain.handle('transferir-pessoa', async (event, transferData) => {
+  try {
+    await knex.transaction(async (trx) => {
+      const today = new Date().toISOString().split('T')[0];
+
+      // 1. Inativa o vínculo antigo
+      await trx('vinculos')
+        .where({ id: transferData.oldVinculoId })
+        .update({
+          status: 'Inativo',
+          data_fim: today
+        });
+
+      // 2. Cria o novo vínculo
+      await trx('vinculos').insert({
+        pessoa_id: transferData.pessoaId,
+        unidade_id: transferData.newUnitId,
+        tipo_vinculo: transferData.newTipoVinculo,
+        data_inicio: today,
+        status: 'Ativo'
+      });
+    });
+    return { success: true, message: 'Transferência realizada com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao transferir pessoa:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+
+ipcMain.handle('get-vinculos-by-pessoa', async (event, pessoaId) => {
+  try {
+    const vinculos = await knex('vinculos')
+      .where('pessoa_id', pessoaId)
+      .join('unidades', 'vinculos.unidade_id', 'unidades.id')
+      .join('entradas', 'unidades.entrada_id', 'entradas.id')
+      .join('blocos', 'entradas.bloco_id', 'blocos.id')
+      .select(
+        'vinculos.*',
+        'blocos.nome as nome_bloco',
+        'unidades.numero_apartamento'
+      )
+      .orderBy('vinculos.status', 'asc') // Ativos primeiro
+      .orderBy('vinculos.id', 'desc');   // Mais recentes primeiro
+    return vinculos;
+  } catch (error) {
+    console.error('Erro ao buscar vínculos da pessoa:', error);
+    return [];
+  }
+});
+
+// Adicione este novo handler em public/electron.js
+ipcMain.handle('update-vinculo', async (event, vinculoId, novoTipo) => {
+  try {
+    await knex('vinculos').where({ id: vinculoId }).update({
+      tipo_vinculo: novoTipo
+    });
+    return { success: true, message: 'Vínculo atualizado com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao atualizar vínculo:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
 
 ipcMain.handle("get-all-veiculos", async () => {
   try {
@@ -38,7 +120,6 @@ ipcMain.handle("get-all-veiculos", async () => {
   }
 });
 
-// Substitua o handler 'get-filtered-pessoas' por este em public/electron.js
 
 ipcMain.handle('get-filtered-pessoas', async (event, filters) => {
   try {

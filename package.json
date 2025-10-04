@@ -16,20 +16,21 @@
     "knex": "^3.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-imask": "^7.6.1",
     "react-router-dom": "^7.9.3",
     "react-scripts": "5.0.1",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "web-vitals": "^2.1.4"
   },
-"scripts": {
-  "electron:start": "concurrently \"npm start\" \"wait-on && electron .\"",
-  "electron:only": "electron .",
-  "start": "react-scripts start",
-  "build": "react-scripts build",
-  "test": "react-scripts test",
-  "eject": "react-scripts eject"
-},
+  "scripts": {
+    "electron:start": "concurrently \"npm start\" \"wait-on && electron .\"",
+    "electron:only": "electron .",
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
   "eslintConfig": {
     "extends": [
       "react-app",

@@ -19,6 +19,10 @@ import AdicionarVeiculoModal from "../components/AdicionarVeiculoModal";
 import EditIcon from "@mui/icons-material/Edit";
 import EditarVeiculoModal from "../components/EditarVeiculoModal";
 import EditarPessoaModal from "../components/EditarPessoaModal";
+import EditNoteIcon from "@mui/icons-material/EditNote";
+import EditarVinculoModal from "../components/EditarVinculoModal";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import TransferirPessoaModal from "../components/TransferirPessoaModal";
 
 function PessoaPage() {
   const { pessoaId } = useParams();
@@ -30,9 +34,21 @@ function PessoaPage() {
   const [editarVeiculoModalOpen, setEditarVeiculoModalOpen] = useState(false);
   const [veiculoParaEditar, setVeiculoParaEditar] = useState(null);
   const [editarModalOpen, setEditarModalOpen] = useState(false);
+  const [transferirModalOpen, setTransferirModalOpen] = useState(false);
+
+  const handleOpenTransferirModal = () => setTransferirModalOpen(true);
+  const handleCloseTransferirModal = () => setTransferirModalOpen(false);
+
+  // Adicione estes estados junto com os outros 'useState'
+  const [vinculos, setVinculos] = useState([]);
+  const [editarVinculoModalOpen, setEditarVinculoModalOpen] = useState(false);
+  const [vinculoParaEditar, setVinculoParaEditar] = useState(null);
 
   const handleOpenEditarModal = () => setEditarModalOpen(true);
   const handleCloseEditarModal = () => setEditarModalOpen(false);
+
+  const vinculosAtivos = vinculos.filter((v) => v.status === "Ativo");
+  const vinculosInativos = vinculos.filter((v) => v.status === "Inativo");
 
   const handleDeletePessoa = async () => {
     if (!pessoa) return;
@@ -77,24 +93,41 @@ function PessoaPage() {
     setVeiculoParaEditar(null);
   };
 
+  // A sua função handleSuccess deve ficar assim:
   const handleSuccess = () => {
     handleCloseVeiculoModal();
-    handleCloseEditarVeiculoModal();
+    handleCloseEditarModal();
+    handleCloseEditarVinculoModal();
+    handleCloseTransferirModal(); // <-- Adicione esta linha
     fetchData();
   };
+
   const handleOpenVeiculoModal = () => setVeiculoModalOpen(true);
   const handleCloseVeiculoModal = () => setVeiculoModalOpen(false);
 
+  // Substitua sua função fetchData por esta
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [pessoaData, veiculosData] = await Promise.all([
+    const [pessoaData, veiculosData, vinculosData] = await Promise.all([
       window.api.getPessoaDetails(pessoaId),
       window.api.getVeiculosByPessoa(pessoaId),
+      window.api.getVinculosByPessoa(pessoaId), // <-- Nova busca
     ]);
     setPessoa(pessoaData);
     setVeiculos(veiculosData);
+    setVinculos(vinculosData); // <-- Salva os vínculos
     setLoading(false);
   }, [pessoaId]);
+
+  // Adicione estas funções dentro do componente
+  const handleOpenEditarVinculoModal = (vinculo) => {
+    setVinculoParaEditar(vinculo);
+    setEditarVinculoModalOpen(true);
+  };
+  const handleCloseEditarVinculoModal = () => {
+    setEditarVinculoModalOpen(false);
+    setVinculoParaEditar(null);
+  };
 
   useEffect(() => {
     fetchData();
@@ -127,6 +160,15 @@ function PessoaPage() {
           <Typography variant="h5" component="h2">
             {pessoa.nome_completo}
           </Typography>
+          <Button
+            variant="contained"
+            startIcon={<SwapHorizIcon />}
+            onClick={handleOpenTransferirModal}
+          >
+            {vinculosAtivos.length > 0
+              ? "Transferir"
+              : "Vincular Pessoa"}
+          </Button>
           <Box>
             <Button
               variant="outlined"
@@ -158,6 +200,63 @@ function PessoaPage() {
         </Typography>
       </Paper>
 
+      {/* SEÇÃO DE VÍNCULO ATIVO */}
+      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Vínculo(s) Ativo(s)
+        </Typography>
+        <List disablePadding>
+          {vinculosAtivos.length > 0 ? (
+            vinculosAtivos.map((vinculo) => (
+              <ListItem key={vinculo.id} divider>
+                <ListItemText
+                  primary={vinculo.tipo_vinculo}
+                  secondary={`${vinculo.nome_bloco} - Apto ${vinculo.numero_apartamento}`}
+                />
+                <Box>
+                  <IconButton
+                    edge="end"
+                    aria-label="edit-vinculo"
+                    onClick={() => handleOpenEditarVinculoModal(vinculo)}
+                  >
+                    <EditNoteIcon />
+                  </IconButton>
+                </Box>
+              </ListItem>
+            ))
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Nenhum vínculo ativo no momento.
+            </Typography>
+          )}
+        </List>
+      </Paper>
+
+      <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          Vínculos Anteriores
+        </Typography>
+        <List disablePadding>
+          {vinculosInativos.length > 0 ? (
+            vinculosInativos.map((vinculo) => (
+              <ListItem key={vinculo.id} divider>
+                <ListItemText
+                  primary={vinculo.tipo_vinculo}
+                  secondary={`${vinculo.nome_bloco} - Apto ${
+                    vinculo.numero_apartamento
+                  } | Encerrado em: ${new Date(
+                    vinculo.data_fim
+                  ).toLocaleDateString("pt-BR")}`}
+                />
+              </ListItem>
+            ))
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              Nenhum vínculo anterior registrado.
+            </Typography>
+          )}
+        </List>
+      </Paper>
       <Paper elevation={3} sx={{ p: 3 }}>
         <Box
           sx={{
@@ -221,6 +320,7 @@ function PessoaPage() {
           )}
         </List>
       </Paper>
+
       <EditarVeiculoModal
         open={editarVeiculoModalOpen}
         handleClose={handleCloseEditarVeiculoModal}
@@ -241,6 +341,22 @@ function PessoaPage() {
         pessoa={pessoa}
         onSuccess={handleSuccess}
       />
+
+      <EditarVinculoModal
+        open={editarVinculoModalOpen}
+        handleClose={handleCloseEditarVinculoModal}
+        vinculo={vinculoParaEditar}
+        onSuccess={handleSuccess}
+      />
+
+      <TransferirPessoaModal
+  open={transferirModalOpen}
+  handleClose={handleCloseTransferirModal}
+  pessoa={pessoa}
+
+  vinculoAtivo={vinculosAtivos.length > 0 ? vinculosAtivos[0] : null}
+  onSuccess={handleSuccess}
+/>
     </Box>
   );
 }
