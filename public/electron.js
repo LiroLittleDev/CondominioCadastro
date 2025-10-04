@@ -319,6 +319,24 @@ ipcMain.handle('search-geral', async (event, termo) => {
   }
 });
 
+ipcMain.handle('delete-pessoa', async (event, pessoaId) => {
+  try {
+    await knex.transaction(async (trx) => {
+      // 1. Apaga todos os vínculos associados à pessoa
+      await trx('vinculos').where('pessoa_id', pessoaId).del();
+      // 2. Apaga todos os veículos associados à pessoa
+      await trx('veiculos').where('pessoa_id', pessoaId).del();
+      // 3. Finalmente, apaga a pessoa
+      await trx('pessoas').where('id', pessoaId).del();
+    });
+    return { success: true, message: 'Pessoa e todos os seus dados foram excluídos permanentemente.' };
+  } catch (error) {
+    console.error('Erro ao excluir pessoa:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+
 // Handler para criar a estrutura inicial
 ipcMain.handle('run-setup', async () => {
   try {

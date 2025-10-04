@@ -18,6 +18,7 @@ import AddIcon from "@mui/icons-material/Add";
 import AdicionarVeiculoModal from "../components/AdicionarVeiculoModal";
 import EditIcon from "@mui/icons-material/Edit";
 import EditarVeiculoModal from "../components/EditarVeiculoModal";
+import EditarPessoaModal from "../components/EditarPessoaModal";
 
 function PessoaPage() {
   const { pessoaId } = useParams();
@@ -28,6 +29,31 @@ function PessoaPage() {
   const [veiculoModalOpen, setVeiculoModalOpen] = useState(false);
   const [editarVeiculoModalOpen, setEditarVeiculoModalOpen] = useState(false);
   const [veiculoParaEditar, setVeiculoParaEditar] = useState(null);
+  const [editarModalOpen, setEditarModalOpen] = useState(false);
+
+  const handleOpenEditarModal = () => setEditarModalOpen(true);
+  const handleCloseEditarModal = () => setEditarModalOpen(false);
+
+  const handleDeletePessoa = async () => {
+    if (!pessoa) return;
+    const confirm1 = window.confirm(
+      `Tem certeza que deseja EXCLUIR PERMANENTEMENTE '${pessoa.nome_completo}' e todos os seus dados?`
+    );
+    if (confirm1) {
+      const confirm2 = window.confirm(
+        "Esta ação não pode ser desfeita. Confirma a exclusão permanente?"
+      );
+      if (confirm2) {
+        const result = await window.api.deletePessoa(pessoa.id);
+        if (result.success) {
+          alert(result.message);
+          navigate(-1); // Volta para a página anterior após a exclusão
+        } else {
+          alert(`Erro ao excluir: ${result.message}`);
+        }
+      }
+    }
+  };
 
   const handleDeleteVeiculo = async (veiculoId, veiculoNome) => {
     if (
@@ -90,9 +116,37 @@ function PessoaPage() {
       </Box>
 
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h5" gutterBottom>
-          {pessoa.nome_completo}
-        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Typography variant="h5" component="h2">
+            {pessoa.nome_completo}
+          </Typography>
+          <Box>
+            <Button
+              variant="outlined"
+              startIcon={<EditIcon />}
+              onClick={handleOpenEditarModal}
+            >
+              Editar
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleDeletePessoa}
+              sx={{ ml: 2 }}
+            >
+              Excluir
+            </Button>
+          </Box>
+        </Box>
+        <Divider sx={{ mb: 2 }} />
         <Typography>
           <strong>CPF:</strong> {pessoa.cpf}
         </Typography>
@@ -181,6 +235,12 @@ function PessoaPage() {
         onSuccess={handleSuccess}
       />
 
+      <EditarPessoaModal
+        open={editarModalOpen}
+        handleClose={handleCloseEditarModal}
+        pessoa={pessoa}
+        onSuccess={handleSuccess}
+      />
     </Box>
   );
 }

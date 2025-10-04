@@ -16,7 +16,7 @@ import Chip from "@mui/material/Chip";
 import FingerprintIcon from "@mui/icons-material/Fingerprint";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
-
+import LinkOffIcon from "@mui/icons-material/LinkOff";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -29,9 +29,7 @@ function UnidadePage() {
   const navigate = useNavigate();
   const [unidade, setUnidade] = useState(null);
   const [pessoas, setPessoas] = useState([]);
-  const [loading, setLoading] = useState(true)
-  
-
+  const [loading, setLoading] = useState(true);
   const [vincularModalOpen, setVincularModalOpen] = useState(false);
   const [editarModalOpen, setEditarModalOpen] = useState(false);
   const [pessoaParaEditar, setPessoaParaEditar] = useState(null);
@@ -63,6 +61,26 @@ function UnidadePage() {
         fetchData();
       } else {
         alert(`Erro ao desvincular: ${result.message}`);
+      }
+    }
+  };
+
+  const handleDeletePessoa = async (pessoaId, nomePessoa) => {
+    const confirm1 = window.confirm(
+      `Tem certeza que deseja EXCLUIR PERMANENTEMENTE '${nomePessoa}' e todos os seus dados (vínculos, veículos)?`
+    );
+    if (confirm1) {
+      const confirm2 = window.confirm(
+        "Esta ação não pode ser desfeita. Confirma a exclusão permanente?"
+      );
+      if (confirm2) {
+        const result = await window.api.deletePessoa(pessoaId);
+        if (result.success) {
+          alert(result.message);
+          fetchData();
+        } else {
+          alert(`Erro ao excluir: ${result.message}`);
+        }
       }
     }
   };
@@ -142,14 +160,24 @@ function UnidadePage() {
                     </IconButton>
                     <IconButton
                       edge="end"
-                      aria-label="delete"
+                      aria-label="desvincular"
                       onClick={() =>
                         handleDesvincular(
                           pessoa.vinculo_id,
                           pessoa.nome_completo
                         )
                       }
-                      sx={{ ml: 1 }}
+                    >
+                      <LinkOffIcon />
+                    </IconButton>
+                    {/* Botão para Deletar Permanente */}
+                    <IconButton
+                      edge="end"
+                      aria-label="delete"
+                      onClick={() =>
+                        handleDeletePessoa(pessoa.id, pessoa.nome_completo)
+                      }
+                      sx={{ ml: 1, color: "error.main" }}
                     >
                       <DeleteIcon />
                     </IconButton>
