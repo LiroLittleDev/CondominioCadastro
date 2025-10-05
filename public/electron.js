@@ -1,6 +1,12 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 
+function notifyDataChanged() {
+  BrowserWindow.getAllWindows().forEach(win => {
+    win.webContents.send('data-changed');
+  });
+}
+
 // Configuração do Knex para conectar ao banco de dados
 const knex = require("knex")({
   client: "sqlite3",
@@ -25,22 +31,154 @@ function createWindow() {
   mainWindow.loadURL("http://localhost:3000");
 }
 
-// Adicione este novo handler em public/electron.js
-ipcMain.handle('delete-all-inactive-vinculos', async (event, pessoaId) => {
+
+ipcMain.handle('create-vinculo', async (event, vinculoData) => {
   try {
-    await knex('vinculos').where({ pessoa_id: pessoaId, status: 'Inativo' }).del();
-    return { success: true, message: 'Todos os vínculos históricos foram excluídos.' };
+    // Adicionado verificação para não criar vínculo duplicado
+    const vinculoExistente = await knex('vinculos')
+      .where({
+        pessoa_id: vinculoData.pessoaId,
+        unidade_id: vinculoData.unidadeId,
+        tipo_vinculo: vinculoData.tipoVinculo,
+      })
+      .first();
+
+    if (vinculoExistente) {
+      throw new Error('Esta pessoa já possui exatamente este mesmo vínculo nesta unidade.');
+    }
+
+    await knex('vinculos').insert({
+      pessoa_id: vinculoData.pessoaId,
+      unidade_id: vinculoData.unidadeId,
+      tipo_vinculo: vinculoData.tipoVinculo,
+      data_inicio: new Date().toISOString().split('T')[0],
+      status: 'Ativo'
+    });
+    return { success: true, message: 'Pessoa vinculada com sucesso!' };
   } catch (error) {
-    console.error('Erro ao excluir vínculos históricos:', error);
+    console.error('Erro ao criar vínculo:', error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
+
+// Handler para buscar todos os blocos
+ipcMain.handle('get-all-blocos', async () => {
+  try {
+    const blocos = await knex('blocos')
+      .select('id', 'nome')
+      .orderBy('id', 'asc');
+    return blocos;
+  } catch (error) {
+    console.error('Erro ao buscar blocos:', error);
+    return [];
+  }
+});
+
+// Handler para buscar todos os veículos com detalhes
+ipcMain.handle('get-all-veiculos-details', async (event, filtros = {}) => {
+  try {
+    let query = knex('veiculos')
+      .join('pessoas', 'veiculos.pessoa_id', 'pessoas.id')
+      .leftJoin('vinculos', function() {
+        this.on('pessoas.id', '=', 'vinculos.pessoa_id')
+            .andOn('vinculos.status', '=', knex.raw('?', ['Ativo']));
+      })
+      .leftJoin('unidades', 'vinculos.unidade_id', 'unidades.id')
+      .leftJoin('entradas', 'unidades.entrada_id', 'entradas.id')
+      .leftJoin('blocos', 'entradas.bloco_id', 'blocos.id')
+      .select(
+        'veiculos.*',
+        'pessoas.nome_completo as nome_proprietario',
+        'pessoas.telefone as telefone_proprietario',
+        'blocos.nome as nome_bloco',
+        'unidades.numero_apartamento',
+        'vinculos.tipo_vinculo'
+      );
+
+    // Aplicar filtros
+    if (filtros.tipo) {
+      query = query.where('veiculos.tipo', filtros.tipo);
+    }
+    if (filtros.blocoId) {
+      query = query.where('blocos.id', filtros.blocoId);
+    }
+    if (filtros.busca) {
+      query = query.where(function() {
+        this.where('veiculos.placa', 'like', `%${filtros.busca}%`)
+            .orWhere('veiculos.marca', 'like', `%${filtros.busca}%`)
+            .orWhere('veiculos.modelo', 'like', `%${filtros.busca}%`)
+            .orWhere('pessoas.nome_completo', 'like', `%${filtros.busca}%`);
+      });
+    }
+
+    const veiculos = await query
+      .orderBy('blocos.nome', 'asc')
+      .orderBy('unidades.numero_apartamento', 'asc')
+      .orderBy('veiculos.placa', 'asc');
+    
+    return veiculos;
+  } catch (error) {
+    console.error('Erro ao buscar veículos detalhados:', error);
+    return [];
+  }
+});
+
+// ESTE É O CÓDIGO CORRETO E FINAL - com filtro por bloco
+ipcMain.handle('get-all-unidades-details', async (event, blocoId = null) => {
+  try {
+    // Sub-consulta para encontrar o nome do proprietário de cada unidade
+    const proprietariosSubquery = knex('vinculos')
+      .join('pessoas', 'vinculos.pessoa_id', 'pessoas.id')
+      .where('vinculos.tipo_vinculo', 'Proprietário')
+      .where('vinculos.status', 'Ativo')
+      .select('vinculos.unidade_id', 'pessoas.nome_completo as nome_proprietario')
+      .as('proprietarios');
+
+    let query = knex('unidades')
+      .join('entradas', 'unidades.entrada_id', '=', 'entradas.id')
+      .join('blocos', 'entradas.bloco_id', '=', 'blocos.id')
+      .leftJoin('vinculos', function() {
+        this.on('unidades.id', '=', 'vinculos.unidade_id')
+            .andOn('vinculos.status', '=', knex.raw('?', ['Ativo']));
+      })
+      // Junta com a nossa sub-consulta para pegar o nome do proprietário
+      .leftJoin(proprietariosSubquery, 'unidades.id', 'proprietarios.unidade_id')
+      .select(
+        'unidades.id',
+        'blocos.id as bloco_id',
+        'blocos.nome as nome_bloco',
+        'entradas.letra as letra_entrada',
+        'unidades.numero_apartamento',
+        'proprietarios.nome_proprietario' // Seleciona o nome do proprietário
+      )
+      .count('vinculos.id as qtd_pessoas')
+      .groupBy('unidades.id');
+
+    // Aplica filtro por bloco se fornecido
+    if (blocoId) {
+      query = query.where('blocos.id', blocoId);
+    }
+
+    const unidades = await query
+      .orderBy('blocos.id', 'asc') // Ordena pelo ID para garantir a ordem numérica correta
+      .orderBy('entradas.letra', 'asc')
+      .orderBy('unidades.id', 'asc');
+    
+    return unidades;
+  } catch (error) {
+    console.error('Erro ao buscar detalhes de todas as unidades:', error);
+    return [];
+  }
+});
+
+
 
 // Adicione este novo handler em public/electron.js
 ipcMain.handle('delete-vinculo', async (event, vinculoId) => {
   try {
     await knex('vinculos').where({ id: vinculoId }).del();
     return { success: true, message: 'Registro de vínculo histórico excluído permanentemente.' };
+    notifyDataChanged();
   } catch (error) {
     console.error('Erro ao excluir vínculo:', error);
     return { success: false, message: `Erro: ${error.message}` };
@@ -81,15 +219,13 @@ ipcMain.handle('transferir-pessoa', async (event, transferData) => {
         status: 'Ativo'
       });
     });
+    notifyDataChanged();
     return { success: true, message: 'Transferência realizada com sucesso!' };
   } catch (error) {
     console.error('Erro ao transferir pessoa:', error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
-
-
-// Substitua o handler 'create-pessoa-e-vinculo' por este em public/electron.js
 
 ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
   if (!pessoa.cpf || pessoa.cpf.trim() === '') {
@@ -105,10 +241,25 @@ ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
       if (pessoaExistente) {
         pessoaId = pessoaExistente.id;
         message = 'Pessoa já existente vinculada com sucesso!';
-      } else {
+      } 
+      else {
         const [novaPessoaIdObj] = await trx('pessoas').insert(pessoa).returning('id');
         pessoaId = typeof novaPessoaIdObj === 'object' ? novaPessoaIdObj.id : novaPessoaIdObj;
         message = 'Nova pessoa cadastrada e vinculada com sucesso!';
+      }
+
+      // --- NOVA REGRA DE NEGÓCIO ADICIONADA AQUI ---
+      if (vinculo.tipoVinculo === 'Proprietário') {
+        const proprietarioExistente = await trx('vinculos')
+          .where({
+            unidade_id: vinculo.unidadeId,
+            tipo_vinculo: 'Proprietário'
+          })
+          .first();
+        
+        if (proprietarioExistente) {
+          throw new Error('Esta unidade já possui um proprietário vinculado.');
+        }
       }
 
       // Se o novo vínculo for 'Morador' ou 'Inquilino'...
@@ -148,7 +299,6 @@ ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
     return { success: false, message: error.message };
   }
 });
-
 
 ipcMain.handle("get-vinculos-by-pessoa", async (event, pessoaId) => {
   try {

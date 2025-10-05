@@ -82,7 +82,12 @@ function PessoasListPage() {
                 <MenuItem value="">
                   <em>Todos</em>
                 </MenuItem>
-                {vinculoTypes.map((tipo) => (
+                <MenuItem value="Proprietário">Proprietário</MenuItem>
+                <MenuItem value="Inquilino">Inquilino</MenuItem>
+                <MenuItem value="Morador">Morador</MenuItem>
+                <MenuItem value="Morador Temporário">Morador Temporário</MenuItem>
+                <MenuItem value="Responsável">Responsável</MenuItem>
+                {vinculoTypes.filter(tipo => !['Proprietário', 'Inquilino', 'Morador', 'Morador Temporário', 'Responsável'].includes(tipo)).map((tipo) => (
                   <MenuItem key={tipo} value={tipo}>
                     {tipo}
                   </MenuItem>

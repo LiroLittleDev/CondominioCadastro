@@ -44,4 +44,7 @@ contextBridge.exposeInMainWorld("api", {
   findPessoaByCpf: (cpf) => ipcRenderer.invoke('find-pessoa-by-cpf', cpf),
   deleteVinculo: (vinculoId) => ipcRenderer.invoke('delete-vinculo', vinculoId),
   deleteAllInactiveVinculos: (pessoaId) => ipcRenderer.invoke('delete-all-inactive-vinculos', pessoaId),
+  getAllUnidadesDetails: (blocoId) => ipcRenderer.invoke('get-all-unidades-details', blocoId),
+  getAllBlocos: () => ipcRenderer.invoke('get-all-blocos'),
+  getAllVeiculosDetails: (filtros) => ipcRenderer.invoke('get-all-veiculos-details', filtros),
 });

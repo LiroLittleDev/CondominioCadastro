@@ -280,6 +280,7 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
             <MenuItem value="Proprietário">Proprietário</MenuItem>
             <MenuItem value="Inquilino">Inquilino</MenuItem>
             <MenuItem value="Morador">Morador</MenuItem>
+            <MenuItem value="Morador Temporário">Morador Temporário</MenuItem>
             <MenuItem value="Responsável">Responsável</MenuItem>
           </Select>
         </FormControl>
