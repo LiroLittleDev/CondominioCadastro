@@ -243,32 +243,34 @@ function PessoaPage() {
         <Divider sx={{ mb: 3 }} />
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <FingerprintIcon sx={{ color: "primary.main", fontSize: "1.3rem" }} />
+            <FingerprintIcon
+              sx={{ color: "primary.main", fontSize: "1.3rem" }}
+            />
             <Typography variant="h6" sx={{ fontWeight: "500" }}>
               {pessoa.cpf}
             </Typography>
           </Box>
-          
+
           {pessoa.telefone && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <PhoneIcon sx={{ color: "success.main", fontSize: "1.3rem" }} />
-              <Typography variant="h6">
-                {pessoa.telefone}
-              </Typography>
+              <Typography variant="h6">{pessoa.telefone}</Typography>
             </Box>
           )}
-          
+
           {pessoa.email && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <EmailIcon sx={{ color: "info.main", fontSize: "1.3rem" }} />
-              <Typography variant="h6">
-                {pessoa.email}
-              </Typography>
+              <Typography variant="h6">{pessoa.email}</Typography>
             </Box>
           )}
-          
+
           {!pessoa.telefone && !pessoa.email && (
-            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ fontStyle: "italic" }}
+            >
               Nenhuma informação de contato adicional cadastrada.
             </Typography>
           )}
@@ -286,7 +288,9 @@ function PessoaPage() {
               <ListItem key={vinculo.id} divider>
                 <ListItemText
                   primary={
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+                    >
                       <Typography variant="h6" sx={{ fontWeight: "bold" }}>
                         {vinculo.nome_bloco} - Apto {vinculo.numero_apartamento}
                       </Typography>
@@ -294,17 +298,28 @@ function PessoaPage() {
                         label={vinculo.tipo_vinculo}
                         size="small"
                         color={
-                          vinculo.tipo_vinculo === "Proprietário" ? "primary" :
-                          vinculo.tipo_vinculo === "Inquilino" ? "secondary" :
-                          vinculo.tipo_vinculo === "Morador" ? "success" : "default"
+                          vinculo.tipo_vinculo === "Proprietário"
+                            ? "primary"
+                            : vinculo.tipo_vinculo === "Inquilino"
+                            ? "secondary"
+                            : vinculo.tipo_vinculo === "Morador"
+                            ? "success"
+                            : "default"
                         }
                         variant="outlined"
                       />
                     </Box>
                   }
                   secondary={
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      Vínculo ativo desde {new Date(vinculo.data_inicio).toLocaleDateString("pt-BR")}
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ mt: 0.5 }}
+                    >
+                      Vínculo ativo desde{" "}
+                      {new Date(vinculo.data_inicio).toLocaleDateString(
+                        "pt-BR"
+                      )}
                     </Typography>
                   }
                 />
@@ -359,9 +374,10 @@ function PessoaPage() {
         </Box>
         <List disablePadding>
           {vinculosInativos.length > 0 ? (
-            vinculosInativos.map((vinculo) =>
-              // No map de vinculosInativos, adicione o secondaryAction
-              vinculosInativos.map((vinculo) => (
+            vinculosInativos.map(
+              (
+                vinculo // <-- APENAS UM MAP
+              ) => (
                 <ListItem
                   key={vinculo.id}
                   divider
@@ -385,7 +401,7 @@ function PessoaPage() {
                     ).toLocaleDateString("pt-BR")}`}
                   />
                 </ListItem>
-              ))
+              )
             )
           ) : (
             <Typography variant="body2" color="text.secondary">
@@ -455,16 +471,21 @@ function PessoaPage() {
                       <Typography variant="h6" component="span">
                         {veiculo.marca} {veiculo.modelo}
                       </Typography>
-                      <Chip 
-                        label={veiculo.tipo} 
-                        size="small" 
-                        color={veiculo.tipo === "Carro" ? "primary" : "secondary"}
+                      <Chip
+                        label={veiculo.tipo}
+                        size="small"
+                        color={
+                          veiculo.tipo === "Carro" ? "primary" : "secondary"
+                        }
                       />
                     </Box>
                   }
                   secondary={
                     <Box sx={{ mt: 1 }}>
-                      <Typography variant="body1" sx={{ fontWeight: "bold", mb: 0.5 }}>
+                      <Typography
+                        variant="body1"
+                        sx={{ fontWeight: "bold", mb: 0.5 }}
+                      >
                         Placa: {veiculo.placa}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">

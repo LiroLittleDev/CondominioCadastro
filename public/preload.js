@@ -28,8 +28,6 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("update-veiculo", veiculoId, veiculoData),
   getDashboardStats: () => ipcRenderer.invoke("get-dashboard-stats"),
   searchGeral: (termo) => ipcRenderer.invoke("search-geral", termo),
-  desvincularPessoa: (vinculoId) =>
-    ipcRenderer.invoke("desvincular-pessoa", vinculoId),
   deletePessoa: (pessoaId) => ipcRenderer.invoke("delete-pessoa", pessoaId),
   getFilteredPessoas: (filters) =>
     ipcRenderer.invoke("get-filtered-pessoas", filters),
