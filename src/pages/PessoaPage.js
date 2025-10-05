@@ -304,6 +304,8 @@ function PessoaPage() {
                             ? "secondary"
                             : vinculo.tipo_vinculo === "Morador"
                             ? "success"
+                            : vinculo.tipo_vinculo === "Morador Temporário"
+                            ? "warning"
                             : "default"
                         }
                         variant="outlined"

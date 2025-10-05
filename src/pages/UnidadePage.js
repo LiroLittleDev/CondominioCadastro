@@ -204,7 +204,8 @@ function UnidadePage() {
                         color={
                           pessoa.tipo_vinculo === "Proprietário" ? "primary" :
                           pessoa.tipo_vinculo === "Inquilino" ? "secondary" :
-                          pessoa.tipo_vinculo === "Morador" ? "success" : "default"
+                          pessoa.tipo_vinculo === "Morador" ? "success" :
+                          pessoa.tipo_vinculo === "Morador Temporário" ? "warning" : "default"
                         }
                         variant="outlined"
                       />
