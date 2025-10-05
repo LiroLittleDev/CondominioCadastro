@@ -15,6 +15,12 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AddIcon from "@mui/icons-material/Add";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
+import FingerprintIcon from "@mui/icons-material/Fingerprint";
+import PhoneIcon from "@mui/icons-material/Phone";
+import EmailIcon from "@mui/icons-material/Email";
+import Chip from "@mui/material/Chip";
 import AdicionarVeiculoModal from "../components/AdicionarVeiculoModal";
 import EditIcon from "@mui/icons-material/Edit";
 import EditarVeiculoModal from "../components/EditarVeiculoModal";
@@ -234,16 +240,39 @@ function PessoaPage() {
             </Button>
           </Box>
         </Box>
-        <Divider sx={{ mb: 2 }} />
-        <Typography>
-          <strong>CPF:</strong> {pessoa.cpf}
-        </Typography>
-        <Typography>
-          <strong>Email:</strong> {pessoa.email || "Não informado"}
-        </Typography>
-        <Typography>
-          <strong>Telefone:</strong> {pessoa.telefone || "Não informado"}
-        </Typography>
+        <Divider sx={{ mb: 3 }} />
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <FingerprintIcon sx={{ color: "primary.main", fontSize: "1.3rem" }} />
+            <Typography variant="h6" sx={{ fontWeight: "500" }}>
+              {pessoa.cpf}
+            </Typography>
+          </Box>
+          
+          {pessoa.telefone && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <PhoneIcon sx={{ color: "success.main", fontSize: "1.3rem" }} />
+              <Typography variant="h6">
+                {pessoa.telefone}
+              </Typography>
+            </Box>
+          )}
+          
+          {pessoa.email && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <EmailIcon sx={{ color: "info.main", fontSize: "1.3rem" }} />
+              <Typography variant="h6">
+                {pessoa.email}
+              </Typography>
+            </Box>
+          )}
+          
+          {!pessoa.telefone && !pessoa.email && (
+            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+              Nenhuma informação de contato adicional cadastrada.
+            </Typography>
+          )}
+        </Box>
       </Paper>
 
       {/* SEÇÃO DE VÍNCULO ATIVO */}
@@ -256,8 +285,28 @@ function PessoaPage() {
             vinculosAtivos.map((vinculo) => (
               <ListItem key={vinculo.id} divider>
                 <ListItemText
-                  primary={vinculo.tipo_vinculo}
-                  secondary={`${vinculo.nome_bloco} - Apto ${vinculo.numero_apartamento}`}
+                  primary={
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                      <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+                        {vinculo.nome_bloco} - Apto {vinculo.numero_apartamento}
+                      </Typography>
+                      <Chip
+                        label={vinculo.tipo_vinculo}
+                        size="small"
+                        color={
+                          vinculo.tipo_vinculo === "Proprietário" ? "primary" :
+                          vinculo.tipo_vinculo === "Inquilino" ? "secondary" :
+                          vinculo.tipo_vinculo === "Morador" ? "success" : "default"
+                        }
+                        variant="outlined"
+                      />
+                    </Box>
+                  }
+                  secondary={
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                      Vínculo ativo desde {new Date(vinculo.data_inicio).toLocaleDateString("pt-BR")}
+                    </Typography>
+                  }
                 />
                 <Box>
                   <IconButton
@@ -267,12 +316,11 @@ function PessoaPage() {
                   >
                     <EditNoteIcon />
                   </IconButton>
-                  {/* BOTÃO PARA DESVINCULAR */}
                   <IconButton
                     edge="end"
                     aria-label="desvincular"
                     onClick={() => handleDesvincular(vinculo)}
-                    sx={{ ml: 1 }}
+                    sx={{ ml: 1, color: "warning.main" }}
                   >
                     <LinkOffIcon />
                   </IconButton>
@@ -389,7 +437,7 @@ function PessoaPage() {
                           `${veiculo.marca} ${veiculo.modelo}`
                         )
                       }
-                      sx={{ ml: 1 }}
+                      sx={{ ml: 1, color: "error.main" }}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -397,8 +445,33 @@ function PessoaPage() {
                 }
               >
                 <ListItemText
-                  primary={`${veiculo.marca} ${veiculo.modelo} (${veiculo.cor})`}
-                  secondary={`Placa: ${veiculo.placa}`}
+                  primary={
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      {veiculo.tipo === "Carro" ? (
+                        <DirectionsCarIcon sx={{ color: "primary.main" }} />
+                      ) : (
+                        <TwoWheelerIcon sx={{ color: "secondary.main" }} />
+                      )}
+                      <Typography variant="h6" component="span">
+                        {veiculo.marca} {veiculo.modelo}
+                      </Typography>
+                      <Chip 
+                        label={veiculo.tipo} 
+                        size="small" 
+                        color={veiculo.tipo === "Carro" ? "primary" : "secondary"}
+                      />
+                    </Box>
+                  }
+                  secondary={
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="body1" sx={{ fontWeight: "bold", mb: 0.5 }}>
+                        Placa: {veiculo.placa}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Cor: {veiculo.cor}
+                      </Typography>
+                    </Box>
+                  }
                 />
               </ListItem>
             ))

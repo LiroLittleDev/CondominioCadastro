@@ -186,63 +186,45 @@ function UnidadePage() {
               >
                 <ListItemText
                   primary={
-                    <Link
-                      to={`/pessoa/${pessoa.id}`}
-                      style={{
-                        textDecoration: "none",
-                        color: "inherit",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {pessoa.nome_completo}
-                    </Link>
-                  }
-                  secondary={
-                    <React.Fragment>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                      <Link
+                        to={`/pessoa/${pessoa.id}`}
+                        style={{
+                          textDecoration: "none",
+                          color: "inherit",
+                        }}
+                      >
+                        <Typography variant="h6" component="span" sx={{ fontWeight: "bold" }}>
+                          {pessoa.nome_completo}
+                        </Typography>
+                      </Link>
                       <Chip
                         label={pessoa.tipo_vinculo}
                         size="small"
                         color={
-                          pessoa.tipo_vinculo === "Morador"
-                            ? "primary"
-                            : "default"
+                          pessoa.tipo_vinculo === "Proprietário" ? "primary" :
+                          pessoa.tipo_vinculo === "Inquilino" ? "secondary" :
+                          pessoa.tipo_vinculo === "Morador" ? "success" : "default"
                         }
-                        sx={{ mt: 1, mb: 1.5 }} // Mais espaçamento
+                        variant="outlined"
                       />
-
+                    </Box>
+                  }
+                  secondary={
+                    <Box sx={{ mt: 1 }}>
                       {pessoa.cpf && (
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", mb: 1 }}
-                        >
-                          <FingerprintIcon
-                            sx={{
-                              mr: 1.5,
-                              fontSize: "1.2rem",
-                              color: "text.secondary",
-                            }}
-                          />
-                          <Typography variant="body2" color="text.secondary">
-                            {" "}
-                            {/* Texto maior */}
+                        <Box sx={{ display: "flex", alignItems: "center", mb: 0.8 }}>
+                          <FingerprintIcon sx={{ mr: 1, fontSize: "1.1rem", color: "primary.main" }} />
+                          <Typography variant="body1" sx={{ fontWeight: "500" }}>
                             {pessoa.cpf}
                           </Typography>
                         </Box>
                       )}
 
                       {pessoa.telefone && (
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", mb: 1 }}
-                        >
-                          <PhoneIcon
-                            sx={{
-                              mr: 1.5,
-                              fontSize: "1.2rem",
-                              color: "text.secondary",
-                            }}
-                          />
-                          <Typography variant="body2" color="text.secondary">
-                            {" "}
-                            {/* Texto maior */}
+                        <Box sx={{ display: "flex", alignItems: "center", mb: 0.8 }}>
+                          <PhoneIcon sx={{ mr: 1, fontSize: "1.1rem", color: "success.main" }} />
+                          <Typography variant="body1">
                             {pessoa.telefone}
                           </Typography>
                         </Box>
@@ -250,21 +232,13 @@ function UnidadePage() {
 
                       {pessoa.email && (
                         <Box sx={{ display: "flex", alignItems: "center" }}>
-                          <EmailIcon
-                            sx={{
-                              mr: 1.5,
-                              fontSize: "1.2rem",
-                              color: "text.secondary",
-                            }}
-                          />
-                          <Typography variant="body2" color="text.secondary">
-                            {" "}
-                            {/* Texto maior */}
+                          <EmailIcon sx={{ mr: 1, fontSize: "1.1rem", color: "info.main" }} />
+                          <Typography variant="body1">
                             {pessoa.email}
                           </Typography>
                         </Box>
                       )}
-                    </React.Fragment>
+                    </Box>
                   }
                 />
               </ListItem>

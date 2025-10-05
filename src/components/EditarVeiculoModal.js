@@ -17,6 +17,7 @@ function EditarVeiculoModal({ open, handleClose, veiculo, onSuccess }) {
   const [formData, setFormData] = useState({ placa: '', marca: '', modelo: '', cor: '', tipo: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [placaError, setPlacaError] = useState('');
 
   useEffect(() => {
     if (veiculo) {
@@ -31,8 +32,24 @@ function EditarVeiculoModal({ open, handleClose, veiculo, onSuccess }) {
     }
   }, [veiculo]);
 
+  const validatePlaca = (placa) => {
+    if (!placa) return false; // Placa é obrigatória
+    const placaLimpa = placa.replace(/\W/g, '');
+    // Aceita formato antigo (7 chars) ou Mercosul (7 chars)
+    return placaLimpa.length >= 6 && placaLimpa.length <= 7;
+  };
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    
+    if (name === 'placa') {
+      if (!validatePlaca(value)) {
+        setPlacaError('Placa inválida');
+      } else {
+        setPlacaError('');
+      }
+    }
   };
 
   // ESTA É A FUNÇÃO QUE ESTAVA FALTANDO
@@ -41,12 +58,18 @@ function EditarVeiculoModal({ open, handleClose, veiculo, onSuccess }) {
       setError('Todos os campos são obrigatórios.');
       return;
     }
+    
+    if (!validatePlaca(formData.placa)) {
+      setError('Placa inválida.');
+      return;
+    }
     setLoading(true);
     setError('');
     const result = await window.api.updateVeiculo(veiculo.id, formData);
     setLoading(false);
     if (result.success) {
       onSuccess();
+      handleClose();
     } else {
       setError(result.message);
     }
@@ -60,7 +83,7 @@ function EditarVeiculoModal({ open, handleClose, veiculo, onSuccess }) {
         <Typography variant="h6" component="h2" gutterBottom>
           Editando Veículo: {veiculo.placa}
         </Typography>
-        <TextField name="placa" label="Placa" value={formData.placa} onChange={handleChange} fullWidth margin="normal" required />
+        <TextField name="placa" label="Placa" value={formData.placa} onChange={handleChange} fullWidth margin="normal" required error={!!placaError} helperText={placaError} />
         <TextField name="marca" label="Marca" value={formData.marca} onChange={handleChange} fullWidth margin="normal" required />
         <TextField name="modelo" label="Modelo" value={formData.modelo} onChange={handleChange} fullWidth margin="normal" required />
         <TextField name="cor" label="Cor" value={formData.cor} onChange={handleChange} fullWidth margin="normal" required />

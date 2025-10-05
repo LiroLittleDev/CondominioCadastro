@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Box, Typography, Button, TextField, CircularProgress, Alert } from '@mui/material';
+import MaskedTextField from './MaskedTextField';
 
 const style = {
   position: 'absolute',
@@ -17,6 +18,9 @@ function EditarPessoaModal({ open, handleClose, pessoa, onSuccess }) {
   const [formData, setFormData] = useState({ nome_completo: '', cpf: '', email: '', telefone: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [telefoneError, setTelefoneError] = useState('');
+  const [cpfError, setCpfError] = useState('');
 
   // Este 'useEffect' popula o formulário com os dados da pessoa
   // sempre que o modal é aberto com uma pessoa diferente.
@@ -31,8 +35,51 @@ useEffect(() => {
   }
 }, [pessoa]);
 
+  const validateEmail = (email) => {
+    if (!email) return true; // Email é opcional
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validateTelefone = (telefone) => {
+    if (!telefone) return true; // Telefone é opcional
+    const telefoneNumeros = telefone.replace(/\D/g, '');
+    return telefoneNumeros.length === 11; // Deve ter 11 dígitos
+  };
+
+  const validateCpf = (cpf) => {
+    if (!cpf) return false; // CPF é obrigatório
+    const cpfNumeros = cpf.replace(/\D/g, '');
+    return cpfNumeros.length === 11; // Deve ter 11 dígitos
+  };
+
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+    
+    if (name === 'email') {
+      if (value && !validateEmail(value)) {
+        setEmailError('Email inválido');
+      } else {
+        setEmailError('');
+      }
+    }
+    
+    if (name === 'telefone') {
+      if (value && !validateTelefone(value)) {
+        setTelefoneError('Telefone deve ter 11 dígitos ou ficar em branco');
+      } else {
+        setTelefoneError('');
+      }
+    }
+    
+    if (name === 'cpf') {
+      if (!validateCpf(value)) {
+        setCpfError('CPF deve ter 11 dígitos');
+      } else {
+        setCpfError('');
+      }
+    }
   };
 
   const handleSubmit = async () => {
@@ -40,10 +87,33 @@ useEffect(() => {
       setError('Nome Completo e CPF são obrigatórios.');
       return;
     }
+    
+    if (!validateCpf(formData.cpf)) {
+      setError('CPF deve ter 11 dígitos.');
+      return;
+    }
+    
+    if (formData.email && !validateEmail(formData.email)) {
+      setError('Email inválido.');
+      return;
+    }
+    
+    if (formData.telefone && !validateTelefone(formData.telefone)) {
+      setError('Telefone deve ter 11 dígitos ou ficar em branco.');
+      return;
+    }
+    
     setLoading(true);
     setError('');
 
-    const result = await window.api.updatePessoa(pessoa.id, formData);
+    // Remove formatação do CPF e telefone antes de salvar
+    const dataToSave = {
+      ...formData,
+      cpf: formData.cpf.replace(/\D/g, ''),
+      telefone: formData.telefone.replace(/\D/g, '')
+    };
+
+    const result = await window.api.updatePessoa(pessoa.id, dataToSave);
 
     setLoading(false);
     if (result.success) {
@@ -63,15 +133,15 @@ useEffect(() => {
         </Typography>
         
         <TextField name="nome_completo" label="Nome Completo" value={formData.nome_completo} onChange={handleChange} fullWidth margin="normal" required />
-        <TextField name="cpf" label="CPF" value={formData.cpf} onChange={handleChange} fullWidth margin="normal" required />
-        <TextField name="email" label="Email" type="email" value={formData.email} onChange={handleChange} fullWidth margin="normal" />
-        <TextField name="telefone" label="Telefone" value={formData.telefone} onChange={handleChange} fullWidth margin="normal" />
+        <MaskedTextField name="cpf" label="CPF" mask="000.000.000-00" value={formData.cpf} onChange={handleChange} fullWidth margin="normal" required error={!!cpfError} helperText={cpfError} />
+        <TextField name="email" label="Email" type="email" value={formData.email} onChange={handleChange} fullWidth margin="normal" error={!!emailError} helperText={emailError} />
+        <MaskedTextField name="telefone" label="Telefone" mask="(00) 00000-0000" value={formData.telefone} onChange={handleChange} fullWidth margin="normal" error={!!telefoneError} helperText={telefoneError} />
 
         {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
 
         <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
           <Button onClick={handleClose} disabled={loading}>Cancelar</Button>
-          <Button variant="contained" sx={{ ml: 1 }} onClick={handleSubmit} disabled={loading}>
+          <Button sx={{ ml: 1 }} onClick={handleSubmit} disabled={loading}>
             {loading ? <CircularProgress size={24} /> : 'Salvar Alterações'}
           </Button>
         </Box>

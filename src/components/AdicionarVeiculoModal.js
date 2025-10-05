@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Box, Typography, Button, TextField, Select, MenuItem, FormControl, InputLabel, CircularProgress, Alert } from '@mui/material';
+import MaskedTextField from './MaskedTextField';
 
 const style = {
   position: 'absolute',
@@ -21,6 +22,24 @@ function AdicionarVeiculoModal({ open, handleClose, pessoa, onSuccess }) {
   const [tipo, setTipo] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [placaError, setPlacaError] = useState('');
+
+  const validatePlaca = (placa) => {
+    if (!placa) return false; // Placa é obrigatória
+    const placaLimpa = placa.replace(/\W/g, '');
+    return placaLimpa.length === 7; // Deve ter 7 caracteres
+  };
+
+  const handlePlacaChange = (e) => {
+    const newPlaca = e.target.value;
+    setPlaca(newPlaca);
+    
+    if (!validatePlaca(newPlaca)) {
+      setPlacaError('Placa deve seguir o padrão Mercosul (AAA0A00)');
+    } else {
+      setPlacaError('');
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -31,12 +50,18 @@ function AdicionarVeiculoModal({ open, handleClose, pessoa, onSuccess }) {
       setTipo('');
       setError('');
       setLoading(false);
+      setPlacaError('');
     }
   }, [open]);
 
   const handleSubmit = async () => {
     if (!placa || !marca || !modelo || !cor || !tipo) {
       setError('Todos os campos são obrigatórios.');
+      return;
+    }
+    
+    if (!validatePlaca(placa)) {
+      setError('Placa deve seguir o padrão Mercosul (AAA0A00).');
       return;
     }
     setLoading(true);
@@ -48,6 +73,7 @@ function AdicionarVeiculoModal({ open, handleClose, pessoa, onSuccess }) {
 
     if (result.success) {
       onSuccess();
+      handleClose();
     } else {
       setError(result.message);
     }
@@ -62,7 +88,7 @@ function AdicionarVeiculoModal({ open, handleClose, pessoa, onSuccess }) {
           Adicionar Veículo para: {pessoa.nome_completo}
         </Typography>
         
-        <TextField label="Placa" fullWidth margin="normal" value={placa} onChange={e => setPlaca(e.target.value)} required />
+        <MaskedTextField label="Placa" name="placa" mask="AAA0A00" fullWidth margin="normal" value={placa} onChange={handlePlacaChange} required error={!!placaError} helperText={placaError} />
         <TextField label="Marca" fullWidth margin="normal" value={marca} onChange={e => setMarca(e.target.value)} required />
         <TextField label="Modelo" fullWidth margin="normal" value={modelo} onChange={e => setModelo(e.target.value)} required />
         <TextField label="Cor" fullWidth margin="normal" value={cor} onChange={e => setCor(e.target.value)} required />

@@ -24,7 +24,8 @@ import HomePage from "./pages/HomePage";
 import UnidadePage from "./pages/UnidadePage";
 import PessoasListPage from './pages/PessoasListPage';
 import VeiculosListPage from './pages/VeiculosListPage';
-import BlocosPage from "./pages/BlocosPage";import PessoaPage from './pages/PessoaPage';
+import BlocosPage from "./pages/BlocosPage";
+import PessoaPage from './pages/PessoaPage';
 import SettingsPage from "./pages/SettingsPage";
 
 const drawerWidth = 240;
