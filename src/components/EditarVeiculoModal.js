@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Box, Typography, Button, TextField, Select, MenuItem, FormControl, InputLabel, CircularProgress, Alert } from '@mui/material';
+import MaskedTextField from './MaskedTextField';
 
 const style = {
   position: 'absolute',
@@ -19,6 +20,7 @@ function EditarVeiculoModal({ open, handleClose, veiculo, onSuccess }) {
   const [error, setError] = useState('');
   const [placaError, setPlacaError] = useState('');
 
+
   useEffect(() => {
     if (veiculo) {
       setFormData({
@@ -29,27 +31,13 @@ function EditarVeiculoModal({ open, handleClose, veiculo, onSuccess }) {
         tipo: veiculo.tipo || '',
       });
       setError('');
+      setPlacaError('');
     }
   }, [veiculo]);
-
-  const validatePlaca = (placa) => {
-    if (!placa) return false; // Placa é obrigatória
-    const placaLimpa = placa.replace(/\W/g, '');
-    // Aceita formato antigo (7 chars) ou Mercosul (7 chars)
-    return placaLimpa.length >= 6 && placaLimpa.length <= 7;
-  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-    
-    if (name === 'placa') {
-      if (!validatePlaca(value)) {
-        setPlacaError('Placa inválida');
-      } else {
-        setPlacaError('');
-      }
-    }
   };
 
   // ESTA É A FUNÇÃO QUE ESTAVA FALTANDO
@@ -59,10 +47,7 @@ function EditarVeiculoModal({ open, handleClose, veiculo, onSuccess }) {
       return;
     }
     
-    if (!validatePlaca(formData.placa)) {
-      setError('Placa inválida.');
-      return;
-    }
+
     setLoading(true);
     setError('');
     const result = await window.api.updateVeiculo(veiculo.id, formData);
@@ -83,7 +68,7 @@ function EditarVeiculoModal({ open, handleClose, veiculo, onSuccess }) {
         <Typography variant="h6" component="h2" gutterBottom>
           Editando Veículo: {veiculo.placa}
         </Typography>
-        <TextField name="placa" label="Placa" value={formData.placa} onChange={handleChange} fullWidth margin="normal" required error={!!placaError} helperText={placaError} />
+        <MaskedTextField name="placa" label="Placa" mask="AAA0A00" value={formData.placa} onChange={handleChange} fullWidth margin="normal" required error={!!placaError} helperText={placaError} />
         <TextField name="marca" label="Marca" value={formData.marca} onChange={handleChange} fullWidth margin="normal" required />
         <TextField name="modelo" label="Modelo" value={formData.modelo} onChange={handleChange} fullWidth margin="normal" required />
         <TextField name="cor" label="Cor" value={formData.cor} onChange={handleChange} fullWidth margin="normal" required />

@@ -27,6 +27,8 @@ import ApartmentIcon from "@mui/icons-material/Apartment";
 import BusinessIcon from "@mui/icons-material/Business";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import SearchIcon from "@mui/icons-material/Search";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import CadastroRapidoModal from "../components/CadastroRapidoModal";
 
 const StatCard = ({ title, value, icon, to, color, subtitle }) => (
   <Card 
@@ -74,6 +76,7 @@ function HomePage() {
   const [termoBusca, setTermoBusca] = useState("");
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando] = useState(false);
+  const [cadastroRapidoOpen, setCadastroRapidoOpen] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -174,69 +177,71 @@ function HomePage() {
           }
         }} />
         
-        <Box sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          flexDirection: isMobile ? 'column' : 'row',
-          gap: isMobile ? 3 : 0,
-          position: 'relative',
-          zIndex: 1
-        }}>
-          <Box sx={{ textAlign: isMobile ? 'center' : 'left' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, justifyContent: isMobile ? 'center' : 'flex-start' }}>
+        <Grid container spacing={3} alignItems="center" sx={{ position: 'relative', zIndex: 1 }}>
+          <Grid item xs={12} md={8}>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 3, 
+              mb: 2,
+              justifyContent: { xs: 'center', md: 'flex-start' }
+            }}>
               <Box
                 component="img"
                 src="https://cdn-icons-png.flaticon.com/512/2830/2830284.png"
                 alt="SGC Logo"
                 sx={{
-                  width: { xs: 48, sm: 64 },
-                  height: { xs: 48, sm: 64 },
+                  width: { xs: 56, md: 72 },
+                  height: { xs: 56, md: 72 },
                   filter: 'brightness(0) invert(1)',
                   animation: 'pulse 2s ease-in-out infinite'
                 }}
               />
-              <Typography 
-                variant={isMobile ? "h3" : "h2"} 
-                sx={{ 
-                  fontWeight: 'bold',
-                  background: 'linear-gradient(45deg, #fff 30%, #f0f0f0 90%)',
-                  backgroundClip: 'text',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                }}
-              >
-                SGC Desktop
-              </Typography>
+              <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
+                <Typography 
+                  variant={isMobile ? "h3" : "h2"} 
+                  sx={{ 
+                    fontWeight: 'bold',
+                    background: 'linear-gradient(45deg, #fff 30%, #f0f0f0 90%)',
+                    backgroundClip: 'text',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                    mb: 0.5
+                  }}
+                >
+                  SGC Desktop
+                </Typography>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    opacity: 0.9,
+                    fontWeight: 300,
+                    mb: 1
+                  }}
+                >
+                  Sistema de Gestão Condominial
+                </Typography>
+                <Typography 
+                  variant="body1" 
+                  sx={{ 
+                    opacity: 0.8,
+                    maxWidth: '400px'
+                  }}
+                >
+                  Gerencie moradores, veículos e unidades de forma simples e eficiente
+                </Typography>
+              </Box>
             </Box>
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                opacity: 0.9,
-                fontWeight: 300,
-                mb: 1
-              }}
-            >
-              Sistema de Gestão Condominial
-            </Typography>
-            <Typography 
-              variant="body1" 
-              sx={{ 
-                opacity: 0.8,
-                maxWidth: '400px'
-              }}
-            >
-              Gerencie moradores, veículos e unidades de forma simples e eficiente
-            </Typography>
-          </Box>
+          </Grid>
           
-          <Box sx={{ 
-            display: 'flex', 
-            gap: 2,
-            flexDirection: isMobile ? 'column' : 'row',
-            width: isMobile ? '100%' : 'auto'
-          }}>
+          <Grid item xs={12} md={4}>
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 2,
+              flexDirection: { xs: 'column', sm: 'row', md: 'column' },
+              justifyContent: 'center'
+            }}>
             <Button
               variant="contained"
               startIcon={<BusinessIcon />}
@@ -258,9 +263,32 @@ function HomePage() {
                 transition: 'all 0.3s ease',
                 fontWeight: 600
               }}
-              fullWidth={isMobile}
+              fullWidth
             >
               Gerenciar Blocos
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<PersonAddIcon />}
+              onClick={() => setCadastroRapidoOpen(true)}
+              size="large"
+              sx={{ 
+                borderColor: 'rgba(255,255,255,0.3)',
+                color: 'white',
+                '&:hover': { 
+                  borderColor: 'rgba(255,255,255,0.5)',
+                  bgcolor: 'rgba(255,255,255,0.1)',
+                  transform: 'translateY(-2px)'
+                },
+                borderRadius: 2,
+                px: 3,
+                py: 1.5,
+                transition: 'all 0.3s ease',
+                fontWeight: 600
+              }}
+              fullWidth
+            >
+              Cadastro Rápido
             </Button>
             <Button
               variant="outlined"
@@ -282,12 +310,13 @@ function HomePage() {
                 transition: 'all 0.3s ease',
                 fontWeight: 600
               }}
-              fullWidth={isMobile}
+              fullWidth
             >
               Relatórios
             </Button>
-          </Box>
-        </Box>
+            </Box>
+          </Grid>
+        </Grid>
       </Paper>
       {loadingStats ? (
         <CircularProgress />
@@ -470,6 +499,19 @@ function HomePage() {
           </List>
         </Paper>
       )}
+      
+      <CadastroRapidoModal
+        open={cadastroRapidoOpen}
+        handleClose={() => setCadastroRapidoOpen(false)}
+        onSuccess={() => {
+          // Recarregar estatísticas após cadastro
+          const fetchStats = async () => {
+            const data = await window.api.getDashboardStats();
+            setStats(data);
+          };
+          fetchStats();
+        }}
+      />
     </Box>
   );
 }

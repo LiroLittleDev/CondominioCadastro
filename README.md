@@ -89,7 +89,8 @@ npm run electron:start
 - Filtros por bloco em todas as listas
 
 ### ✅ Cadastro de Pessoas
-- Validação automática de CPF
+- Identificação por CPF ou RG (pelo menos um obrigatório)
+- Validação automática de CPF e RG
 - Máscara para telefone brasileiro
 - Validação de email em tempo real
 - Busca automática por CPF
@@ -158,6 +159,7 @@ npm run electron:start
 - Digite o CPF em qualquer campo
 - Sistema localiza automaticamente ao completar 11 dígitos
 - Funciona em modais de vinculação
+- RG como identificação alternativa quando CPF não disponível
 
 ### Filtros Combinados
 - **Por Bloco**: Filtra por bloco específico
@@ -284,10 +286,11 @@ Edite `MaskedTextField.js` para alterar:
 ## 📊 Recursos Técnicos
 
 ### Validações Implementadas
-- ✅ **CPF**: Formato 000.000.000-00 (11 dígitos)
+- ✅ **CPF**: Formato 000.000.000-00 (11 dígitos) - Opcional
+- ✅ **RG**: Até 27 caracteres - Opcional (CPF ou RG obrigatório)
 - ✅ **Telefone**: Formato (00) 00000-0000 (11 dígitos)
 - ✅ **Email**: Validação de formato em tempo real
-- ✅ **Placa Mercosul**: Formato AAA0A00
+- ✅ **Placa**: Aceita formatos antigo e Mercosul
 - ✅ **Campos obrigatórios**: Validação antes do salvamento
 
 ### Funcionalidades Avançadas

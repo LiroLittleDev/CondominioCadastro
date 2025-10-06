@@ -15,12 +15,13 @@ const style = {
 };
 
 function EditarPessoaModal({ open, handleClose, pessoa, onSuccess }) {
-  const [formData, setFormData] = useState({ nome_completo: '', cpf: '', email: '', telefone: '' });
+  const [formData, setFormData] = useState({ nome_completo: '', cpf: '', rg: '', email: '', telefone: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [telefoneError, setTelefoneError] = useState('');
   const [cpfError, setCpfError] = useState('');
+  const [rgError, setRgError] = useState('');
 
   // Este 'useEffect' popula o formulário com os dados da pessoa
   // sempre que o modal é aberto com uma pessoa diferente.
@@ -29,6 +30,7 @@ useEffect(() => {
     setFormData({
       nome_completo: pessoa.nome_completo || '',
       cpf: pessoa.cpf || '',
+      rg: pessoa.rg || '',
       email: pessoa.email || '',
       telefone: pessoa.telefone || '',
     });
@@ -48,9 +50,14 @@ useEffect(() => {
   };
 
   const validateCpf = (cpf) => {
-    if (!cpf) return false; // CPF é obrigatório
+    if (!cpf) return true; // CPF agora é opcional
     const cpfNumeros = cpf.replace(/\D/g, '');
     return cpfNumeros.length === 11; // Deve ter 11 dígitos
+  };
+
+  const validateRg = (rg) => {
+    if (!rg) return true; // RG é opcional
+    return rg.length <= 27; // RG pode ter até 27 caracteres
   };
 
   const handleChange = (e) => {
@@ -74,22 +81,40 @@ useEffect(() => {
     }
     
     if (name === 'cpf') {
-      if (!validateCpf(value)) {
+      if (value && !validateCpf(value)) {
         setCpfError('CPF deve ter 11 dígitos');
       } else {
         setCpfError('');
       }
     }
+    
+    if (name === 'rg') {
+      if (value && !validateRg(value)) {
+        setRgError('RG pode ter no máximo 27 caracteres');
+      } else {
+        setRgError('');
+      }
+    }
   };
 
   const handleSubmit = async () => {
-    if (!formData.nome_completo || !formData.cpf) {
-      setError('Nome Completo e CPF são obrigatórios.');
+    if (!formData.nome_completo) {
+      setError('Nome Completo é obrigatório.');
       return;
     }
     
-    if (!validateCpf(formData.cpf)) {
+    if (!formData.cpf && !formData.rg) {
+      setError('CPF ou RG deve ser informado.');
+      return;
+    }
+    
+    if (formData.cpf && !validateCpf(formData.cpf)) {
       setError('CPF deve ter 11 dígitos.');
+      return;
+    }
+    
+    if (formData.rg && !validateRg(formData.rg)) {
+      setError('RG pode ter no máximo 27 caracteres.');
       return;
     }
     
@@ -109,8 +134,9 @@ useEffect(() => {
     // Remove formatação do CPF e telefone antes de salvar
     const dataToSave = {
       ...formData,
-      cpf: formData.cpf.replace(/\D/g, ''),
-      telefone: formData.telefone.replace(/\D/g, '')
+      cpf: formData.cpf ? formData.cpf.replace(/\D/g, '') : null,
+      rg: formData.rg || null,
+      telefone: formData.telefone ? formData.telefone.replace(/\D/g, '') : null
     };
 
     const result = await window.api.updatePessoa(pessoa.id, dataToSave);
@@ -133,7 +159,8 @@ useEffect(() => {
         </Typography>
         
         <TextField name="nome_completo" label="Nome Completo" value={formData.nome_completo} onChange={handleChange} fullWidth margin="normal" required />
-        <MaskedTextField name="cpf" label="CPF" mask="000.000.000-00" value={formData.cpf} onChange={handleChange} fullWidth margin="normal" required error={!!cpfError} helperText={cpfError} />
+        <MaskedTextField name="cpf" label="CPF" mask="000.000.000-00" value={formData.cpf} onChange={handleChange} fullWidth margin="normal" error={!!cpfError} helperText={cpfError} />
+        <TextField name="rg" label="RG" value={formData.rg} onChange={handleChange} fullWidth margin="normal" error={!!rgError} helperText={rgError} />
         <TextField name="email" label="Email" type="email" value={formData.email} onChange={handleChange} fullWidth margin="normal" error={!!emailError} helperText={emailError} />
         <MaskedTextField name="telefone" label="Telefone" mask="(00) 00000-0000" value={formData.telefone} onChange={handleChange} fullWidth margin="normal" error={!!telefoneError} helperText={telefoneError} />
 

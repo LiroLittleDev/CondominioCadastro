@@ -405,6 +405,17 @@ ipcMain.handle("find-pessoa-by-cpf", async (event, cpf) => {
   }
 });
 
+// Handler para buscar pessoa por RG
+ipcMain.handle("find-pessoa-by-rg", async (event, rg) => {
+  try {
+    const pessoa = await knex("pessoas").where({ rg }).first();
+    return pessoa || null;
+  } catch (error) {
+    console.error("Erro ao buscar pessoa por RG:", error);
+    return null;
+  }
+});
+
 // Handler para transferir pessoa
 ipcMain.handle('transferir-pessoa', async (event, transferData) => {
   try {
@@ -436,14 +447,25 @@ ipcMain.handle('transferir-pessoa', async (event, transferData) => {
 
 // Handler para criar pessoa e vínculo
 ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
-  if (!pessoa.cpf || pessoa.cpf.trim() === '') {
-    return { success: false, message: 'O CPF é obrigatório para criar um vínculo.' };
+  if ((!pessoa.cpf || pessoa.cpf.trim() === '') && (!pessoa.rg || pessoa.rg.trim() === '')) {
+    return { success: false, message: 'CPF ou RG deve ser informado para criar um vínculo.' };
   }
 
   try {
     let message = '';
     await knex.transaction(async (trx) => {
-      let pessoaExistente = await trx('pessoas').where('cpf', pessoa.cpf).first();
+      let pessoaExistente = null;
+      
+      // Busca por CPF se informado
+      if (pessoa.cpf && pessoa.cpf.trim() !== '') {
+        pessoaExistente = await trx('pessoas').where('cpf', pessoa.cpf).first();
+      }
+      
+      // Se não encontrou por CPF, busca por RG
+      if (!pessoaExistente && pessoa.rg && pessoa.rg.trim() !== '') {
+        pessoaExistente = await trx('pessoas').where('rg', pessoa.rg).first();
+      }
+      
       let pessoaId;
 
       if (pessoaExistente) {
@@ -629,21 +651,40 @@ ipcMain.handle("getPessoasByUnidade", async (event, unidadeId) => {
 
 ipcMain.handle("update-pessoa", async (event, pessoaId, pessoaData) => {
   try {
-    const pessoaExistente = await knex("pessoas")
-      .where("cpf", pessoaData.cpf)
-      .whereNot("id", pessoaId)
-      .first();
+    // Verifica duplicação de CPF se informado
+    if (pessoaData.cpf) {
+      const cpfExistente = await knex("pessoas")
+        .where("cpf", pessoaData.cpf)
+        .whereNot("id", pessoaId)
+        .first();
 
-    if (pessoaExistente) {
-      return {
-        success: false,
-        message: "Este CPF já está cadastrado para outra pessoa.",
-      };
+      if (cpfExistente) {
+        return {
+          success: false,
+          message: "Este CPF já está cadastrado para outra pessoa.",
+        };
+      }
+    }
+    
+    // Verifica duplicação de RG se informado
+    if (pessoaData.rg) {
+      const rgExistente = await knex("pessoas")
+        .where("rg", pessoaData.rg)
+        .whereNot("id", pessoaId)
+        .first();
+
+      if (rgExistente) {
+        return {
+          success: false,
+          message: "Este RG já está cadastrado para outra pessoa.",
+        };
+      }
     }
 
     await knex("pessoas").where({ id: pessoaId }).update({
       nome_completo: pessoaData.nome_completo,
       cpf: pessoaData.cpf,
+      rg: pessoaData.rg,
       email: pessoaData.email,
       telefone: pessoaData.telefone,
     });

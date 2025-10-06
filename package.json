@@ -27,7 +27,8 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "electron:start": "concurrently \"npm start\" \"wait-on && electron .\"",
+    "clean": "rimraf build node_modules/.cache",
+    "electron:start": "npm run clean && concurrently \"npm start\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
     "electron:only": "electron .",
     "start": "react-scripts start",
     "build": "react-scripts build",
@@ -62,6 +63,7 @@
     "electron": "^38.2.1",
     "electron-builder": "^26.0.12",
     "postcss": "^8.5.6",
+    "rimraf": "^6.0.1",
     "wait-on": "^9.0.1"
   },
   "build": {
@@ -77,7 +79,6 @@
       "public/splash.html",
       "node_modules/**/*"
     ],
-
     "win": {
       "target": "dir"
     },

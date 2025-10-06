@@ -31,6 +31,7 @@ const style = {
 function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
   const [nome, setNome] = useState("");
   const [cpf, setCpf] = useState("");
+  const [rg, setRg] = useState("");
   const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
   const [tipoVinculo, setTipoVinculo] = useState("");
@@ -42,10 +43,12 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
   const [emailError, setEmailError] = useState("");
   const [telefoneError, setTelefoneError] = useState("");
   const [cpfError, setCpfError] = useState("");
+  const [rgError, setRgError] = useState("");
 
   const clearForm = () => {
     setNome("");
     // Não limpa o CPF para o usuário ver o que digitou
+    setRg("");
     setEmail("");
     setTelefone("");
     setTipoVinculo("");
@@ -55,12 +58,14 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
     setEmailError("");
     setTelefoneError("");
     setCpfError("");
+    setRgError("");
   };
 
   useEffect(() => {
     if (open) {
       clearForm();
       setCpf(""); // Limpa o CPF apenas quando o modal abre
+      setRg(""); // Limpa o RG também
     }
   }, [open]);
 
@@ -86,6 +91,7 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
       const pessoa = await window.api.findPessoaByCpf(cpfNumeros);
       if (pessoa) {
         setNome(pessoa.nome_completo);
+        setRg(pessoa.rg || "");
         setEmail(pessoa.email || "");
         setTelefone(pessoa.telefone || "");
         setIsPessoaExistente(true);
@@ -117,9 +123,14 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
   };
 
   const validateCpf = (cpf) => {
-    if (!cpf) return false; // CPF é obrigatório
+    if (!cpf) return true; // CPF agora é opcional
     const cpfNumeros = cpf.replace(/\D/g, '');
     return cpfNumeros.length === 11; // Deve ter 11 dígitos
+  };
+
+  const validateRg = (rg) => {
+    if (!rg) return true; // RG é opcional
+    return rg.length <= 27; // RG pode ter até 27 caracteres
   };
 
   const handleEmailChange = (e) => {
@@ -144,11 +155,30 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
     }
   };
 
+  const handleRgChange = (e) => {
+    const newRg = e.target.value;
+    setRg(newRg);
+    
+    if (newRg && !validateRg(newRg)) {
+      setRgError("RG pode ter no máximo 27 caracteres");
+    } else {
+      setRgError("");
+    }
+  };
+
   const handleSubmit = async () => {
-    if (!nome || !cpf || !tipoVinculo) {
+    if (!nome || !tipoVinculo) {
       setFeedback({
         type: "error",
-        message: "Nome, CPF e Categoria são obrigatórios.",
+        message: "Nome e Categoria são obrigatórios.",
+      });
+      return;
+    }
+    
+    if (!cpf && !rg) {
+      setFeedback({
+        type: "error",
+        message: "CPF ou RG deve ser informado.",
       });
       return;
     }
@@ -169,7 +199,7 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
       return;
     }
     
-    if (!validateCpf(cpf)) {
+    if (cpf && !validateCpf(cpf)) {
       setFeedback({
         type: "error",
         message: "CPF deve ter 11 dígitos.",
@@ -177,16 +207,26 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
       return;
     }
     
+    if (rg && !validateRg(rg)) {
+      setFeedback({
+        type: "error",
+        message: "RG pode ter no máximo 27 caracteres.",
+      });
+      return;
+    }
+    
     setLoading(true);
     setFeedback({ type: "", message: "" });
 
-    // Remove formatação do CPF e telefone antes de salvar
-    const cpfLimpo = cpf.replace(/\D/g, '');
-    const telefoneLimpo = telefone.replace(/\D/g, '');
+    // Remove formatação do CPF, RG e telefone antes de salvar
+    const cpfLimpo = cpf ? cpf.replace(/\D/g, '') : null;
+    const rgLimpo = rg || null;
+    const telefoneLimpo = telefone ? telefone.replace(/\D/g, '') : null;
 
     const pessoaData = { 
       nome_completo: nome, 
       cpf: cpfLimpo, 
+      rg: rgLimpo,
       email, 
       telefone: telefoneLimpo 
     };
@@ -226,9 +266,19 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
           onComplete={handleCpfComplete}
           fullWidth
           margin="normal"
-          required
           error={!!cpfError}
           helperText={cpfError}
+        />
+        
+        <TextField
+          label="RG"
+          fullWidth
+          margin="normal"
+          value={rg}
+          onChange={handleRgChange}
+          disabled={isPessoaExistente}
+          error={!!rgError}
+          helperText={rgError}
         />
 
         {feedback.message && !feedback.type.includes("error") && (
