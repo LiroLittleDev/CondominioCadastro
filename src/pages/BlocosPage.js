@@ -1,14 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, CircularProgress, Paper, Breadcrumbs, Link, Box, IconButton, Grid, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert } from '@mui/material';
+import { Typography, CircularProgress, Paper, Breadcrumbs, Link, Box, IconButton, Grid } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import HomeWorkIcon from '@mui/icons-material/HomeWork';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 
 // Função para carregar o estado salvo da sessão
 const loadState = () => {
@@ -26,7 +22,6 @@ const loadState = () => {
 function BlocosPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAdmin } = useAuth();
 
   // Inicializa o estado com os valores salvos ou os padrões
   const [state, setState] = useState(loadState);
@@ -34,11 +29,6 @@ function BlocosPage() {
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [dialogType, setDialogType] = useState(''); // 'create-bloco', 'edit-bloco', 'create-entrada', 'create-unidade'
-  const [dialogValue, setDialogValue] = useState('');
-  const [editingItem, setEditingItem] = useState(null);
-  const [feedback, setFeedback] = useState({ type: '', message: '' });
 
   // Detecta parâmetro de bloco na URL e navega para entradas
   useEffect(() => {
@@ -118,81 +108,15 @@ function BlocosPage() {
     }
   };
 
-  const handleCreate = () => {
-    if (view === 'blocos') {
-      setDialogType('create-bloco');
-    } else if (view === 'entradas') {
-      setDialogType('create-entrada');
-    } else if (view === 'unidades') {
-      setDialogType('create-unidade');
-    }
-    setDialogValue('');
-    setOpenDialog(true);
-  };
-
-  const handleEdit = (item) => {
-    setEditingItem(item);
-    setDialogValue(item.nome || item.letra || item.numero_apartamento);
-    setDialogType('edit-bloco');
-    setOpenDialog(true);
-  };
-
-  const handleDelete = async (item) => {
-    if (!window.confirm('Tem certeza que deseja excluir?')) return;
-    
-    let result;
-    if (view === 'blocos') {
-      result = await window.api.deleteBloco(item.id);
-    } else if (view === 'entradas') {
-      result = await window.api.deleteEntrada(item.id);
-    } else if (view === 'unidades') {
-      result = await window.api.deleteUnidade(item.id);
-    }
-    
-    setFeedback({ type: result.success ? 'success' : 'error', message: result.message });
-    if (result.success) fetchData();
-  };
-
-  const handleDialogSubmit = async () => {
-    if (!dialogValue.trim()) return;
-    
-    let result;
-    if (dialogType === 'create-bloco') {
-      result = await window.api.createBloco(dialogValue);
-    } else if (dialogType === 'edit-bloco') {
-      result = await window.api.updateBloco(editingItem.id, dialogValue);
-    } else if (dialogType === 'create-entrada') {
-      result = await window.api.createEntrada(selectedBloco.id, dialogValue.toUpperCase());
-    } else if (dialogType === 'create-unidade') {
-      result = await window.api.createUnidade(selectedEntrada.id, dialogValue);
-    }
-    
-    setFeedback({ type: result.success ? 'success' : 'error', message: result.message });
-    if (result.success) {
-      fetchData();
-      setOpenDialog(false);
-      setDialogValue('');
-      setEditingItem(null);
-    }
-  };
-
-
- return (
+  return (
     <div>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          {view !== 'blocos' && (
-            <IconButton onClick={handleBackClick} sx={{ mr: 1 }}>
-              <ArrowBackIcon />
-            </IconButton>
-          )}
-          <Typography variant="h4" component="h1">Gestão de Estrutura</Typography>
-        </Box>
-        {isAdmin() && (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreate}>
-            {view === 'blocos' ? 'Novo Bloco' : view === 'entradas' ? 'Nova Entrada' : 'Nova Unidade'}
-          </Button>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        {view !== 'blocos' && (
+          <IconButton onClick={handleBackClick} sx={{ mr: 1 }}>
+            <ArrowBackIcon />
+          </IconButton>
         )}
+        <Typography variant="h4" component="h1">Navegar por Estrutura</Typography>
       </Box>
       
       <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
@@ -209,11 +133,6 @@ function BlocosPage() {
         )}
       </Breadcrumbs>
 
-      {feedback.message && (
-        <Alert severity={feedback.type} sx={{ mb: 2 }} onClose={() => setFeedback({ type: '', message: '' })}>
-          {feedback.message}
-        </Alert>
-      )}
       {loading ? (
         <div style={{ padding: '20px', textAlign: 'center' }}><CircularProgress /></div>
       ) : (
@@ -245,71 +164,23 @@ function BlocosPage() {
               <Grid item xs={6} sm={4} md={3} key={item.id}>
                 <Paper 
                   elevation={3}
+                  onClick={cardContent.onClick}
                   sx={{ 
                     p: 2, 
                     textAlign: 'center', 
-                    position: 'relative',
-                    '&:hover .action-buttons': { opacity: 1 },
+                    cursor: 'pointer', 
+                    '&:hover': { backgroundColor: 'action.hover', transform: 'scale(1.02)' },
                     transition: 'transform 0.15s ease-in-out',
                   }}
                 >
-                  <Box onClick={cardContent.onClick} sx={{ cursor: 'pointer' }}>
-                    {cardContent.icon}
-                    <Typography variant="subtitle1">{cardContent.text}</Typography>
-                  </Box>
-                  
-                  {isAdmin() && view === 'blocos' && (
-                    <Box className="action-buttons" sx={{ position: 'absolute', top: 8, right: 8, opacity: 0, transition: 'opacity 0.2s' }}>
-                      <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleEdit(item); }}>
-                        <EditIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleDelete(item); }}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  )}
-                  
-                  {isAdmin() && (view === 'entradas' || view === 'unidades') && (
-                    <Box className="action-buttons" sx={{ position: 'absolute', top: 8, right: 8, opacity: 0, transition: 'opacity 0.2s' }}>
-                      <IconButton size="small" onClick={(e) => { e.stopPropagation(); handleDelete(item); }}>
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  )}
+                  {cardContent.icon}
+                  <Typography variant="subtitle1">{cardContent.text}</Typography>
                 </Paper>
               </Grid>
             );
           })}
         </Grid>
       )}
-      
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>
-          {dialogType === 'create-bloco' ? 'Novo Bloco' :
-           dialogType === 'edit-bloco' ? 'Editar Bloco' :
-           dialogType === 'create-entrada' ? 'Nova Entrada' :
-           'Nova Unidade'}
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label={dialogType.includes('bloco') ? 'Nome do Bloco' :
-                   dialogType === 'create-entrada' ? 'Letra da Entrada' :
-                   'Número do Apartamento'}
-            fullWidth
-            variant="outlined"
-            value={dialogValue}
-            onChange={(e) => setDialogValue(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
-          <Button onClick={handleDialogSubmit} variant="contained">
-            {dialogType.includes('edit') ? 'Salvar' : 'Criar'}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </div>
   );
 }
