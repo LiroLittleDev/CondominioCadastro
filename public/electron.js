@@ -229,98 +229,96 @@ ipcMain.handle('get-report-data', async (event, filtros = {}) => {
         query = query.where('vinculos.tipo_vinculo', filtros.tipoVinculo);
       }
     }
+    if (filtros.entrada) {
+      query = query.where('entradas.letra', filtros.entrada);
+    }
+    if (filtros.busca) {
+      const termoBusca = filtros.busca.trim();
+      if (termoBusca.length >= 2) {
+        const termoBuscaLimpo = termoBusca.replace(/\D/g, ''); // Para CPF
+        query = query.where(function() {
+          // Busca exata por CPF se for número
+          if (termoBuscaLimpo.length >= 3) {
+            this.where('pessoas.cpf', 'like', `%${termoBuscaLimpo}%`);
+          }
+          // Busca por nome (palavras completas)
+          const palavras = termoBusca.toLowerCase().split(' ').filter(p => p.length >= 2);
+          palavras.forEach(palavra => {
+            this.orWhereRaw('LOWER(pessoas.nome_completo) LIKE ?', [`%${palavra}%`]);
+          });
+          // Busca por email
+          if (termoBusca.includes('@') || termoBusca.includes('.')) {
+            this.orWhereRaw('LOWER(pessoas.email) LIKE ?', [`%${termoBusca.toLowerCase()}%`]);
+          }
+        });
+      }
+    }
 
-    const vinculosAtivos = await query.orderBy('pessoas.nome_completo', 'asc');
-    
-    // Buscar estatísticas por categoria
-    let statsQuery = knex('vinculos')
-      .join('unidades', 'vinculos.unidade_id', 'unidades.id')
-      .join('entradas', 'unidades.entrada_id', 'entradas.id')
-      .join('blocos', 'entradas.bloco_id', 'blocos.id')
-      .where('vinculos.status', 'Ativo')
-      .select('vinculos.tipo_vinculo')
-      .count('vinculos.id as quantidade')
-      .groupBy('vinculos.tipo_vinculo');
-    
-    if (filtros.blocoId) {
-      statsQuery = statsQuery.where('blocos.id', filtros.blocoId);
+    // Aplicar ordenação
+    let orderBy = 'pessoas.nome_completo';
+    if (filtros.ordenacao === 'unidade') {
+      orderBy = ['blocos.nome', 'unidades.numero_apartamento'];
+    } else if (filtros.ordenacao === 'categoria') {
+      orderBy = 'vinculos.tipo_vinculo';
     }
-    if (filtros.tipoVinculo) {
-      if (filtros.tipoVinculo === 'Proprietários') {
-        statsQuery = statsQuery.whereIn('vinculos.tipo_vinculo', ['Proprietário', 'Proprietário Morador']);
+    
+    const vinculosAtivos = Array.isArray(orderBy) 
+      ? await query.orderBy(orderBy[0], 'asc').orderBy(orderBy[1], 'asc')
+      : await query.orderBy(orderBy, 'asc');
+    
+    // Buscar veículos sempre para poder aplicar filtros
+    const todosVeiculos = await knex('veiculos').select('*');
+    
+    let reportData = vinculosAtivos.map(vinculo => {
+      const veiculosDaPessoa = todosVeiculos.filter(v => v.pessoa_id === vinculo.pessoa_id);
+      return {
+        ...vinculo,
+        veiculos: filtros.incluirVeiculos ? veiculosDaPessoa : [],
+        temVeiculos: veiculosDaPessoa.length > 0
+      };
+    });
+    
+    // Aplicar filtros de veículos
+    if (filtros.apenasComVeiculos) {
+      reportData = reportData.filter(item => item.temVeiculos);
+    }
+    if (filtros.apenasSemVeiculos) {
+      reportData = reportData.filter(item => !item.temVeiculos);
+    }
+    
+    // Calcular estatísticas baseadas nos dados filtrados
+    const pessoasUnicas = new Set(reportData.map(item => item.pessoa_id)).size;
+    const totalVinculos = reportData.length;
+    
+    // Contar por categoria
+    const estatisticasPorCategoria = reportData.reduce((acc, item) => {
+      const categoria = item.tipo_vinculo;
+      const existing = acc.find(cat => cat.tipo_vinculo === categoria);
+      if (existing) {
+        existing.quantidade++;
       } else {
-        statsQuery = statsQuery.where('vinculos.tipo_vinculo', filtros.tipoVinculo);
+        acc.push({ tipo_vinculo: categoria, quantidade: 1 });
       }
-    }
+      return acc;
+    }, []);
     
-    const estatisticasPorCategoria = await statsQuery;
-    
-    // Contar pessoas únicas
-    let pessoasUnicasQuery = knex('vinculos')
-      .join('unidades', 'vinculos.unidade_id', 'unidades.id')
-      .join('entradas', 'unidades.entrada_id', 'entradas.id')
-      .join('blocos', 'entradas.bloco_id', 'blocos.id')
-      .where('vinculos.status', 'Ativo')
-      .countDistinct('vinculos.pessoa_id as total_pessoas');
-    
-    if (filtros.blocoId) {
-      pessoasUnicasQuery = pessoasUnicasQuery.where('blocos.id', filtros.blocoId);
-    }
-    if (filtros.tipoVinculo) {
-      if (filtros.tipoVinculo === 'Proprietários') {
-        pessoasUnicasQuery = pessoasUnicasQuery.whereIn('vinculos.tipo_vinculo', ['Proprietário', 'Proprietário Morador']);
-      } else {
-        pessoasUnicasQuery = pessoasUnicasQuery.where('vinculos.tipo_vinculo', filtros.tipoVinculo);
-      }
-    }
-    
-    const [{ total_pessoas }] = await pessoasUnicasQuery;
-    
-    // Buscar estatísticas de veículos
-    let veiculosQuery = knex('veiculos')
-      .join('pessoas', 'veiculos.pessoa_id', 'pessoas.id')
-      .join('vinculos', function() {
-        this.on('pessoas.id', '=', 'vinculos.pessoa_id')
-            .andOn('vinculos.status', '=', knex.raw('?', ['Ativo']));
-      })
-      .join('unidades', 'vinculos.unidade_id', 'unidades.id')
-      .join('entradas', 'unidades.entrada_id', 'entradas.id')
-      .join('blocos', 'entradas.bloco_id', 'blocos.id')
-      .countDistinct('veiculos.id as total_veiculos');
-    
-    if (filtros.blocoId) {
-      veiculosQuery = veiculosQuery.where('blocos.id', filtros.blocoId);
-    }
-    if (filtros.tipoVinculo) {
-      if (filtros.tipoVinculo === 'Proprietários') {
-        veiculosQuery = veiculosQuery.whereIn('vinculos.tipo_vinculo', ['Proprietário', 'Proprietário Morador']);
-      } else {
-        veiculosQuery = veiculosQuery.where('vinculos.tipo_vinculo', filtros.tipoVinculo);
-      }
-    }
-    
-    const [{ total_veiculos }] = await veiculosQuery;
-    
-    let reportData;
-    if (filtros.incluirVeiculos === false) {
-      reportData = vinculosAtivos.map(vinculo => ({ ...vinculo, veiculos: [] }));
-    } else {
-      const todosVeiculos = await knex('veiculos').select('*');
-      reportData = vinculosAtivos.map(vinculo => {
-        const veiculosDaPessoa = todosVeiculos.filter(v => v.pessoa_id === vinculo.pessoa_id);
-        return {
-          ...vinculo,
-          veiculos: veiculosDaPessoa,
-        };
+    // Contar veículos únicos
+    const veiculosUnicos = new Set();
+    reportData.forEach(item => {
+      item.veiculos.forEach(veiculo => {
+        veiculosUnicos.add(veiculo.id);
       });
-    }
+    });
+    const totalVeiculos = veiculosUnicos.size;
+    
+
 
     return {
       dados: reportData,
       estatisticas: {
-        totalPessoas: total_pessoas || 0,
-        totalVinculos: vinculosAtivos.length,
-        totalVeiculos: total_veiculos || 0,
+        totalPessoas: pessoasUnicas,
+        totalVinculos: totalVinculos,
+        totalVeiculos: totalVeiculos,
         porCategoria: estatisticasPorCategoria
       }
     };

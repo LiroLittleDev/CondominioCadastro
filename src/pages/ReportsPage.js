@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Typography, Box, Paper, Button, CircularProgress, Alert, Table, TableBody, 
   TableCell, TableContainer, TableHead, TableRow, FormControl, InputLabel, 
-  Select, MenuItem, FormControlLabel, Checkbox, Grid, Divider 
+  Select, MenuItem, FormControlLabel, Checkbox, Grid, Divider, TextField 
 } from '@mui/material';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import GridOnIcon from '@mui/icons-material/GridOn';
@@ -38,6 +38,11 @@ function ReportsPage() {
   const [filtros, setFiltros] = useState({
     blocoId: '',
     tipoVinculo: '',
+    entrada: '',
+    busca: '',
+    apenasComVeiculos: false,
+    apenasSemVeiculos: false,
+    ordenacao: 'nome',
     incluirVeiculos: true
   });
 
@@ -56,6 +61,11 @@ function ReportsPage() {
     const filtrosLimpos = {
       blocoId: filtros.blocoId || null,
       tipoVinculo: filtros.tipoVinculo || null,
+      entrada: filtros.entrada || null,
+      busca: filtros.busca || null,
+      apenasComVeiculos: filtros.apenasComVeiculos,
+      apenasSemVeiculos: filtros.apenasSemVeiculos,
+      ordenacao: filtros.ordenacao,
       incluirVeiculos: filtros.incluirVeiculos
     };
     
@@ -243,7 +253,7 @@ function ReportsPage() {
           </Box>
           
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={3}>
               <FormControl fullWidth>
                 <InputLabel>Bloco</InputLabel>
                 <Select
@@ -261,7 +271,7 @@ function ReportsPage() {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={3}>
               <FormControl fullWidth>
                 <InputLabel>Tipo de Vínculo</InputLabel>
                 <Select
@@ -281,16 +291,80 @@ function ReportsPage() {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12} sm={4}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={filtros.incluirVeiculos}
-                    onChange={(e) => handleFilterChange('incluirVeiculos', e.target.checked)}
-                  />
-                }
-                label="Incluir veículos no relatório"
+            <Grid item xs={12} sm={3}>
+              <FormControl fullWidth>
+                <InputLabel>Entrada</InputLabel>
+                <Select
+                  value={filtros.entrada}
+                  label="Entrada"
+                  onChange={(e) => handleFilterChange('entrada', e.target.value)}
+                >
+                  <MenuItem value="">Todas as entradas</MenuItem>
+                  <MenuItem value="A">Entrada A</MenuItem>
+                  <MenuItem value="B">Entrada B</MenuItem>
+                  <MenuItem value="C">Entrada C</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={3}>
+              <FormControl fullWidth>
+                <InputLabel>Ordenar por</InputLabel>
+                <Select
+                  value={filtros.ordenacao}
+                  label="Ordenar por"
+                  onChange={(e) => handleFilterChange('ordenacao', e.target.value)}
+                >
+                  <MenuItem value="nome">Nome</MenuItem>
+                  <MenuItem value="unidade">Unidade</MenuItem>
+                  <MenuItem value="categoria">Categoria</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Buscar por nome, CPF ou email"
+                value={filtros.busca}
+                onChange={(e) => handleFilterChange('busca', e.target.value)}
+                size="small"
               />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={filtros.incluirVeiculos}
+                      onChange={(e) => handleFilterChange('incluirVeiculos', e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label="Incluir veículos"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={filtros.apenasComVeiculos}
+                      onChange={(e) => handleFilterChange('apenasComVeiculos', e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label="Apenas com veículos"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={filtros.apenasSemVeiculos}
+                      onChange={(e) => handleFilterChange('apenasSemVeiculos', e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label="Apenas sem veículos"
+                />
+              </Box>
             </Grid>
           </Grid>
           
@@ -366,46 +440,55 @@ function ReportsPage() {
             </Box>
             
             <TableContainer sx={{ mt: 2 }}>
-              <Table size="small">
+              <Table size="small" sx={{ '& .MuiTableCell-root': { py: 0.5, fontSize: '0.75rem' } }}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Morador</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Unidade</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Contatos</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Veículos</TableCell>
+                  <TableRow sx={{ '& .MuiTableCell-root': { fontWeight: 'bold', fontSize: '0.8rem', py: 1 } }}>
+                    <TableCell>Morador</TableCell>
+                    <TableCell>Unidade</TableCell>
+                    <TableCell>Contatos</TableCell>
+                    {filtros.incluirVeiculos && <TableCell>Veículos</TableCell>}
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {reportData.dados.map((item) => (
-                    <TableRow key={item.vinculo_id}>
-                      <TableCell>
-                        <Typography variant="body2">{item.nome_completo}</Typography>
-                        <Typography variant="caption" color="text.secondary">CPF: {formatCPF(item.cpf)}</Typography>
-                        <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 0.5 }}>
+                    <TableRow key={item.vinculo_id} sx={{ '& .MuiTableCell-root': { borderBottom: '1px solid #e0e0e0' } }}>
+                      <TableCell sx={{ minWidth: 120 }}>
+                        <Typography variant="body2" sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                          {item.nome_completo}
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', display: 'block' }}>
+                          {formatCPF(item.cpf)}
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'primary.main', display: 'block' }}>
                           {item.tipo_vinculo}
                         </Typography>
                       </TableCell>
-                      <TableCell>{item.nome_bloco} - {item.numero_apartamento}</TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{formatPhone(item.telefone)}</Typography>
-                        <Typography variant="caption">{item.email}</Typography>
+                      <TableCell sx={{ fontSize: '0.75rem', minWidth: 80 }}>
+                        {item.nome_bloco} - {item.numero_apartamento}
                       </TableCell>
-                      <TableCell>
-                        {filtros.incluirVeiculos ? (
-                          item.veiculos.length > 0 ? (
+                      <TableCell sx={{ minWidth: 100 }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', display: 'block' }}>
+                          {formatPhone(item.telefone)}
+                        </Typography>
+                        <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+                          {item.email}
+                        </Typography>
+                      </TableCell>
+                      {filtros.incluirVeiculos && (
+                        <TableCell sx={{ minWidth: 100 }}>
+                          {item.veiculos.length > 0 ? (
                             item.veiculos.map(v => (
-                              <Box key={v.id}>
-                                <Typography variant="body2">{v.marca} {v.modelo}</Typography>
-                                <Typography variant="caption" color="text.secondary">Placa: {v.placa}</Typography>
-                              </Box>
+                              <Typography key={v.id} variant="caption" sx={{ fontSize: '0.65rem', display: 'block' }}>
+                                {v.marca} {v.modelo} ({v.placa})
+                              </Typography>
                             ))
                           ) : (
-                            <Typography variant="caption">Nenhum veículo</Typography>
-                          )
-                        ) : (
-                          <Typography variant="caption">-</Typography>
-                        )}
-                      </TableCell>
+                            <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+                              Sem veículo
+                            </Typography>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -418,6 +501,10 @@ function ReportsPage() {
       <style type="text/css">
         {`
           @media print {
+            @page {
+              margin: 0.5in;
+              size: A4;
+            }
             body * {
               visibility: hidden;
             }
@@ -436,9 +523,26 @@ function ReportsPage() {
             .printable-area .MuiPaper-root {
               box-shadow: none !important;
               background-color: transparent !important;
+              padding: 8px !important;
             }
             .printable-area * {
               color: #000 !important;
+            }
+            .printable-area .MuiTableCell-root {
+              padding: 2px 4px !important;
+              font-size: 10px !important;
+              line-height: 1.2 !important;
+            }
+            .printable-area .MuiTypography-h5 {
+              font-size: 16px !important;
+              margin-bottom: 8px !important;
+            }
+            .printable-area .MuiTypography-h6 {
+              font-size: 12px !important;
+              margin-bottom: 4px !important;
+            }
+            .printable-area .MuiBox-root {
+              margin-bottom: 8px !important;
             }
           }
         `}
