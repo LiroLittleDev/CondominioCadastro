@@ -50,7 +50,7 @@ contextBridge.exposeInMainWorld("api", {
   getAllBlocos: () => ipcRenderer.invoke("get-all-blocos"),
   getAllVeiculosDetails: (filtros) =>
     ipcRenderer.invoke("get-all-veiculos-details", filtros),
-  getReportData: () => ipcRenderer.invoke("get-report-data"),
+  getReportData: (filtros) => ipcRenderer.invoke("get-report-data", filtros),
   saveReport: (options) => ipcRenderer.invoke("save-report", options),
   createPessoaSimples: (pessoaData) => ipcRenderer.invoke("create-pessoa-simples", pessoaData),
 });

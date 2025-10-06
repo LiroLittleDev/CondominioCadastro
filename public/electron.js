@@ -36,9 +36,18 @@ ipcMain.handle('save-report', async (event, options) => {
   const fs = require('fs');
   
   try {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const dateTime = `${year}-${month}-${day}T${hours}-${minutes}-${seconds}`;
+    
     const result = await dialog.showSaveDialog({
       filters: options.filters,
-      defaultPath: `relatorio_${new Date().toISOString().split('T')[0]}.${options.format}`
+      defaultPath: `relatorio_${dateTime}.${options.format}`
     });
     
     if (!result.canceled) {
@@ -52,10 +61,10 @@ ipcMain.handle('save-report', async (event, options) => {
   }
 });
 
-// Handler para buscar dados do relatório
-ipcMain.handle('get-report-data', async () => {
+// Handler para buscar dados do relatório com filtros
+ipcMain.handle('get-report-data', async (event, filtros = {}) => {
   try {
-    const vinculosAtivos = await knex('vinculos')
+    let query = knex('vinculos')
       .join('pessoas', 'vinculos.pessoa_id', 'pessoas.id')
       .join('unidades', 'vinculos.unidade_id', 'unidades.id')
       .join('entradas', 'unidades.entrada_id', 'entradas.id')
@@ -68,10 +77,24 @@ ipcMain.handle('get-report-data', async () => {
         'pessoas.telefone',
         'pessoas.email',
         'blocos.nome as nome_bloco',
-        'unidades.numero_apartamento'
-      )
-      .orderBy('pessoas.nome_completo', 'asc');
+        'unidades.numero_apartamento',
+        'vinculos.tipo_vinculo'
+      );
 
+    // Aplicar filtros
+    if (filtros.blocoId) {
+      query = query.where('blocos.id', filtros.blocoId);
+    }
+    if (filtros.tipoVinculo) {
+      query = query.where('vinculos.tipo_vinculo', filtros.tipoVinculo);
+    }
+    if (filtros.incluirVeiculos === false) {
+      // Se não incluir veículos, retorna só os dados básicos
+      const vinculosAtivos = await query.orderBy('pessoas.nome_completo', 'asc');
+      return vinculosAtivos.map(pessoa => ({ ...pessoa, veiculos: [] }));
+    }
+
+    const vinculosAtivos = await query.orderBy('pessoas.nome_completo', 'asc');
     const todosVeiculos = await knex('veiculos').select('*');
 
     const reportData = vinculosAtivos.map(pessoa => {
