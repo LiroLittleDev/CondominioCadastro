@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Drawer,
@@ -13,7 +13,15 @@ import {
   Divider,
   Avatar,
   Chip,
+  IconButton,
+  Menu,
+  MenuItem,
+  Paper,
+  Button,
 } from "@mui/material";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import LoginIcon from "@mui/icons-material/Login";
+import LogoutIcon from "@mui/icons-material/Logout";
 import HomeIcon from "@mui/icons-material/Home";
 import BusinessIcon from "@mui/icons-material/Business";
 import AssessmentIcon from "@mui/icons-material/Assessment";
@@ -35,12 +43,79 @@ import BlocosPage from "./pages/BlocosPage";
 import PessoaPage from "./pages/PessoaPage";
 import SettingsPage from "./pages/SettingsPage";
 
+// Importa contexto e componentes de auth
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import LoginModal from "./components/LoginModal";
+import SplashScreen from "./components/SplashScreen";
+
 const drawerWidth = 240;
 
-function App() {
+function AppContent() {
+  const { user, logout, isLoggedIn, loading, showSplash } = useAuth();
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  // Mostrar tela de splash durante carregamento
+  if (showSplash || loading) {
+    return <SplashScreen />;
+  }
+
+  // Exigir login se não estiver logado
+  if (!isLoggedIn()) {
+    return (
+      <Box sx={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+      }}>
+        <Paper elevation={8} sx={{ p: 4, maxWidth: 400, width: '100%', textAlign: 'center' }}>
+          <Box
+            component="img"
+            src="https://cdn-icons-png.flaticon.com/512/2830/2830284.png"
+            alt="SGC Logo"
+            sx={{ width: 80, height: 80, mb: 2, opacity: 0.8 }}
+          />
+          <Typography variant="h4" gutterBottom color="primary">
+            SGC Desktop
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Sistema de Gestão Condominial
+          </Typography>
+          <Button 
+            variant="contained" 
+            size="large" 
+            fullWidth
+            onClick={() => setLoginOpen(true)}
+            startIcon={<LoginIcon />}
+          >
+            Fazer Login
+          </Button>
+        </Paper>
+        <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+      </Box>
+    );
+  }
+
+  const handleUserMenuClick = (event) => {
+    if (isLoggedIn()) {
+      setAnchorEl(event.currentTarget);
+    } else {
+      setLoginOpen(true);
+    }
+  };
+
+  const handleUserMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    logout();
+    handleUserMenuClose();
+  };
+
   return (
-    // O HashRouter envolve toda a aplicação para controlar a navegação
-    <HashRouter>
       <Box sx={{ display: "flex" }}>
         <CssBaseline />
         <AppBar
@@ -89,16 +164,27 @@ function App() {
                 </Typography>
               </Box>
             </Box>
-            <Chip 
-              label="Administrador" 
-              size="small" 
-              sx={{
-                bgcolor: 'rgba(76, 175, 80, 0.2)',
-                color: '#4CAF50',
-                border: '1px solid rgba(76, 175, 80, 0.3)',
-                fontWeight: 600
-              }}
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {isLoggedIn() && (
+                <Chip 
+                  label={user?.role === 'admin' ? 'Administrador' : 'Usuário'} 
+                  size="small" 
+                  sx={{
+                    bgcolor: user?.role === 'admin' ? 'rgba(76, 175, 80, 0.2)' : 'rgba(33, 150, 243, 0.2)',
+                    color: user?.role === 'admin' ? '#4CAF50' : '#2196F3',
+                    border: user?.role === 'admin' ? '1px solid rgba(76, 175, 80, 0.3)' : '1px solid rgba(33, 150, 243, 0.3)',
+                    fontWeight: 600
+                  }}
+                />
+              )}
+              <IconButton 
+                color="inherit" 
+                onClick={handleUserMenuClick}
+                sx={{ color: 'white' }}
+              >
+                {isLoggedIn() ? <AccountCircleIcon /> : <LoginIcon />}
+              </IconButton>
+            </Box>
           </Toolbar>
         </AppBar>
 
@@ -329,8 +415,37 @@ function App() {
             <Route path="/configuracoes" element={<SettingsPage />} />
           </Routes>
         </Box>
+        
+        <Menu
+          anchorEl={anchorEl}
+          open={Boolean(anchorEl)}
+          onClose={handleUserMenuClose}
+        >
+          <MenuItem onClick={handleUserMenuClose}>
+            <AccountCircleIcon sx={{ mr: 1 }} />
+            {user?.name}
+          </MenuItem>
+          <MenuItem onClick={handleLogout}>
+            <LogoutIcon sx={{ mr: 1 }} />
+            Sair
+          </MenuItem>
+        </Menu>
+        
+        <LoginModal 
+          open={loginOpen} 
+          onClose={() => setLoginOpen(false)} 
+        />
       </Box>
-    </HashRouter>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <HashRouter>
+        <AppContent />
+      </HashRouter>
+    </AuthProvider>
   );
 }
 

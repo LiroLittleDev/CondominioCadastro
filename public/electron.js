@@ -1293,6 +1293,142 @@ ipcMain.handle("delete-all-inactive-vinculos", async (event, pessoaId) => {
   }
 });
 
+// === HANDLERS PARA GESTÃO DE ESTRUTURA PREDIAL ===
+
+// Criar bloco
+ipcMain.handle('create-bloco', async (event, nomeBloco) => {
+  try {
+    const [blocoId] = await knex('blocos').insert({ nome: nomeBloco }).returning('id');
+    notifyDataChanged();
+    return { success: true, message: 'Bloco criado com sucesso!', id: typeof blocoId === 'object' ? blocoId.id : blocoId };
+  } catch (error) {
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Editar bloco
+ipcMain.handle('update-bloco', async (event, blocoId, nomeBloco) => {
+  try {
+    await knex('blocos').where({ id: blocoId }).update({ nome: nomeBloco });
+    notifyDataChanged();
+    return { success: true, message: 'Bloco atualizado com sucesso!' };
+  } catch (error) {
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Deletar bloco
+ipcMain.handle('delete-bloco', async (event, blocoId) => {
+  try {
+    const vinculos = await knex('vinculos')
+      .join('unidades', 'vinculos.unidade_id', 'unidades.id')
+      .join('entradas', 'unidades.entrada_id', 'entradas.id')
+      .where('entradas.bloco_id', blocoId)
+      .where('vinculos.status', 'Ativo')
+      .first();
+    
+    if (vinculos) {
+      return { success: false, message: 'Não é possível excluir bloco com vínculos ativos.' };
+    }
+    
+    await knex.transaction(async (trx) => {
+      await trx('vinculos')
+        .whereIn('unidade_id', 
+          trx('unidades')
+            .join('entradas', 'unidades.entrada_id', 'entradas.id')
+            .where('entradas.bloco_id', blocoId)
+            .select('unidades.id')
+        ).del();
+      
+      await trx('unidades')
+        .whereIn('entrada_id', 
+          trx('entradas').where('bloco_id', blocoId).select('id')
+        ).del();
+      
+      await trx('entradas').where('bloco_id', blocoId).del();
+      await trx('blocos').where('id', blocoId).del();
+    });
+    
+    notifyDataChanged();
+    return { success: true, message: 'Bloco excluído com sucesso!' };
+  } catch (error) {
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Criar entrada
+ipcMain.handle('create-entrada', async (event, blocoId, letra) => {
+  try {
+    const [entradaId] = await knex('entradas').insert({ bloco_id: blocoId, letra }).returning('id');
+    notifyDataChanged();
+    return { success: true, message: 'Entrada criada com sucesso!', id: typeof entradaId === 'object' ? entradaId.id : entradaId };
+  } catch (error) {
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Deletar entrada
+ipcMain.handle('delete-entrada', async (event, entradaId) => {
+  try {
+    const vinculos = await knex('vinculos')
+      .join('unidades', 'vinculos.unidade_id', 'unidades.id')
+      .where('unidades.entrada_id', entradaId)
+      .where('vinculos.status', 'Ativo')
+      .first();
+    
+    if (vinculos) {
+      return { success: false, message: 'Não é possível excluir entrada com vínculos ativos.' };
+    }
+    
+    await knex.transaction(async (trx) => {
+      await trx('vinculos')
+        .whereIn('unidade_id', 
+          trx('unidades').where('entrada_id', entradaId).select('id')
+        ).del();
+      
+      await trx('unidades').where('entrada_id', entradaId).del();
+      await trx('entradas').where('id', entradaId).del();
+    });
+    
+    notifyDataChanged();
+    return { success: true, message: 'Entrada excluída com sucesso!' };
+  } catch (error) {
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Criar unidade
+ipcMain.handle('create-unidade', async (event, entradaId, numeroApartamento) => {
+  try {
+    const [unidadeId] = await knex('unidades').insert({ entrada_id: entradaId, numero_apartamento: numeroApartamento }).returning('id');
+    notifyDataChanged();
+    return { success: true, message: 'Unidade criada com sucesso!', id: typeof unidadeId === 'object' ? unidadeId.id : unidadeId };
+  } catch (error) {
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Deletar unidade
+ipcMain.handle('delete-unidade', async (event, unidadeId) => {
+  try {
+    const vinculos = await knex('vinculos').where('unidade_id', unidadeId).where('status', 'Ativo').first();
+    
+    if (vinculos) {
+      return { success: false, message: 'Não é possível excluir unidade com vínculos ativos.' };
+    }
+    
+    await knex.transaction(async (trx) => {
+      await trx('vinculos').where('unidade_id', unidadeId).del();
+      await trx('unidades').where('id', unidadeId).del();
+    });
+    
+    notifyDataChanged();
+    return { success: true, message: 'Unidade excluída com sucesso!' };
+  } catch (error) {
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
 ipcMain.handle("run-setup", async () => {
   try {
     const blocosExistentes = await knex("blocos").select("id").first();

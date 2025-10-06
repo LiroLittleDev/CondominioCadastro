@@ -60,4 +60,13 @@ contextBridge.exposeInMainWorld("api", {
   backupData: () => ipcRenderer.invoke("backup-data"),
   importBackup: (backupData) => ipcRenderer.invoke("import-backup", backupData),
   getDetailedStats: () => ipcRenderer.invoke("get-detailed-stats"),
+  
+  // === GESTÃO DE ESTRUTURA PREDIAL ===
+  createBloco: (nomeBloco) => ipcRenderer.invoke("create-bloco", nomeBloco),
+  updateBloco: (blocoId, nomeBloco) => ipcRenderer.invoke("update-bloco", blocoId, nomeBloco),
+  deleteBloco: (blocoId) => ipcRenderer.invoke("delete-bloco", blocoId),
+  createEntrada: (blocoId, letra) => ipcRenderer.invoke("create-entrada", blocoId, letra),
+  deleteEntrada: (entradaId) => ipcRenderer.invoke("delete-entrada", entradaId),
+  createUnidade: (entradaId, numeroApartamento) => ipcRenderer.invoke("create-unidade", entradaId, numeroApartamento),
+  deleteUnidade: (unidadeId) => ipcRenderer.invoke("delete-unidade", unidadeId),
 });
