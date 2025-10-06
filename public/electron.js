@@ -631,6 +631,115 @@ ipcMain.handle('create-pessoa-simples', async (event, pessoaData) => {
   }
 });
 
+// Handler para limpar todos os dados
+ipcMain.handle('clear-all-data', async () => {
+  try {
+    await knex.transaction(async (trx) => {
+      await trx('vinculos').del();
+      await trx('veiculos').del();
+      await trx('pessoas').del();
+    });
+    return { success: true, message: 'Todos os dados foram removidos com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao limpar dados:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Handler para backup dos dados
+ipcMain.handle('backup-data', async () => {
+  try {
+    const [pessoas, vinculos, veiculos] = await Promise.all([
+      knex('pessoas').select('*'),
+      knex('vinculos').select('*'),
+      knex('veiculos').select('*')
+    ]);
+    
+    const backup = {
+      timestamp: new Date().toISOString(),
+      pessoas,
+      vinculos,
+      veiculos
+    };
+    
+    return { success: true, data: backup };
+  } catch (error) {
+    console.error('Erro ao fazer backup:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Handler para estatísticas detalhadas
+ipcMain.handle('get-detailed-stats', async () => {
+  try {
+    const [totalPessoas] = await knex('pessoas').count('id as count');
+    const [totalVeiculos] = await knex('veiculos').count('id as count');
+    const [totalVinculos] = await knex('vinculos').where('status', 'Ativo').count('id as count');
+    const [totalUnidades] = await knex('unidades').count('id as count');
+    
+    const vinculosPorTipo = await knex('vinculos')
+      .where('status', 'Ativo')
+      .select('tipo_vinculo')
+      .count('id as count')
+      .groupBy('tipo_vinculo');
+    
+    const veiculosPorTipo = await knex('veiculos')
+      .select('tipo')
+      .count('id as count')
+      .groupBy('tipo');
+    
+    return {
+      success: true,
+      stats: {
+        totalPessoas: totalPessoas.count,
+        totalVeiculos: totalVeiculos.count,
+        totalVinculos: totalVinculos.count,
+        totalUnidades: totalUnidades.count,
+        vinculosPorTipo,
+        veiculosPorTipo
+      }
+    };
+  } catch (error) {
+    console.error('Erro ao buscar estatísticas:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Handler para importar dados de backup
+ipcMain.handle('import-backup', async (event, backupData) => {
+  try {
+    await knex.transaction(async (trx) => {
+      // Limpa dados existentes
+      await trx('vinculos').del();
+      await trx('veiculos').del();
+      await trx('pessoas').del();
+      
+      // Importa pessoas
+      if (backupData.pessoas && backupData.pessoas.length > 0) {
+        await trx('pessoas').insert(backupData.pessoas);
+      }
+      
+      // Importa veículos
+      if (backupData.veiculos && backupData.veiculos.length > 0) {
+        await trx('veiculos').insert(backupData.veiculos);
+      }
+      
+      // Importa vínculos
+      if (backupData.vinculos && backupData.vinculos.length > 0) {
+        await trx('vinculos').insert(backupData.vinculos);
+      }
+    });
+    
+    return { 
+      success: true, 
+      message: `Backup importado com sucesso! ${backupData.pessoas?.length || 0} pessoas, ${backupData.veiculos?.length || 0} veículos e ${backupData.vinculos?.length || 0} vínculos restaurados.`
+    };
+  } catch (error) {
+    console.error('Erro ao importar backup:', error);
+    return { success: false, message: `Erro ao importar backup: ${error.message}` };
+  }
+});
+
 ipcMain.handle("get-dashboard-stats", async () => {
   try {
     const [totalUnidades] = await knex("unidades").count("id as count");

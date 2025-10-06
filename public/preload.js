@@ -53,4 +53,8 @@ contextBridge.exposeInMainWorld("api", {
   getReportData: (filtros) => ipcRenderer.invoke("get-report-data", filtros),
   saveReport: (options) => ipcRenderer.invoke("save-report", options),
   createPessoaSimples: (pessoaData) => ipcRenderer.invoke("create-pessoa-simples", pessoaData),
+  clearAllData: () => ipcRenderer.invoke("clear-all-data"),
+  backupData: () => ipcRenderer.invoke("backup-data"),
+  importBackup: (backupData) => ipcRenderer.invoke("import-backup", backupData),
+  getDetailedStats: () => ipcRenderer.invoke("get-detailed-stats"),
 });
