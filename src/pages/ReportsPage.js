@@ -31,7 +31,7 @@ const formatPhone = (phone) => {
 };
 
 function ReportsPage() {
-  const [reportData, setReportData] = useState([]);
+  const [reportData, setReportData] = useState({ dados: [], estatisticas: { totalPessoas: 0, totalVinculos: 0, totalVeiculos: 0, porCategoria: [] } });
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   const [blocos, setBlocos] = useState([]);
@@ -59,14 +59,14 @@ function ReportsPage() {
       incluirVeiculos: filtros.incluirVeiculos
     };
     
-    const data = await window.api.getReportData(filtrosLimpos);
-    setReportData(data);
+    const response = await window.api.getReportData(filtrosLimpos);
+    setReportData(response);
     setLoading(false);
     
-    if (data.length === 0) {
+    if (!response.dados || response.dados.length === 0) {
       setFeedback({ type: 'warning', message: 'Nenhum dado encontrado com os filtros selecionados.' });
     } else {
-      setFeedback({ type: 'success', message: `Relatório gerado com ${data.length} registros.` });
+      setFeedback({ type: 'success', message: `Relatório gerado com ${response.dados.length} registros.` });
     }
   };
 
@@ -90,7 +90,21 @@ function ReportsPage() {
     doc.text(titulo, 14, 15);
     doc.setFontSize(10);
     doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 14, 20);
-    doc.text(`Total de registros: ${reportData.length}`, 14, 25);
+    doc.text(`Total de registros: ${reportData.dados.length}`, 14, 25);
+    doc.text(`Pessoas únicas: ${reportData.estatisticas.totalPessoas}`, 14, 30);
+    doc.text(`Total vínculos: ${reportData.estatisticas.totalVinculos}`, 14, 35);
+    doc.text(`Total veículos: ${reportData.estatisticas.totalVeiculos}`, 14, 40);
+    
+    // Adicionar estatísticas por categoria
+    let yPos = 45;
+    if (reportData.estatisticas.porCategoria.length > 0) {
+      doc.text('Por categoria:', 14, yPos);
+      yPos += 5;
+      reportData.estatisticas.porCategoria.forEach(cat => {
+        doc.text(`${cat.tipo_vinculo}: ${cat.quantidade}`, 20, yPos);
+        yPos += 4;
+      });
+    }
 
     // Colunas baseadas nos filtros
     const tableColumn = ["Morador", "Vínculo", "Unidade", "Contatos"];
@@ -100,7 +114,7 @@ function ReportsPage() {
     
     const tableRows = [];
 
-    reportData.forEach(item => {
+    reportData.dados.forEach(item => {
       const rowData = [
         `${item.nome_completo}\nCPF: ${formatCPF(item.cpf)}`,
         item.tipo_vinculo,
@@ -119,7 +133,7 @@ function ReportsPage() {
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
-      startY: 30,
+      startY: yPos + 5,
       styles: { fontSize: 8 },
       headStyles: { fillColor: [41, 128, 185] }
     });
@@ -158,8 +172,26 @@ function ReportsPage() {
     
     worksheet.columns = columns;
     
+    // Adicionar estatísticas no topo
+    worksheet.addRow(['ESTATÍSTICAS DO RELATÓRIO']);
+    worksheet.addRow(['Pessoas únicas:', reportData.estatisticas.totalPessoas]);
+    worksheet.addRow(['Total vínculos:', reportData.estatisticas.totalVinculos]);
+    worksheet.addRow(['Total veículos:', reportData.estatisticas.totalVeiculos]);
+    worksheet.addRow([]);
+    
+    if (reportData.estatisticas.porCategoria.length > 0) {
+      worksheet.addRow(['POR CATEGORIA:']);
+      reportData.estatisticas.porCategoria.forEach(cat => {
+        worksheet.addRow([cat.tipo_vinculo, cat.quantidade]);
+      });
+      worksheet.addRow([]);
+    }
+    
+    worksheet.addRow(['DADOS DETALHADOS:']);
+    worksheet.addRow([]);
+    
     // Adiciona os dados
-    reportData.forEach(item => {
+    reportData.dados.forEach(item => {
       const rowData = {
         nome_completo: item.nome_completo,
         cpf: formatCPF(item.cpf),
@@ -238,7 +270,9 @@ function ReportsPage() {
                   onChange={(e) => handleFilterChange('tipoVinculo', e.target.value)}
                 >
                   <MenuItem value="">Todos os tipos</MenuItem>
-                  <MenuItem value="Proprietário">Proprietário</MenuItem>
+                  <MenuItem value="Proprietários">Proprietários (Ambos)</MenuItem>
+                  <MenuItem value="Proprietário">Proprietário (Não Reside)</MenuItem>
+                  <MenuItem value="Proprietário Morador">Proprietário Morador</MenuItem>
                   <MenuItem value="Inquilino">Inquilino</MenuItem>
                   <MenuItem value="Morador">Morador</MenuItem>
                   <MenuItem value="Morador Temporário">Morador Temporário</MenuItem>
@@ -276,7 +310,7 @@ function ReportsPage() {
           </Button>
 
           {/* Botões de exportação */}
-          {reportData.length > 0 && (
+          {reportData.dados && reportData.dados.length > 0 && (
             <Box sx={{ mt: 2 }}>
               <Button variant="outlined" startIcon={<PictureAsPdfIcon />} onClick={handleExportPDF} sx={{ mr: 2 }}>
                 Exportar PDF
@@ -294,13 +328,42 @@ function ReportsPage() {
       </Box>
 
       {/* Área impressa */}
-      {reportData.length > 0 && (
+      {reportData.dados && reportData.dados.length > 0 && (
         <Box className="printable-area">
           <Paper elevation={3} sx={{ p: 3 }}>
             <Typography variant="h5" gutterBottom>Relatório de Moradores e Veículos</Typography>
             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
               Gerado em: {new Date().toLocaleString('pt-BR')}
             </Typography>
+            
+            {/* Estatísticas do Relatório */}
+            <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Typography variant="h6" gutterBottom>Resumo do Relatório</Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6} sm={2}>
+                  <Typography variant="body2" color="text.secondary">Pessoas Únicas:</Typography>
+                  <Typography variant="h6" color="primary">{reportData.estatisticas.totalPessoas}</Typography>
+                </Grid>
+                <Grid item xs={6} sm={2}>
+                  <Typography variant="body2" color="text.secondary">Total Vínculos:</Typography>
+                  <Typography variant="h6" color="info.main">{reportData.estatisticas.totalVinculos}</Typography>
+                </Grid>
+                <Grid item xs={6} sm={2}>
+                  <Typography variant="body2" color="text.secondary">Total Veículos:</Typography>
+                  <Typography variant="h6" color="secondary">{reportData.estatisticas.totalVeiculos}</Typography>
+                </Grid>
+                {reportData.estatisticas.porCategoria.length > 0 && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>Por Categoria:</Typography>
+                    {reportData.estatisticas.porCategoria.map(cat => (
+                      <Typography key={cat.tipo_vinculo} variant="body2">
+                        {cat.tipo_vinculo}: <strong>{cat.quantidade}</strong>
+                      </Typography>
+                    ))}
+                  </Grid>
+                )}
+              </Grid>
+            </Box>
             
             <TableContainer sx={{ mt: 2 }}>
               <Table size="small">
@@ -313,11 +376,14 @@ function ReportsPage() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {reportData.map((item) => (
-                    <TableRow key={item.pessoa_id}>
+                  {reportData.dados.map((item) => (
+                    <TableRow key={item.vinculo_id}>
                       <TableCell>
                         <Typography variant="body2">{item.nome_completo}</Typography>
                         <Typography variant="caption" color="text.secondary">CPF: {formatCPF(item.cpf)}</Typography>
+                        <Typography variant="caption" color="primary" sx={{ display: 'block', mt: 0.5 }}>
+                          {item.tipo_vinculo}
+                        </Typography>
                       </TableCell>
                       <TableCell>{item.nome_bloco} - {item.numero_apartamento}</TableCell>
                       <TableCell>

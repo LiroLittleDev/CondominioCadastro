@@ -207,6 +207,7 @@ ipcMain.handle('get-report-data', async (event, filtros = {}) => {
       .join('blocos', 'entradas.bloco_id', 'blocos.id')
       .where('vinculos.status', 'Ativo')
       .select(
+        'vinculos.id as vinculo_id',
         'pessoas.id as pessoa_id',
         'pessoas.nome_completo',
         'pessoas.cpf',
@@ -222,29 +223,110 @@ ipcMain.handle('get-report-data', async (event, filtros = {}) => {
       query = query.where('blocos.id', filtros.blocoId);
     }
     if (filtros.tipoVinculo) {
-      query = query.where('vinculos.tipo_vinculo', filtros.tipoVinculo);
-    }
-    if (filtros.incluirVeiculos === false) {
-      // Se não incluir veículos, retorna só os dados básicos
-      const vinculosAtivos = await query.orderBy('pessoas.nome_completo', 'asc');
-      return vinculosAtivos.map(pessoa => ({ ...pessoa, veiculos: [] }));
+      if (filtros.tipoVinculo === 'Proprietários') {
+        query = query.whereIn('vinculos.tipo_vinculo', ['Proprietário', 'Proprietário Morador']);
+      } else {
+        query = query.where('vinculos.tipo_vinculo', filtros.tipoVinculo);
+      }
     }
 
     const vinculosAtivos = await query.orderBy('pessoas.nome_completo', 'asc');
-    const todosVeiculos = await knex('veiculos').select('*');
+    
+    // Buscar estatísticas por categoria
+    let statsQuery = knex('vinculos')
+      .join('unidades', 'vinculos.unidade_id', 'unidades.id')
+      .join('entradas', 'unidades.entrada_id', 'entradas.id')
+      .join('blocos', 'entradas.bloco_id', 'blocos.id')
+      .where('vinculos.status', 'Ativo')
+      .select('vinculos.tipo_vinculo')
+      .count('vinculos.id as quantidade')
+      .groupBy('vinculos.tipo_vinculo');
+    
+    if (filtros.blocoId) {
+      statsQuery = statsQuery.where('blocos.id', filtros.blocoId);
+    }
+    if (filtros.tipoVinculo) {
+      if (filtros.tipoVinculo === 'Proprietários') {
+        statsQuery = statsQuery.whereIn('vinculos.tipo_vinculo', ['Proprietário', 'Proprietário Morador']);
+      } else {
+        statsQuery = statsQuery.where('vinculos.tipo_vinculo', filtros.tipoVinculo);
+      }
+    }
+    
+    const estatisticasPorCategoria = await statsQuery;
+    
+    // Contar pessoas únicas
+    let pessoasUnicasQuery = knex('vinculos')
+      .join('unidades', 'vinculos.unidade_id', 'unidades.id')
+      .join('entradas', 'unidades.entrada_id', 'entradas.id')
+      .join('blocos', 'entradas.bloco_id', 'blocos.id')
+      .where('vinculos.status', 'Ativo')
+      .countDistinct('vinculos.pessoa_id as total_pessoas');
+    
+    if (filtros.blocoId) {
+      pessoasUnicasQuery = pessoasUnicasQuery.where('blocos.id', filtros.blocoId);
+    }
+    if (filtros.tipoVinculo) {
+      if (filtros.tipoVinculo === 'Proprietários') {
+        pessoasUnicasQuery = pessoasUnicasQuery.whereIn('vinculos.tipo_vinculo', ['Proprietário', 'Proprietário Morador']);
+      } else {
+        pessoasUnicasQuery = pessoasUnicasQuery.where('vinculos.tipo_vinculo', filtros.tipoVinculo);
+      }
+    }
+    
+    const [{ total_pessoas }] = await pessoasUnicasQuery;
+    
+    // Buscar estatísticas de veículos
+    let veiculosQuery = knex('veiculos')
+      .join('pessoas', 'veiculos.pessoa_id', 'pessoas.id')
+      .join('vinculos', function() {
+        this.on('pessoas.id', '=', 'vinculos.pessoa_id')
+            .andOn('vinculos.status', '=', knex.raw('?', ['Ativo']));
+      })
+      .join('unidades', 'vinculos.unidade_id', 'unidades.id')
+      .join('entradas', 'unidades.entrada_id', 'entradas.id')
+      .join('blocos', 'entradas.bloco_id', 'blocos.id')
+      .countDistinct('veiculos.id as total_veiculos');
+    
+    if (filtros.blocoId) {
+      veiculosQuery = veiculosQuery.where('blocos.id', filtros.blocoId);
+    }
+    if (filtros.tipoVinculo) {
+      if (filtros.tipoVinculo === 'Proprietários') {
+        veiculosQuery = veiculosQuery.whereIn('vinculos.tipo_vinculo', ['Proprietário', 'Proprietário Morador']);
+      } else {
+        veiculosQuery = veiculosQuery.where('vinculos.tipo_vinculo', filtros.tipoVinculo);
+      }
+    }
+    
+    const [{ total_veiculos }] = await veiculosQuery;
+    
+    let reportData;
+    if (filtros.incluirVeiculos === false) {
+      reportData = vinculosAtivos.map(vinculo => ({ ...vinculo, veiculos: [] }));
+    } else {
+      const todosVeiculos = await knex('veiculos').select('*');
+      reportData = vinculosAtivos.map(vinculo => {
+        const veiculosDaPessoa = todosVeiculos.filter(v => v.pessoa_id === vinculo.pessoa_id);
+        return {
+          ...vinculo,
+          veiculos: veiculosDaPessoa,
+        };
+      });
+    }
 
-    const reportData = vinculosAtivos.map(pessoa => {
-      const veiculosDaPessoa = todosVeiculos.filter(v => v.pessoa_id === pessoa.pessoa_id);
-      return {
-        ...pessoa,
-        veiculos: veiculosDaPessoa,
-      };
-    });
-
-    return reportData;
+    return {
+      dados: reportData,
+      estatisticas: {
+        totalPessoas: total_pessoas || 0,
+        totalVinculos: vinculosAtivos.length,
+        totalVeiculos: total_veiculos || 0,
+        porCategoria: estatisticasPorCategoria
+      }
+    };
   } catch (error) {
     console.error('Erro ao gerar dados do relatório:', error);
-    return [];
+    return { dados: [], estatisticas: { totalPessoas: 0, totalVinculos: 0, totalVeiculos: 0, porCategoria: [] } };
   }
 });
 
