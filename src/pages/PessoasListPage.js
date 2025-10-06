@@ -30,6 +30,9 @@ function PessoasListPage() {
   const [filtroVinculo, setFiltroVinculo] = useState("");
   const [sortBy, setSortBy] = useState("asc");
   const [showInactive, setShowInactive] = useState(false);
+  const [blocos, setBlocos] = useState([]);
+  const [filtroBloco, setFiltroBloco] = useState("");
+  const [filtroApartamento, setFiltroApartamento] = useState("");
 
   // Substitua sua função fetchData por esta
   const fetchData = useCallback(async () => {
@@ -37,20 +40,27 @@ function PessoasListPage() {
     const filters = {
       tipoVinculo: filtroVinculo,
       sortBy: sortBy,
-      showInactive: showInactive, // <-- Nova parte
+      showInactive: showInactive,
+      bloco: filtroBloco,
+      apartamento: filtroApartamento,
     };
     const data = await window.api.getFilteredPessoas(filters);
     setPessoas(data);
     setLoading(false);
-  }, [filtroVinculo, sortBy, showInactive]); // <-- Nova dependência
+  }, [filtroVinculo, sortBy, showInactive, filtroBloco, filtroApartamento]);
 
-  // Busca os tipos de vínculo uma vez para popular o menu
+  // Busca os tipos de vínculo e blocos uma vez para popular os menus
   useEffect(() => {
     const fetchVinculoTypes = async () => {
       const data = await window.api.getVinculoTypes();
       setVinculoTypes(data);
     };
+    const fetchBlocos = async () => {
+      const data = await window.api.getBlocos();
+      setBlocos(data);
+    };
     fetchVinculoTypes();
+    fetchBlocos();
   }, []);
 
   // Efeito principal que chama a busca de dados
@@ -71,7 +81,7 @@ function PessoasListPage() {
 
       <Paper sx={{ p: 2, mb: 2 }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth>
               <InputLabel>Filtrar por Categoria</InputLabel>
               <Select
@@ -95,7 +105,45 @@ function PessoasListPage() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={4}>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth>
+              <InputLabel>Filtrar por Bloco</InputLabel>
+              <Select
+                value={filtroBloco}
+                label="Filtrar por Bloco"
+                onChange={(e) => setFiltroBloco(e.target.value)}
+              >
+                <MenuItem value="">
+                  <em>Todos</em>
+                </MenuItem>
+                {blocos.map((bloco) => (
+                  <MenuItem key={bloco.id} value={bloco.nome}>
+                    {bloco.nome}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth>
+              <InputLabel>Apartamento</InputLabel>
+              <Select
+                value={filtroApartamento}
+                label="Apartamento"
+                onChange={(e) => setFiltroApartamento(e.target.value)}
+              >
+                <MenuItem value="">
+                  <em>Todos</em>
+                </MenuItem>
+                {Array.from(new Set(pessoas.map(p => p.numero_apartamento).filter(Boolean))).sort().map((apto) => (
+                  <MenuItem key={apto} value={apto}>
+                    {apto}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
             <FormControl fullWidth>
               <InputLabel>Ordenar por Nome</InputLabel>
               <Select
@@ -108,7 +156,7 @@ function PessoasListPage() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={4}>
+          <Grid item xs={12} sm={6} md={3}>
             <FormControlLabel
               control={
                 <Switch

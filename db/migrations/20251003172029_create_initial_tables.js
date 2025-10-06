@@ -21,7 +21,8 @@ exports.up = function(knex) {
     .createTable('pessoas', function (table) {
       table.increments('id');
       table.string('nome_completo', 255).notNullable();
-      table.string('cpf', 14).unique().notNullable();
+      table.string('cpf', 14).unique();
+      table.string('rg', 27);
       table.string('email', 255);
       table.string('telefone', 20);
     })

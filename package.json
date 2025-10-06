@@ -2,9 +2,9 @@
   "name": "sgc-desktop",
   "main": "public/electron.js",
   "homepage": "./",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "author": "SGC Desktop",
-  "description": "Sistema de Gestão Condominial Desktop",
+  "description": "Sistema de Gestão Condominial - Solução completa para administração de condomínios",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.11.4",
@@ -68,7 +68,8 @@
   },
   "build": {
     "appId": "com.sgc.desktop",
-    "productName": "SGC Desktop",
+    "productName": "SGC Desktop - Sistema de Gestão Condominial",
+    "copyright": "Copyright © 2024 SGC Desktop",
     "directories": {
       "output": "dist"
     },
@@ -77,10 +78,20 @@
       "public/electron.js",
       "public/preload.js",
       "public/splash.html",
+      "public/icon.ico",
       "node_modules/**/*"
     ],
     "win": {
-      "target": "dir"
+      "target": "nsis",
+      "icon": "public/icon.ico",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SGC Desktop"
     },
     "compression": "store",
     "forceCodeSigning": false

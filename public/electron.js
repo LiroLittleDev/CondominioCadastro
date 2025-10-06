@@ -1,15 +1,12 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
+const fs = require('fs');
 
 function notifyDataChanged() {
   BrowserWindow.getAllWindows().forEach(win => {
     win.webContents.send('data-changed');
   });
 }
-
-// Configuração do banco de dados
-const fs = require('fs');
-const os = require('os');
 
 // Determinar caminho do banco baseado no ambiente
 let dbPath;
@@ -74,7 +71,8 @@ async function initializeDatabase() {
         .createTable('pessoas', function (table) {
           table.increments('id');
           table.string('nome_completo', 255).notNullable();
-          table.string('cpf', 14).unique().notNullable();
+          table.string('cpf', 14).unique();
+          table.string('rg', 27);
           table.string('email', 255);
           table.string('telefone', 20);
         })
@@ -115,11 +113,13 @@ let mainWindow;
 
 function createSplashWindow() {
   splashWindow = new BrowserWindow({
-    width: 400,
-    height: 300,
+    width: 500,
+    height: 350,
     frame: false,
     alwaysOnTop: true,
-    transparent: true,
+    transparent: false,
+    center: true,
+    resizable: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true
@@ -138,12 +138,21 @@ function createMainWindow() {
     width: 1200,
     height: 800,
     show: false,
+    alwaysOnTop: true,
+    resizable: false,
+    maximizable: false,
+    autoHideMenuBar: true,
+    icon: path.join(__dirname, 'favicon.ico'),
+    title: 'SGC Desktop - Sistema de Gestão Condominial',
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
+
+  // Remove completamente a barra de menu
+  mainWindow.setMenuBarVisibility(false);
 
   // Carrega a aplicação
   const isDev = process.env.NODE_ENV === 'development';
@@ -154,10 +163,15 @@ function createMainWindow() {
   }
   
   mainWindow.once('ready-to-show', () => {
-    if (splashWindow) {
-      splashWindow.close();
-    }
-    mainWindow.show();
+    // Aguardar pelo menos 3 segundos antes de mostrar a janela principal
+    setTimeout(() => {
+      if (splashWindow) {
+        splashWindow.close();
+      }
+      mainWindow.show();
+      mainWindow.focus();
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    }, 3000);
   });
 }
 
@@ -169,7 +183,6 @@ function createWindow() {
 // Handler para salvar relatórios
 ipcMain.handle('save-report', async (event, options) => {
   const { dialog } = require('electron');
-  const fs = require('fs');
   
   try {
     const now = new Date();
@@ -1220,34 +1233,91 @@ ipcMain.handle("delete-pessoa", async (event, pessoaId) => {
 
 ipcMain.handle("get-filtered-pessoas", async (event, filters) => {
   try {
-    const query = knex("vinculos")
-      .join("pessoas", "vinculos.pessoa_id", "=", "pessoas.id")
-      .join("unidades", "vinculos.unidade_id", "=", "unidades.id")
-      .join("entradas", "unidades.entrada_id", "=", "entradas.id")
-      .join("blocos", "entradas.bloco_id", "=", "blocos.id")
-      .select(
-        "pessoas.*",
-        "vinculos.tipo_vinculo as vinculos",
-        "vinculos.status",
-        knex.raw(
-          "CASE WHEN vinculos.status = 'Ativo' THEN blocos.nome ELSE '' END as nome_bloco"
-        ),
-        knex.raw(
-          "CASE WHEN vinculos.status = 'Ativo' THEN unidades.numero_apartamento ELSE '' END as numero_apartamento"
-        )
-      );
+    let pessoas;
+    
+    if (filters.showInactive) {
+      // Buscar pessoas com vínculos ativos
+      const pessoasAtivas = await knex("vinculos")
+        .join("pessoas", "vinculos.pessoa_id", "=", "pessoas.id")
+        .join("unidades", "vinculos.unidade_id", "=", "unidades.id")
+        .join("entradas", "unidades.entrada_id", "=", "entradas.id")
+        .join("blocos", "entradas.bloco_id", "=", "blocos.id")
+        .where("vinculos.status", "Ativo")
+        .select(
+          "pessoas.*",
+          "vinculos.tipo_vinculo as vinculos",
+          "vinculos.status",
+          "blocos.nome as nome_bloco",
+          "unidades.numero_apartamento"
+        );
+      
+      // Buscar pessoas sem vínculos ativos (inativas)
+      const pessoasInativas = await knex("pessoas")
+        .leftJoin("vinculos", function() {
+          this.on("pessoas.id", "=", "vinculos.pessoa_id")
+              .andOn("vinculos.status", "=", knex.raw("'Ativo'"));
+        })
+        .whereNull("vinculos.id")
+        .select(
+          "pessoas.*",
+          knex.raw("'' as vinculos"),
+          knex.raw("'Inativo' as status"),
+          knex.raw("'' as nome_bloco"),
+          knex.raw("'' as numero_apartamento")
+        );
+      
+      pessoas = [...pessoasAtivas, ...pessoasInativas];
+    } else {
+      // Apenas pessoas com vínculos ativos
+      const query = knex("vinculos")
+        .join("pessoas", "vinculos.pessoa_id", "=", "pessoas.id")
+        .join("unidades", "vinculos.unidade_id", "=", "unidades.id")
+        .join("entradas", "unidades.entrada_id", "=", "entradas.id")
+        .join("blocos", "entradas.bloco_id", "=", "blocos.id")
+        .where("vinculos.status", "Ativo")
+        .select(
+          "pessoas.*",
+          "vinculos.tipo_vinculo as vinculos",
+          "vinculos.status",
+          "blocos.nome as nome_bloco",
+          "unidades.numero_apartamento"
+        );
 
-    if (!filters.showInactive) {
-      query.where("vinculos.status", "Ativo");
+      if (filters.tipoVinculo) {
+        query.where("vinculos.tipo_vinculo", filters.tipoVinculo);
+      }
+
+      if (filters.bloco) {
+        query.where("blocos.nome", filters.bloco);
+      }
+
+      if (filters.apartamento) {
+        query.where("unidades.numero_apartamento", filters.apartamento);
+      }
+
+      pessoas = await query;
     }
 
-    if (filters.tipoVinculo) {
-      query.where("vinculos.tipo_vinculo", filters.tipoVinculo);
+    // Aplicar filtros nas pessoas inativas também
+    if (filters.showInactive && (filters.tipoVinculo || filters.bloco || filters.apartamento)) {
+      pessoas = pessoas.filter(pessoa => {
+        if (pessoa.status === 'Inativo') return true; // Sempre mostrar inativas quando solicitado
+        
+        let match = true;
+        if (filters.tipoVinculo && pessoa.vinculos !== filters.tipoVinculo) match = false;
+        if (filters.bloco && pessoa.nome_bloco !== filters.bloco) match = false;
+        if (filters.apartamento && pessoa.numero_apartamento !== filters.apartamento) match = false;
+        
+        return match;
+      });
     }
 
-    query.orderBy("pessoas.nome_completo", filters.sortBy || "asc");
+    // Ordenar
+    pessoas.sort((a, b) => {
+      const comparison = a.nome_completo.localeCompare(b.nome_completo);
+      return filters.sortBy === 'desc' ? -comparison : comparison;
+    });
 
-    const pessoas = await query;
     return pessoas;
   } catch (error) {
     console.error("Erro ao buscar pessoas filtradas:", error);
