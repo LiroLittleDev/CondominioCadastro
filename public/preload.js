@@ -60,4 +60,14 @@ contextBridge.exposeInMainWorld("api", {
   backupData: () => ipcRenderer.invoke("backup-data"),
   importBackup: (backupData) => ipcRenderer.invoke("import-backup", backupData),
   getDetailedStats: () => ipcRenderer.invoke("get-detailed-stats"),
+  
+  // APIs do Sistema de Estoque
+  getEstoqueStats: () => ipcRenderer.invoke('get-estoque-stats'),
+  getProdutos: (filtros) => ipcRenderer.invoke('get-produtos', filtros),
+  getCategoriasProduto: () => ipcRenderer.invoke('get-categorias-produto'),
+  deleteProduto: (produtoId) => ipcRenderer.invoke('delete-produto', produtoId),
+  createProduto: (produtoData) => ipcRenderer.invoke('create-produto', produtoData),
+  updateProduto: (produtoId, produtoData) => ipcRenderer.invoke('update-produto', produtoId, produtoData),
+  getMovimentacoes: (filtros) => ipcRenderer.invoke('get-movimentacoes', filtros),
+  createMovimentacao: (movimentacaoData) => ipcRenderer.invoke('create-movimentacao', movimentacaoData),
 });

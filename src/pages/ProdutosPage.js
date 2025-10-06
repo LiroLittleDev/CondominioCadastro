@@ -95,6 +95,7 @@ function ProdutosPage() {
             <TextField
               fullWidth
               label="Buscar produto"
+              placeholder="Digite o nome do produto..."
               value={filtros.busca}
               onChange={(e) => setFiltros({ ...filtros, busca: e.target.value })}
             />
@@ -137,7 +138,6 @@ function ProdutosPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Código</TableCell>
               <TableCell>Nome</TableCell>
               <TableCell>Categoria</TableCell>
               <TableCell>Estoque Atual</TableCell>
@@ -152,8 +152,11 @@ function ProdutosPage() {
               const status = getEstoqueStatus(produto);
               return (
                 <TableRow key={produto.id}>
-                  <TableCell>{produto.codigo}</TableCell>
-                  <TableCell>{produto.nome}</TableCell>
+                  <TableCell>
+                    <Typography variant="body2" fontWeight="medium">
+                      {produto.nome}
+                    </Typography>
+                  </TableCell>
                   <TableCell>{produto.categoria_nome}</TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>

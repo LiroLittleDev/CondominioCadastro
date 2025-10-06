@@ -15,7 +15,6 @@ const style = {
 
 function ProdutoModal({ open, handleClose, produto, onSuccess }) {
   const [formData, setFormData] = useState({
-    codigo: '',
     nome: '',
     categoria_id: '',
     unidade_medida: 'un',
@@ -31,7 +30,6 @@ function ProdutoModal({ open, handleClose, produto, onSuccess }) {
       fetchCategorias();
       if (produto) {
         setFormData({
-          codigo: produto.codigo || '',
           nome: produto.nome || '',
           categoria_id: produto.categoria_id || '',
           unidade_medida: produto.unidade_medida || 'un',
@@ -40,7 +38,6 @@ function ProdutoModal({ open, handleClose, produto, onSuccess }) {
         });
       } else {
         setFormData({
-          codigo: '',
           nome: '',
           categoria_id: '',
           unidade_medida: 'un',
@@ -64,6 +61,10 @@ function ProdutoModal({ open, handleClose, produto, onSuccess }) {
   const handleSubmit = async () => {
     if (!formData.nome.trim()) {
       setError('Nome é obrigatório');
+      return;
+    }
+    if (!formData.categoria_id) {
+      setError('Categoria é obrigatória');
       return;
     }
 
@@ -93,70 +94,71 @@ function ProdutoModal({ open, handleClose, produto, onSuccess }) {
         </Typography>
         
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12}>
             <TextField
               fullWidth
-              label="Código"
-              value={formData.codigo}
-              onChange={(e) => setFormData({...formData, codigo: e.target.value})}
+              label="Nome do Produto"
+              value={formData.nome}
+              onChange={(e) => setFormData({...formData, nome: e.target.value})}
+              required
+              placeholder="Ex: Detergente neutro, Lâmpada LED 9W..."
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12}>
+            <FormControl fullWidth required>
+              <InputLabel>Categoria *</InputLabel>
+              <Select
+                value={formData.categoria_id}
+                label="Categoria *"
+                onChange={(e) => setFormData({...formData, categoria_id: e.target.value})}
+              >
+                {categorias.map(cat => (
+                  <MenuItem key={cat.id} value={cat.id}>
+                    {cat.nome}
+                    {cat.descricao && ` - ${cat.descricao}`}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={4}>
             <FormControl fullWidth>
-              <InputLabel>Unidade</InputLabel>
+              <InputLabel>Unidade de Medida</InputLabel>
               <Select
                 value={formData.unidade_medida}
-                label="Unidade"
+                label="Unidade de Medida"
                 onChange={(e) => setFormData({...formData, unidade_medida: e.target.value})}
               >
                 <MenuItem value="un">Unidade</MenuItem>
                 <MenuItem value="kg">Quilograma</MenuItem>
                 <MenuItem value="l">Litro</MenuItem>
                 <MenuItem value="m">Metro</MenuItem>
+                <MenuItem value="m²">Metro²</MenuItem>
                 <MenuItem value="cx">Caixa</MenuItem>
+                <MenuItem value="pct">Pacote</MenuItem>
+                <MenuItem value="gl">Galão</MenuItem>
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Nome"
-              value={formData.nome}
-              onChange={(e) => setFormData({...formData, nome: e.target.value})}
-              required
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <FormControl fullWidth>
-              <InputLabel>Categoria</InputLabel>
-              <Select
-                value={formData.categoria_id}
-                label="Categoria"
-                onChange={(e) => setFormData({...formData, categoria_id: e.target.value})}
-              >
-                {categorias.map(cat => (
-                  <MenuItem key={cat.id} value={cat.id}>{cat.nome}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={4}>
             <TextField
               fullWidth
               label="Estoque Mínimo"
               type="number"
               value={formData.estoque_minimo}
               onChange={(e) => setFormData({...formData, estoque_minimo: parseInt(e.target.value) || 0})}
+              inputProps={{ min: 0 }}
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12} sm={4}>
             <TextField
               fullWidth
-              label="Valor Unitário"
+              label="Valor Unitário (R$)"
               type="number"
               step="0.01"
               value={formData.valor_unitario}
               onChange={(e) => setFormData({...formData, valor_unitario: parseFloat(e.target.value) || 0})}
+              inputProps={{ min: 0, step: 0.01 }}
             />
           </Grid>
         </Grid>

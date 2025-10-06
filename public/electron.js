@@ -1555,10 +1555,7 @@ ipcMain.handle('get-produtos', async (event, filtros = {}) => {
       .where('produtos.ativo', true);
     
     if (filtros.busca) {
-      query = query.where(function() {
-        this.where('produtos.nome', 'like', `%${filtros.busca}%`)
-            .orWhere('produtos.codigo', 'like', `%${filtros.busca}%`);
-      });
+      query = query.where('produtos.nome', 'like', `%${filtros.busca}%`);
     }
     
     if (filtros.categoria) {

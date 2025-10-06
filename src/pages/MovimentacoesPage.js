@@ -132,7 +132,6 @@ function MovimentacoesPage() {
               <TableCell>Tipo</TableCell>
               <TableCell>Produto</TableCell>
               <TableCell>Quantidade</TableCell>
-              <TableCell>Motivo</TableCell>
               <TableCell>Responsável</TableCell>
             </TableRow>
           </TableHead>
@@ -154,7 +153,6 @@ function MovimentacoesPage() {
                 <TableCell>
                   {mov.quantidade} {mov.unidade_medida}
                 </TableCell>
-                <TableCell>{mov.motivo}</TableCell>
                 <TableCell>{mov.responsavel}</TableCell>
               </TableRow>
             ))}

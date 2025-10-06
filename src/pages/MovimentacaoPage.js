@@ -13,7 +13,6 @@ function MovimentacaoPage() {
   const [formData, setFormData] = useState({
     produto_id: '',
     quantidade: '',
-    motivo: '',
     responsavel: '',
     observacao: ''
   });
@@ -132,22 +131,9 @@ function MovimentacaoPage() {
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth>
-              <InputLabel>Motivo</InputLabel>
-              <Select
-                value={formData.motivo}
-                label="Motivo"
-                onChange={(e) => setFormData({...formData, motivo: e.target.value})}
-              >
-                {motivosDisponiveis.map(motivo => (
-                  <MenuItem key={motivo} value={motivo}>{motivo}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
 
-          <Grid item xs={12}>
+
+          <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
               label="Responsável"

@@ -45,6 +45,45 @@ exports.up = function(knex) {
       table.date('data_fim');
       table.string('status', 50).notNullable().defaultTo('Ativo');
       table.text('observacao');
+    })
+    .createTable('categorias_produto', function (table) {
+      table.increments('id');
+      table.string('nome', 255).notNullable();
+      table.text('descricao');
+      table.boolean('ativo').defaultTo(true);
+      table.timestamps(true, true);
+    })
+    .createTable('produtos', function (table) {
+      table.increments('id');
+      table.string('nome', 255).notNullable();
+      table.integer('categoria_id').unsigned().references('id').inTable('categorias_produto');
+      table.string('unidade_medida', 10).defaultTo('un');
+      table.integer('estoque_minimo').defaultTo(0);
+      table.decimal('valor_unitario', 10, 2).defaultTo(0);
+      table.boolean('ativo').defaultTo(true);
+      table.timestamps(true, true);
+    })
+    .createTable('movimentacoes_estoque', function (table) {
+      table.increments('id');
+      table.integer('produto_id').unsigned().references('id').inTable('produtos');
+      table.enum('tipo', ['ENTRADA', 'SAIDA']).notNullable();
+      table.integer('quantidade').notNullable();
+      table.string('responsavel', 255);
+      table.text('observacao');
+      table.datetime('data_movimentacao').defaultTo(knex.fn.now());
+      table.timestamps(true, true);
+    })
+    .then(() => {
+      return knex('categorias_produto').insert([
+        { nome: 'Limpeza', descricao: 'Produtos de limpeza e higiene' },
+        { nome: 'Manutenção', descricao: 'Materiais para manutenção predial' },
+        { nome: 'Jardinagem', descricao: 'Produtos para cuidado de jardins e áreas verdes' },
+        { nome: 'Escritório', descricao: 'Material de escritório e papelaria' },
+        { nome: 'Segurança', descricao: 'Equipamentos e materiais de segurança' },
+        { nome: 'Elétrica', descricao: 'Materiais elétricos' },
+        { nome: 'Hidráulica', descricao: 'Materiais hidráulicos' },
+        { nome: 'Pintura', descricao: 'Tintas e materiais para pintura' }
+      ]);
     });
 };
 
@@ -54,6 +93,9 @@ exports.up = function(knex) {
  */
 exports.down = function(knex) {
   return knex.schema
+    .dropTable('movimentacoes_estoque')
+    .dropTable('produtos')
+    .dropTable('categorias_produto')
     .dropTable('vinculos')
     .dropTable('veiculos')
     .dropTable('pessoas')
