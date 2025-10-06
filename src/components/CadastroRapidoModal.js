@@ -344,6 +344,7 @@ function CadastroRapidoModal({ open, handleClose, onSuccess }) {
                   onChange={(e) => handleChange('tipoVinculo', e.target.value)}
                 >
                   <MenuItem value="Proprietário">Proprietário</MenuItem>
+                  <MenuItem value="Proprietário Morador">Proprietário Morador</MenuItem>
                   <MenuItem value="Inquilino">Inquilino</MenuItem>
                   <MenuItem value="Morador">Morador</MenuItem>
                   <MenuItem value="Morador Temporário">Morador Temporário</MenuItem>

@@ -60,10 +60,11 @@ function EditarVinculoModal({ open, handleClose, vinculo, onSuccess }) {
             onChange={e => setTipoVinculo(e.target.value)}
           >
             <MenuItem value="Proprietário">Proprietário</MenuItem>
+            <MenuItem value="Proprietário Morador">Proprietário Morador</MenuItem>
             <MenuItem value="Inquilino">Inquilino</MenuItem>
             <MenuItem value="Morador">Morador</MenuItem>
+            <MenuItem value="Morador Temporário">Morador Temporário</MenuItem>
             <MenuItem value="Responsável">Responsável</MenuItem>
-            <MenuItem value="Moradia Temporária">Moradia Temporária</MenuItem>
           </Select>
         </FormControl>
 

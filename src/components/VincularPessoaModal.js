@@ -328,6 +328,7 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
             onChange={(e) => setTipoVinculo(e.target.value)}
           >
             <MenuItem value="Proprietário">Proprietário</MenuItem>
+            <MenuItem value="Proprietário Morador">Proprietário Morador</MenuItem>
             <MenuItem value="Inquilino">Inquilino</MenuItem>
             <MenuItem value="Morador">Morador</MenuItem>
             <MenuItem value="Morador Temporário">Morador Temporário</MenuItem>

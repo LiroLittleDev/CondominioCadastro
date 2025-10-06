@@ -422,6 +422,48 @@ ipcMain.handle('transferir-pessoa', async (event, transferData) => {
     await knex.transaction(async (trx) => {
       const today = new Date().toISOString().split('T')[0];
 
+      // Aplicar regras de negócio antes da transferência
+      // Regra: Apenas um proprietário por unidade
+      if (['Proprietário', 'Proprietário Morador'].includes(transferData.newTipoVinculo)) {
+        const proprietarioExistente = await trx('vinculos')
+          .where({
+            unidade_id: transferData.newUnitId,
+            status: 'Ativo'
+          })
+          .whereIn('tipo_vinculo', ['Proprietário', 'Proprietário Morador'])
+          .first();
+        
+        if (proprietarioExistente) {
+          throw new Error('A unidade de destino já possui um proprietário vinculado.');
+        }
+      }
+
+      // Regra: Proprietário Morador só pode ter um vínculo residencial
+      if (transferData.newTipoVinculo === 'Proprietário Morador') {
+        const outroVinculoResidencial = await trx('vinculos')
+          .where({ pessoa_id: transferData.pessoaId, status: 'Ativo' })
+          .whereNot('id', transferData.oldVinculoId)
+          .whereIn('tipo_vinculo', ['Proprietário Morador', 'Inquilino', 'Morador'])
+          .first();
+        
+        if (outroVinculoResidencial) {
+          throw new Error('Esta pessoa já possui outro vínculo residencial ativo. Uma pessoa só pode ser "Proprietário Morador" de um local.');
+        }
+      }
+
+      // Regra: Vínculos residenciais únicos
+      if (['Morador', 'Inquilino'].includes(transferData.newTipoVinculo)) {
+        const outroVinculoResidencial = await trx('vinculos')
+          .where({ pessoa_id: transferData.pessoaId, status: 'Ativo' })
+          .whereNot('id', transferData.oldVinculoId)
+          .whereIn('tipo_vinculo', ['Proprietário Morador', 'Morador', 'Inquilino'])
+          .first();
+        
+        if (outroVinculoResidencial) {
+          throw new Error('Esta pessoa já possui outro vínculo residencial ativo.');
+        }
+      }
+
       await trx('vinculos')
         .where({ id: transferData.oldVinculoId })
         .update({
@@ -477,12 +519,14 @@ ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
         message = 'Nova pessoa cadastrada e vinculada com sucesso!';
       }
 
-      if (vinculo.tipoVinculo === 'Proprietário') {
+      // Regra: Apenas um proprietário por unidade (qualquer tipo)
+      if (['Proprietário', 'Proprietário Morador'].includes(vinculo.tipoVinculo)) {
         const proprietarioExistente = await trx('vinculos')
           .where({
             unidade_id: vinculo.unidadeId,
-            tipo_vinculo: 'Proprietário'
+            status: 'Ativo'
           })
+          .whereIn('tipo_vinculo', ['Proprietário', 'Proprietário Morador'])
           .first();
         
         if (proprietarioExistente) {
@@ -490,10 +534,23 @@ ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
         }
       }
 
+      // Regra: Proprietário Morador só pode ter um vínculo residencial ativo
+      if (vinculo.tipoVinculo === 'Proprietário Morador') {
+        const proprietarioMoradorExistente = await trx('vinculos')
+          .where({ pessoa_id: pessoaId, status: 'Ativo' })
+          .whereIn('tipo_vinculo', ['Proprietário Morador', 'Inquilino', 'Morador'])
+          .first();
+        
+        if (proprietarioMoradorExistente) {
+          throw new Error('Esta pessoa já possui um vínculo residencial ativo. Uma pessoa só pode ser "Proprietário Morador" de um local.');
+        }
+      }
+
+      // Regra: Inquilinos e Moradores só podem ter um vínculo residencial ativo
       if (['Morador', 'Inquilino'].includes(vinculo.tipoVinculo)) {
         const vinculoResidencialAtivo = await trx('vinculos')
           .where({ pessoa_id: pessoaId, status: 'Ativo' })
-          .whereIn('tipo_vinculo', ['Morador', 'Inquilino'])
+          .whereIn('tipo_vinculo', ['Proprietário Morador', 'Morador', 'Inquilino'])
           .first();
         
         if (vinculoResidencialAtivo) {
@@ -550,19 +607,50 @@ ipcMain.handle("get-vinculos-by-pessoa", async (event, pessoaId) => {
 
 ipcMain.handle('update-vinculo', async (event, vinculoId, novoTipo) => {
   try {
-    if (['Morador', 'Inquilino', 'Moradia Temporária'].includes(novoTipo)) {
-      const vinculoAtual = await knex('vinculos').where({ id: vinculoId }).first();
-      if (vinculoAtual) {
-        const outroVinculoResidencial = await knex('vinculos')
-          .where('pessoa_id', vinculoAtual.pessoa_id)
-          .where('status', 'Ativo')
-          .whereNot('id', vinculoId)
-          .whereIn('tipo_vinculo', ['Morador', 'Inquilino', 'Moradia Temporária'])
-          .first();
+    const vinculoAtual = await knex('vinculos').where({ id: vinculoId }).first();
+    if (!vinculoAtual) {
+      throw new Error('Vínculo não encontrado.');
+    }
 
-        if (outroVinculoResidencial) {
-          throw new Error('Não é possível alterar para esta categoria, pois a pessoa já possui outro vínculo residencial ativo.');
-        }
+    // Regra: Proprietário Morador só pode ter um vínculo residencial
+    if (novoTipo === 'Proprietário Morador') {
+      const outroVinculoResidencial = await knex('vinculos')
+        .where('pessoa_id', vinculoAtual.pessoa_id)
+        .where('status', 'Ativo')
+        .whereNot('id', vinculoId)
+        .whereIn('tipo_vinculo', ['Proprietário Morador', 'Morador', 'Inquilino'])
+        .first();
+
+      if (outroVinculoResidencial) {
+        throw new Error('Não é possível alterar para "Proprietário Morador", pois a pessoa já possui outro vínculo residencial ativo.');
+      }
+    }
+
+    // Regra: Apenas um proprietário por unidade
+    if (['Proprietário', 'Proprietário Morador'].includes(novoTipo)) {
+      const outroProprietario = await knex('vinculos')
+        .where('unidade_id', vinculoAtual.unidade_id)
+        .where('status', 'Ativo')
+        .whereNot('id', vinculoId)
+        .whereIn('tipo_vinculo', ['Proprietário', 'Proprietário Morador'])
+        .first();
+
+      if (outroProprietario) {
+        throw new Error('Não é possível alterar para este tipo, pois a unidade já possui um proprietário.');
+      }
+    }
+
+    // Regra: Vínculos residenciais únicos
+    if (['Morador', 'Inquilino'].includes(novoTipo)) {
+      const outroVinculoResidencial = await knex('vinculos')
+        .where('pessoa_id', vinculoAtual.pessoa_id)
+        .where('status', 'Ativo')
+        .whereNot('id', vinculoId)
+        .whereIn('tipo_vinculo', ['Proprietário Morador', 'Morador', 'Inquilino'])
+        .first();
+
+      if (outroVinculoResidencial) {
+        throw new Error('Não é possível alterar para esta categoria, pois a pessoa já possui outro vínculo residencial ativo.');
       }
     }
 
@@ -1052,13 +1140,8 @@ ipcMain.handle("delete-pessoa", async (event, pessoaId) => {
 
 ipcMain.handle("get-filtered-pessoas", async (event, filters) => {
   try {
-    const subquery = knex("vinculos")
-      .select("pessoa_id", knex.raw("MAX(id) as max_id"))
-      .groupBy("pessoa_id");
-
-    const query = knex("pessoas")
-      .join(subquery.as("recentes"), "pessoas.id", "=", "recentes.pessoa_id")
-      .join("vinculos", "recentes.max_id", "=", "vinculos.id")
+    const query = knex("vinculos")
+      .join("pessoas", "vinculos.pessoa_id", "=", "pessoas.id")
       .join("unidades", "vinculos.unidade_id", "=", "unidades.id")
       .join("entradas", "unidades.entrada_id", "=", "entradas.id")
       .join("blocos", "entradas.bloco_id", "=", "blocos.id")

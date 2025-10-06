@@ -311,12 +311,23 @@ function PessoaPage() {
           gap: { xs: 1, sm: 2 },
           flexWrap: "wrap"
         }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <FingerprintIcon sx={{ color: "primary.main", fontSize: "1rem" }} />
-            <Typography variant="body1" sx={{ fontWeight: "500" }}>
-              {formatCPF(pessoa.cpf)}
-            </Typography>
-          </Box>
+          {pessoa.cpf && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <FingerprintIcon sx={{ color: "primary.main", fontSize: "1rem" }} />
+              <Typography variant="body1" sx={{ fontWeight: "500" }}>
+                CPF: {formatCPF(pessoa.cpf)}
+              </Typography>
+            </Box>
+          )}
+          
+          {pessoa.rg && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <FingerprintIcon sx={{ color: "secondary.main", fontSize: "1rem" }} />
+              <Typography variant="body1" sx={{ fontWeight: "500" }}>
+                RG: {pessoa.rg}
+              </Typography>
+            </Box>
+          )}
 
           {pessoa.telefone && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -336,13 +347,13 @@ function PessoaPage() {
             </Box>
           )}
 
-          {!pessoa.telefone && !pessoa.email && (
+          {!pessoa.cpf && !pessoa.rg && !pessoa.telefone && !pessoa.email && (
             <Typography
               variant="body2"
               color="text.secondary"
               sx={{ fontStyle: "italic" }}
             >
-              Nenhuma informação de contato adicional cadastrada.
+              Nenhuma informação adicional cadastrada.
             </Typography>
           )}
         </Box>
@@ -371,6 +382,8 @@ function PessoaPage() {
                         color={
                           vinculo.tipo_vinculo === "Proprietário"
                             ? "primary"
+                            : vinculo.tipo_vinculo === "Proprietário Morador"
+                            ? "info"
                             : vinculo.tipo_vinculo === "Inquilino"
                             ? "secondary"
                             : vinculo.tipo_vinculo === "Morador"

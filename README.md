@@ -147,7 +147,8 @@ npm run electron:start
 
 | Tipo | Cor | Descrição |
 |------|-----|-----------|
-| 🔵 **Proprietário** | Azul | Dono da unidade (único por unidade) |
+| 🔵 **Proprietário** | Azul | Dono da unidade que NÃO mora |
+| 🔵 **Proprietário Morador** | Azul Claro | Dono da unidade que MORA nela (único por pessoa) |
 | 🟣 **Inquilino** | Roxo | Pessoa que aluga a unidade |
 | 🟢 **Morador** | Verde | Residente permanente |
 | 🟠 **Morador Temporário** | Laranja | Residente por período limitado |

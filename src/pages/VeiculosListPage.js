@@ -207,6 +207,7 @@ function VeiculosListPage() {
                         size="small"
                         color={
                           veiculo.tipo_vinculo === 'Proprietário' ? 'primary' :
+                          veiculo.tipo_vinculo === 'Proprietário Morador' ? 'info' :
                           veiculo.tipo_vinculo === 'Inquilino' ? 'secondary' :
                           veiculo.tipo_vinculo === 'Morador' ? 'success' :
                           veiculo.tipo_vinculo === 'Morador Temporário' ? 'warning' : 'default'
