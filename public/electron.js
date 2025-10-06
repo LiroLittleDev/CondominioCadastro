@@ -95,10 +95,55 @@ async function initializeDatabase() {
           table.date('data_fim');
           table.string('status', 50).notNullable().defaultTo('Ativo');
           table.text('observacao');
+
         });
+      
+
       
       console.log('✅ Estrutura do banco criada com sucesso!');
     } else {
+      // Verificar se tabelas de estoque existem e criar se necessário
+      const hasEstoqueTable = await knex.schema.hasTable('produtos');
+      if (!hasEstoqueTable) {
+        console.log('Criando tabelas de estoque...');
+        await knex.schema
+          .createTable('categorias_produto', function (table) {
+            table.increments('id');
+            table.string('nome', 100).notNullable();
+            table.text('descricao');
+          })
+          .createTable('produtos', function (table) {
+            table.increments('id');
+            table.string('codigo', 50).unique();
+            table.string('nome', 255).notNullable();
+            table.integer('categoria_id').unsigned().references('id').inTable('categorias_produto');
+            table.string('unidade_medida', 20);
+            table.integer('estoque_minimo').defaultTo(0);
+            table.decimal('valor_unitario', 10, 2);
+            table.boolean('ativo').defaultTo(true);
+          })
+          .createTable('movimentacoes_estoque', function (table) {
+            table.increments('id');
+            table.integer('produto_id').unsigned().references('id').inTable('produtos');
+            table.string('tipo', 20).notNullable();
+            table.integer('quantidade').notNullable();
+            table.string('motivo', 255);
+            table.date('data_movimentacao').defaultTo(knex.fn.now());
+            table.string('responsavel', 255);
+            table.text('observacao');
+          });
+        
+        // Inserir categorias padrão
+        await knex('categorias_produto').insert([
+          { nome: 'Limpeza', descricao: 'Produtos de limpeza e higiene' },
+          { nome: 'Manutenção', descricao: 'Materiais para manutenção predial' },
+          { nome: 'Escritório', descricao: 'Material de escritório e papelaria' },
+          { nome: 'Segurança', descricao: 'Equipamentos de segurança' },
+          { nome: 'Jardinagem', descricao: 'Produtos para jardinagem' }
+        ]);
+        
+        console.log('✅ Tabelas de estoque criadas!');
+      }
       console.log('✅ Banco de dados já existe e está pronto!');
     }
   } catch (error) {
@@ -1454,4 +1499,165 @@ app.on("window-all-closed", () => {
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
+
+// Handlers do Sistema de Estoque
+ipcMain.handle('get-estoque-stats', async () => {
+  try {
+    const [totalProdutos] = await knex('produtos').where('ativo', true).count('id as count');
+    const [valorTotal] = await knex('produtos')
+      .leftJoin('movimentacoes_estoque', 'produtos.id', 'movimentacoes_estoque.produto_id')
+      .where('produtos.ativo', true)
+      .sum('produtos.valor_unitario as total');
+    
+    const produtosBaixoEstoque = await knex('produtos')
+      .leftJoin(knex.raw(`(
+        SELECT produto_id, 
+               SUM(CASE WHEN tipo = 'ENTRADA' THEN quantidade ELSE -quantidade END) as estoque_atual
+        FROM movimentacoes_estoque 
+        GROUP BY produto_id
+      ) as estoque`), 'produtos.id', 'estoque.produto_id')
+      .where('produtos.ativo', true)
+      .whereRaw('COALESCE(estoque.estoque_atual, 0) <= produtos.estoque_minimo')
+      .count('produtos.id as count');
+    
+    const [movimentacoesHoje] = await knex('movimentacoes_estoque')
+      .whereRaw('DATE(data_movimentacao) = DATE("now")')
+      .count('id as count');
+    
+    return {
+      totalProdutos: totalProdutos.count,
+      produtosBaixoEstoque: produtosBaixoEstoque[0].count,
+      valorTotalEstoque: valorTotal.total || 0,
+      movimentacoesHoje: movimentacoesHoje.count
+    };
+  } catch (error) {
+    console.error('Erro ao buscar estatísticas do estoque:', error);
+    return { totalProdutos: 0, produtosBaixoEstoque: 0, valorTotalEstoque: 0, movimentacoesHoje: 0 };
+  }
+});
+
+ipcMain.handle('get-produtos', async (event, filtros = {}) => {
+  try {
+    let query = knex('produtos')
+      .leftJoin('categorias_produto', 'produtos.categoria_id', 'categorias_produto.id')
+      .leftJoin(knex.raw(`(
+        SELECT produto_id, 
+               SUM(CASE WHEN tipo = 'ENTRADA' THEN quantidade ELSE -quantidade END) as estoque_atual
+        FROM movimentacoes_estoque 
+        GROUP BY produto_id
+      ) as estoque`), 'produtos.id', 'estoque.produto_id')
+      .select(
+        'produtos.*',
+        'categorias_produto.nome as categoria_nome',
+        knex.raw('COALESCE(estoque.estoque_atual, 0) as estoque_atual')
+      )
+      .where('produtos.ativo', true);
+    
+    if (filtros.busca) {
+      query = query.where(function() {
+        this.where('produtos.nome', 'like', `%${filtros.busca}%`)
+            .orWhere('produtos.codigo', 'like', `%${filtros.busca}%`);
+      });
+    }
+    
+    if (filtros.categoria) {
+      query = query.where('produtos.categoria_id', filtros.categoria);
+    }
+    
+    if (filtros.status === 'baixo-estoque') {
+      query = query.whereRaw('COALESCE(estoque.estoque_atual, 0) <= produtos.estoque_minimo');
+    } else if (filtros.status === 'sem-estoque') {
+      query = query.whereRaw('COALESCE(estoque.estoque_atual, 0) = 0');
+    }
+    
+    const produtos = await query.orderBy('produtos.nome', 'asc');
+    return produtos;
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('get-categorias-produto', async () => {
+  try {
+    const categorias = await knex('categorias_produto')
+      .select('*')
+      .orderBy('nome', 'asc');
+    return categorias;
+  } catch (error) {
+    console.error('Erro ao buscar categorias:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('delete-produto', async (event, produtoId) => {
+  try {
+    await knex('produtos').where('id', produtoId).update({ ativo: false });
+    return { success: true, message: 'Produto excluído com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao excluir produto:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+ipcMain.handle('create-produto', async (event, produtoData) => {
+  try {
+    await knex('produtos').insert(produtoData);
+    return { success: true, message: 'Produto criado com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao criar produto:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+ipcMain.handle('update-produto', async (event, produtoId, produtoData) => {
+  try {
+    await knex('produtos').where('id', produtoId).update(produtoData);
+    return { success: true, message: 'Produto atualizado com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao atualizar produto:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+ipcMain.handle('get-movimentacoes', async (event, filtros = {}) => {
+  try {
+    let query = knex('movimentacoes_estoque')
+      .join('produtos', 'movimentacoes_estoque.produto_id', 'produtos.id')
+      .select(
+        'movimentacoes_estoque.*',
+        'produtos.nome as produto_nome',
+        'produtos.unidade_medida'
+      );
+    
+    if (filtros.dataInicio) {
+      query = query.where('data_movimentacao', '>=', filtros.dataInicio);
+    }
+    if (filtros.dataFim) {
+      query = query.where('data_movimentacao', '<=', filtros.dataFim);
+    }
+    if (filtros.tipo) {
+      query = query.where('tipo', filtros.tipo);
+    }
+    if (filtros.produto) {
+      query = query.where('produtos.nome', 'like', `%${filtros.produto}%`);
+    }
+    
+    const movimentacoes = await query.orderBy('data_movimentacao', 'desc');
+    return movimentacoes;
+  } catch (error) {
+    console.error('Erro ao buscar movimentações:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('create-movimentacao', async (event, movimentacaoData) => {
+  try {
+    await knex('movimentacoes_estoque').insert(movimentacaoData);
+    return { success: true, message: 'Movimentação registrada com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao criar movimentação:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
 });

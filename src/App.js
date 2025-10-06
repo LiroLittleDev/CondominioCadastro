@@ -20,6 +20,7 @@ import AssessmentIcon from "@mui/icons-material/Assessment";
 import SettingsIcon from "@mui/icons-material/Settings";
 import PeopleIcon from "@mui/icons-material/People";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
+import InventoryIcon from "@mui/icons-material/Inventory";
 
 // Imports do roteador
 import { HashRouter, Routes, Route, Link } from "react-router-dom";
@@ -34,6 +35,10 @@ import UnidadesListPage from "./pages/UnidadesListPage";
 import BlocosPage from "./pages/BlocosPage";
 import PessoaPage from "./pages/PessoaPage";
 import SettingsPage from "./pages/SettingsPage";
+import EstoquePage from "./pages/EstoquePage";
+import ProdutosPage from "./pages/ProdutosPage";
+import MovimentacoesPage from "./pages/MovimentacoesPage";
+import MovimentacaoPage from "./pages/MovimentacaoPage";
 
 const drawerWidth = 240;
 
@@ -249,6 +254,34 @@ function App() {
               />
             </ListItem>
 
+            <ListItem 
+              button 
+              component={Link} 
+              to="/estoque"
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                mx: 0.5,
+                '&:hover': {
+                  bgcolor: 'error.main',
+                  color: 'white',
+                  transform: 'translateX(4px)',
+                  '& .MuiListItemIcon-root': {
+                    color: 'white'
+                  }
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <InventoryIcon />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Estoque" 
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
+            </ListItem>
+
             <Divider sx={{ my: 1, mx: 2 }} />
 
             <ListItem 
@@ -327,6 +360,10 @@ function App() {
             <Route path="/unidade/:unidadeId" element={<UnidadePage />} />
             <Route path="/relatorios" element={<ReportsPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
+            <Route path="/estoque" element={<EstoquePage />} />
+            <Route path="/estoque/produtos" element={<ProdutosPage />} />
+            <Route path="/estoque/movimentacoes" element={<MovimentacoesPage />} />
+            <Route path="/estoque/:tipo" element={<MovimentacaoPage />} />
           </Routes>
         </Box>
       </Box>
