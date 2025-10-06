@@ -11,6 +11,7 @@ import {
   Divider,
   Button,
   IconButton,
+  Avatar,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -30,6 +31,22 @@ import EditarVinculoModal from "../components/EditarVinculoModal";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import TransferirPessoaModal from "../components/TransferirPessoaModal";
 import LinkOffIcon from "@mui/icons-material/LinkOff";
+
+// Funções de formatação
+const formatCPF = (cpf) => {
+  if (!cpf) return '';
+  const cleanCPF = cpf.replace(/\D/g, '');
+  return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+};
+
+const formatPhone = (phone) => {
+  if (!phone) return '';
+  const cleanPhone = phone.replace(/\D/g, '');
+  if (cleanPhone.length === 11) {
+    return cleanPhone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  }
+  return phone;
+};
 
 function PessoaPage() {
   const { pessoaId } = useParams();
@@ -202,66 +219,120 @@ function PessoaPage() {
         </Typography>
       </Box>
 
-      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="h5" component="h2">
-            {pessoa.nome_completo}
-          </Typography>
-          <Button
-            variant="contained"
-            startIcon={<SwapHorizIcon />}
-            onClick={handleOpenTransferirModal}
-          >
-            {vinculosAtivos.length > 0 ? "Transferir" : "Vincular Pessoa"}
-          </Button>
-          <Box>
+      <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
+        <Box sx={{ 
+          display: "flex", 
+          flexDirection: { xs: "column", sm: "row" },
+          justifyContent: "space-between", 
+          alignItems: { xs: "stretch", sm: "flex-start" },
+          gap: { xs: 2, sm: 0 },
+          mb: 2 
+        }}>
+          <Box sx={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 2, 
+            flexGrow: 1,
+            justifyContent: { xs: "center", sm: "flex-start" }
+          }}>
+            <Avatar 
+              sx={{ 
+                bgcolor: "primary.main",
+                width: { xs: 40, sm: 48 },
+                height: { xs: 40, sm: 48 },
+                fontSize: { xs: "1.2rem", sm: "1.5rem" }
+              }}
+            >
+              {pessoa.nome_completo.charAt(0).toUpperCase()}
+            </Avatar>
+            <Typography 
+              variant="h5" 
+              component="h2" 
+              sx={{ 
+                fontSize: { xs: "1.5rem", sm: "2rem" }
+              }}
+            >
+              {pessoa.nome_completo}
+            </Typography>
+          </Box>
+          
+          {/* Grupo de Ações Principais */}
+          <Box sx={{ 
+            display: "flex", 
+            gap: 1, 
+            flexWrap: "wrap",
+            justifyContent: { xs: "center", sm: "flex-end" }
+          }}>
+            <Button
+              variant="contained"
+              startIcon={<SwapHorizIcon />}
+              onClick={handleOpenTransferirModal}
+              color="primary"
+              sx={{ 
+                minWidth: { xs: "auto", sm: "120px" },
+                fontSize: { xs: "0.8rem", sm: "0.875rem" },
+                px: { xs: 1, sm: 2 }
+              }}
+            >
+              {vinculosAtivos.length > 0 ? "Transferir" : "Vincular"}
+            </Button>
             <Button
               variant="outlined"
               startIcon={<EditIcon />}
               onClick={handleOpenEditarModal}
+              color="primary"
+              sx={{ 
+                minWidth: { xs: "auto", sm: "100px" },
+                fontSize: { xs: "0.8rem", sm: "0.875rem" },
+                px: { xs: 1, sm: 2 }
+              }}
             >
               Editar
             </Button>
             <Button
               variant="outlined"
-              color="error"
               startIcon={<DeleteIcon />}
               onClick={handleDeletePessoa}
-              sx={{ ml: 2 }}
+              color="error"
+              sx={{ 
+                minWidth: { xs: "auto", sm: "100px" },
+                fontSize: { xs: "0.8rem", sm: "0.875rem" },
+                px: { xs: 1, sm: 2 }
+              }}
             >
               Excluir
             </Button>
           </Box>
         </Box>
         <Divider sx={{ mb: 3 }} />
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <FingerprintIcon
-              sx={{ color: "primary.main", fontSize: "1.3rem" }}
-            />
-            <Typography variant="h6" sx={{ fontWeight: "500" }}>
-              {pessoa.cpf}
+        <Box sx={{ 
+          display: "flex", 
+          flexDirection: { xs: "column", sm: "row" },
+          gap: { xs: 1, sm: 2 },
+          flexWrap: "wrap"
+        }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <FingerprintIcon sx={{ color: "primary.main", fontSize: "1rem" }} />
+            <Typography variant="body1" sx={{ fontWeight: "500" }}>
+              {formatCPF(pessoa.cpf)}
             </Typography>
           </Box>
 
           {pessoa.telefone && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <PhoneIcon sx={{ color: "success.main", fontSize: "1.3rem" }} />
-              <Typography variant="h6">{pessoa.telefone}</Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <PhoneIcon sx={{ color: "success.main", fontSize: "1rem" }} />
+              <Typography variant="body1">
+                {formatPhone(pessoa.telefone)}
+              </Typography>
             </Box>
           )}
 
           {pessoa.email && (
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <EmailIcon sx={{ color: "info.main", fontSize: "1.3rem" }} />
-              <Typography variant="h6">{pessoa.email}</Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <EmailIcon sx={{ color: "info.main", fontSize: "1rem" }} />
+              <Typography variant="body1" sx={{ wordBreak: "break-word" }}>
+                {pessoa.email}
+              </Typography>
             </Box>
           )}
 
@@ -278,7 +349,7 @@ function PessoaPage() {
       </Paper>
 
       {/* SEÇÃO DE VÍNCULO ATIVO */}
-      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+      <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
           Vínculo(s) Ativo(s)
         </Typography>
@@ -325,21 +396,22 @@ function PessoaPage() {
                     </Typography>
                   }
                 />
-                <Box>
+                <Box sx={{ display: "flex", gap: 0.5 }}>
                   <IconButton
-                    edge="end"
-                    aria-label="edit-vinculo"
+                    size="small"
                     onClick={() => handleOpenEditarVinculoModal(vinculo)}
+                    sx={{ color: "primary.main" }}
+                    title="Editar vínculo"
                   >
-                    <EditNoteIcon />
+                    <EditNoteIcon fontSize="small" />
                   </IconButton>
                   <IconButton
-                    edge="end"
-                    aria-label="desvincular"
+                    size="small"
                     onClick={() => handleDesvincular(vinculo)}
-                    sx={{ ml: 1, color: "warning.main" }}
+                    sx={{ color: "warning.main" }}
+                    title="Desvincular"
                   >
-                    <LinkOffIcon />
+                    <LinkOffIcon fontSize="small" />
                   </IconButton>
                 </Box>
               </ListItem>
@@ -352,7 +424,7 @@ function PessoaPage() {
         </List>
       </Paper>
 
-      <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
+      <Paper elevation={3} sx={{ p: { xs: 1.5, sm: 2 }, mb: 2 }}>
         <Box
           sx={{
             display: "flex",
@@ -385,12 +457,12 @@ function PessoaPage() {
                   divider
                   secondaryAction={
                     <IconButton
-                      edge="end"
-                      aria-label="delete-historico"
+                      size="small"
                       onClick={() => handleDeleteVinculo(vinculo)}
                       sx={{ color: "error.main" }}
+                      title="Excluir registro histórico"
                     >
-                      <DeleteIcon />
+                      <DeleteIcon fontSize="small" />
                     </IconButton>
                   }
                 >
@@ -412,20 +484,30 @@ function PessoaPage() {
           )}
         </List>
       </Paper>
-      <Paper elevation={3} sx={{ p: 3 }}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="h6">Veículos Cadastrados</Typography>
+      <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 } }}>
+        <Box sx={{
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          justifyContent: "space-between",
+          alignItems: { xs: "stretch", sm: "center" },
+          gap: { xs: 1, sm: 0 },
+          mb: 2,
+        }}>
+          <Typography 
+            variant="h6"
+            sx={{ textAlign: { xs: "center", sm: "left" } }}
+          >
+            Veículos Cadastrados
+          </Typography>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={handleOpenVeiculoModal}
+            sx={{
+              fontSize: { xs: "0.8rem", sm: "0.875rem" },
+              px: { xs: 1, sm: 2 },
+              width: { xs: "100%", sm: "auto" }
+            }}
           >
             Adicionar Veículo
           </Button>
@@ -438,39 +520,49 @@ function PessoaPage() {
                 key={veiculo.id}
                 divider
                 secondaryAction={
-                  <>
+                  <Box sx={{ display: "flex", gap: 0.5 }}>
                     <IconButton
-                      edge="end"
-                      aria-label="edit"
+                      size="small"
                       onClick={() => handleOpenEditarVeiculoModal(veiculo)}
+                      sx={{ color: "primary.main" }}
+                      title="Editar veículo"
                     >
-                      <EditIcon />
+                      <EditIcon fontSize="small" />
                     </IconButton>
                     <IconButton
-                      edge="end"
-                      aria-label="delete"
+                      size="small"
                       onClick={() =>
                         handleDeleteVeiculo(
                           veiculo.id,
                           `${veiculo.marca} ${veiculo.modelo}`
                         )
                       }
-                      sx={{ ml: 1, color: "error.main" }}
+                      sx={{ color: "error.main" }}
+                      title="Excluir veículo"
                     >
-                      <DeleteIcon />
+                      <DeleteIcon fontSize="small" />
                     </IconButton>
-                  </>
+                  </Box>
                 }
               >
                 <ListItemText
                   primary={
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Box sx={{ 
+                      display: "flex", 
+                      alignItems: "center", 
+                      gap: 1,
+                      flexWrap: "wrap"
+                    }}>
                       {veiculo.tipo === "Carro" ? (
                         <DirectionsCarIcon sx={{ color: "primary.main" }} />
                       ) : (
                         <TwoWheelerIcon sx={{ color: "secondary.main" }} />
                       )}
-                      <Typography variant="h6" component="span">
+                      <Typography 
+                        variant="h6" 
+                        component="span"
+                        sx={{ fontSize: { xs: "1rem", sm: "1.25rem" } }}
+                      >
                         {veiculo.marca} {veiculo.modelo}
                       </Typography>
                       <Chip

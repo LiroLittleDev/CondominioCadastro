@@ -705,6 +705,28 @@ ipcMain.handle('get-detailed-stats', async () => {
   }
 });
 
+// Handler para buscar veículos por unidade
+ipcMain.handle('get-veiculos-by-unidade', async (event, unidadeId) => {
+  try {
+    const veiculos = await knex('veiculos')
+      .join('pessoas', 'veiculos.pessoa_id', 'pessoas.id')
+      .join('vinculos', 'pessoas.id', 'vinculos.pessoa_id')
+      .where('vinculos.unidade_id', unidadeId)
+      .where('vinculos.status', 'Ativo')
+      .select(
+        'veiculos.*',
+        'pessoas.nome_completo as proprietario_nome',
+        'vinculos.tipo_vinculo'
+      )
+      .orderBy('veiculos.marca', 'asc');
+    
+    return veiculos;
+  } catch (error) {
+    console.error('Erro ao buscar veículos da unidade:', error);
+    return [];
+  }
+});
+
 // Handler para importar dados de backup
 ipcMain.handle('import-backup', async (event, backupData) => {
   try {
@@ -761,10 +783,10 @@ ipcMain.handle('search-geral', async (event, termo) => {
   if (!termo || termo.length < 2) {
     return [];
   }
-  const termoBusca = `%${termo}%`;
+  const termoBusca = `%${termo.toLowerCase()}%`;
 
   try {
-    const [vinculosPessoa, veiculos, unidades] = await Promise.all([
+    const [vinculosPessoa, veiculos, unidades, blocos] = await Promise.all([
       knex('vinculos')
         .join('pessoas', 'vinculos.pessoa_id', 'pessoas.id')
         .join('unidades', 'vinculos.unidade_id', 'unidades.id')
@@ -772,7 +794,7 @@ ipcMain.handle('search-geral', async (event, termo) => {
         .join('blocos', 'entradas.bloco_id', 'blocos.id')
         .where('vinculos.status', 'Ativo')
         .andWhere(function() {
-          this.where('pessoas.nome_completo', 'like', termoBusca)
+          this.whereRaw('LOWER(pessoas.nome_completo) LIKE ?', [termoBusca])
               .orWhere('pessoas.cpf', 'like', termoBusca)
         })
         .select(
@@ -785,21 +807,27 @@ ipcMain.handle('search-geral', async (event, termo) => {
 
       knex('veiculos')
         .join('pessoas', 'veiculos.pessoa_id', '=', 'pessoas.id')
-        .where('placa', 'like', termoBusca)
-        .orWhere('veiculos.marca', 'like', termoBusca)
-        .orWhere('veiculos.modelo', 'like', termoBusca)
+        .where(function() {
+          this.whereRaw('LOWER(placa) LIKE ?', [termoBusca])
+              .orWhereRaw('LOWER(veiculos.marca) LIKE ?', [termoBusca])
+              .orWhereRaw('LOWER(veiculos.modelo) LIKE ?', [termoBusca])
+        })
         .select('veiculos.id as veiculo_id', 'veiculos.placa', 'veiculos.modelo', 'pessoas.id as pessoa_id'),
 
       knex('unidades')
         .join('entradas', 'unidades.entrada_id', 'entradas.id')
         .join('blocos', 'entradas.bloco_id', 'blocos.id')
         .where('numero_apartamento', 'like', termoBusca)
-        .select('unidades.id', 'numero_apartamento', 'blocos.nome as nome_bloco')
+        .select('unidades.id', 'numero_apartamento', 'blocos.nome as nome_bloco'),
+
+      knex('blocos')
+        .whereRaw('LOWER(nome) LIKE ?', [termoBusca])
+        .select('id', 'nome')
     ]);
 
     const resultadosFormatados = [
       ...vinculosPessoa.map(v => ({
-        tipo: v.tipo_vinculo,
+        tipo: 'Pessoa',
         label: `${v.nome_completo} (${v.nome_bloco} - Apto ${v.numero_apartamento})`,
         path: `/pessoa/${v.pessoa_id}`
       })),
@@ -812,6 +840,11 @@ ipcMain.handle('search-geral', async (event, termo) => {
         tipo: 'Unidade',
         label: `Unidade: ${u.nome_bloco} / Apto ${u.numero_apartamento}`,
         path: `/unidade/${u.id}`
+      })),
+      ...blocos.map(b => ({
+        tipo: 'Bloco',
+        label: `${b.nome}`,
+        path: `/blocos?bloco=${b.id}`
       }))
     ];
 

@@ -4,7 +4,7 @@ import FolderIcon from '@mui/icons-material/Folder';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import HomeWorkIcon from '@mui/icons-material/HomeWork';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 // Função para carregar o estado salvo da sessão
 const loadState = () => {
@@ -21,6 +21,7 @@ const loadState = () => {
 
 function BlocosPage() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Inicializa o estado com os valores salvos ou os padrões
   const [state, setState] = useState(loadState);
@@ -28,6 +29,27 @@ function BlocosPage() {
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Detecta parâmetro de bloco na URL e navega para entradas
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const blocoId = params.get('bloco');
+    
+    if (blocoId) {
+      const fetchBlocoAndNavigate = async () => {
+        try {
+          const blocos = await window.api.getBlocos();
+          const bloco = blocos.find(b => b.id === parseInt(blocoId));
+          if (bloco) {
+            setState({ view: 'entradas', selectedBloco: bloco, selectedEntrada: null });
+          }
+        } catch (error) {
+          console.error('Erro ao buscar bloco:', error);
+        }
+      };
+      fetchBlocoAndNavigate();
+    }
+  }, [location.search]);
 
   // Salva o estado na sessionStorage sempre que ele mudar
   useEffect(() => {

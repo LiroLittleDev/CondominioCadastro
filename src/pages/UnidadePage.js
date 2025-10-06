@@ -11,6 +11,11 @@ import {
   Divider,
   Button,
   IconButton,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  Avatar,
 } from "@mui/material";
 import Chip from "@mui/material/Chip";
 import FingerprintIcon from "@mui/icons-material/Fingerprint";
@@ -21,14 +26,32 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import VincularPessoaModal from "../components/VincularPessoaModal";
 import EditarPessoaModal from "../components/EditarPessoaModal";
+
+// Funções de formatação
+const formatCPF = (cpf) => {
+  if (!cpf) return '';
+  const cleanCPF = cpf.replace(/\D/g, '');
+  return cleanCPF.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+};
+
+const formatPhone = (phone) => {
+  if (!phone) return '';
+  const cleanPhone = phone.replace(/\D/g, '');
+  if (cleanPhone.length === 11) {
+    return cleanPhone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  }
+  return phone;
+};
 
 function UnidadePage() {
   const { unidadeId } = useParams();
   const navigate = useNavigate();
   const [unidade, setUnidade] = useState(null);
   const [pessoas, setPessoas] = useState([]);
+  const [veiculos, setVeiculos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [vincularModalOpen, setVincularModalOpen] = useState(false);
   const [editarModalOpen, setEditarModalOpen] = useState(false);
@@ -36,12 +59,14 @@ function UnidadePage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [unidadeData, pessoasData] = await Promise.all([
+    const [unidadeData, pessoasData, veiculosData] = await Promise.all([
       window.api.getUnidadeDetails(unidadeId),
       window.api.getPessoasByUnidade(unidadeId),
+      window.api.getVeiculosByUnidade(unidadeId),
     ]);
     setUnidade(unidadeData);
     setPessoas(pessoasData);
+    setVeiculos(veiculosData);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unidadeId]);
@@ -141,103 +166,203 @@ function UnidadePage() {
             Vincular Pessoa
           </Button>
         </Box>
-        <Divider />
-        <List>
-          {pessoas.length > 0 ? (
-            // Em src/pages/UnidadePage.js
-            pessoas.map((pessoa) => (
-              <ListItem
-                key={pessoa.vinculo_id}
-                divider
-                secondaryAction={
-                  <>
-                    <IconButton
-                      edge="end"
-                      aria-label="edit"
-                      onClick={() => handleOpenEditarModal(pessoa)}
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      edge="end"
-                      aria-label="desvincular"
-                      onClick={() =>
-                        handleDesvincular(
-                          pessoa.vinculo_id,
-                          pessoa.nome_completo
-                        )
-                      }
-                    >
-                      <LinkOffIcon />
-                    </IconButton>
-                    {/* Botão para Deletar Permanente */}
-                    <IconButton
-                      edge="end"
-                      aria-label="delete"
-                      onClick={() =>
-                        handleDeletePessoa(pessoa.id, pessoa.nome_completo)
-                      }
-                      sx={{ ml: 1, color: "error.main" }}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </>
-                }
-              >
-                <ListItemText
-                  primary={
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
-                      <Link
-                        to={`/pessoa/${pessoa.id}`}
-                        style={{
-                          textDecoration: "none",
-                          color: "inherit",
+        <Divider sx={{ mb: 3 }} />
+        {pessoas.length > 0 ? (
+          <Grid container spacing={2}>
+            {pessoas.map((pessoa) => (
+              <Grid item xs={12} sm={6} md={4} key={pessoa.vinculo_id}>
+                <Card 
+                  elevation={2} 
+                  sx={{ 
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      elevation: 4,
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                >
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    {/* Header do Card */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Avatar 
+                        sx={{ 
+                          bgcolor: pessoa.tipo_vinculo === "Proprietário" ? "primary.main" :
+                                  pessoa.tipo_vinculo === "Inquilino" ? "secondary.main" :
+                                  pessoa.tipo_vinculo === "Morador" ? "success.main" :
+                                  pessoa.tipo_vinculo === "Morador Temporário" ? "warning.main" : "grey.500",
+                          mr: 2
                         }}
                       >
-                        <Typography variant="h6" component="span" sx={{ fontWeight: "bold" }}>
-                          {pessoa.nome_completo}
-                        </Typography>
-                      </Link>
-                      <Chip
-                        label={pessoa.tipo_vinculo}
-                        size="small"
-                        color={
-                          pessoa.tipo_vinculo === "Proprietário" ? "primary" :
-                          pessoa.tipo_vinculo === "Inquilino" ? "secondary" :
-                          pessoa.tipo_vinculo === "Morador" ? "success" :
-                          pessoa.tipo_vinculo === "Morador Temporário" ? "warning" : "default"
-                        }
-                        variant="outlined"
-                      />
+                        {pessoa.nome_completo.charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Link
+                          to={`/pessoa/${pessoa.id}`}
+                          style={{ textDecoration: "none", color: "inherit" }}
+                        >
+                          <Typography 
+                            variant="h6" 
+                            sx={{ 
+                              fontWeight: "bold", 
+                              fontSize: '1rem',
+                              cursor: 'pointer',
+                              color: 'primary.main',
+                              '&:hover': {
+                                textDecoration: 'underline',
+                                color: 'primary.dark'
+                              },
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {pessoa.nome_completo} 👤
+                          </Typography>
+                        </Link>
+                        <Chip
+                          label={pessoa.tipo_vinculo}
+                          size="small"
+                          color={
+                            pessoa.tipo_vinculo === "Proprietário" ? "primary" :
+                            pessoa.tipo_vinculo === "Inquilino" ? "secondary" :
+                            pessoa.tipo_vinculo === "Morador" ? "success" :
+                            pessoa.tipo_vinculo === "Morador Temporário" ? "warning" : "default"
+                          }
+                          sx={{ mt: 0.5 }}
+                        />
+                      </Box>
                     </Box>
-                  }
-                  secondary={
-                    <Box sx={{ mt: 1 }}>
+
+                    {/* Informações de Contato */}
+                    <Box sx={{ mb: 2 }}>
                       {pessoa.cpf && (
-                        <Box sx={{ display: "flex", alignItems: "center", mb: 0.8 }}>
-                          <FingerprintIcon sx={{ mr: 1, fontSize: "1.1rem", color: "primary.main" }} />
-                          <Typography variant="body1" sx={{ fontWeight: "500" }}>
-                            {pessoa.cpf}
+                        <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+                          <FingerprintIcon sx={{ mr: 1, fontSize: "1rem", color: "primary.main" }} />
+                          <Typography variant="body2" sx={{ fontWeight: "500" }}>
+                            {formatCPF(pessoa.cpf)}
                           </Typography>
                         </Box>
                       )}
 
                       {pessoa.telefone && (
-                        <Box sx={{ display: "flex", alignItems: "center", mb: 0.8 }}>
-                          <PhoneIcon sx={{ mr: 1, fontSize: "1.1rem", color: "success.main" }} />
-                          <Typography variant="body1">
-                            {pessoa.telefone}
+                        <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+                          <PhoneIcon sx={{ mr: 1, fontSize: "1rem", color: "success.main" }} />
+                          <Typography variant="body2">
+                            {formatPhone(pessoa.telefone)}
                           </Typography>
                         </Box>
                       )}
 
                       {pessoa.email && (
                         <Box sx={{ display: "flex", alignItems: "center" }}>
-                          <EmailIcon sx={{ mr: 1, fontSize: "1.1rem", color: "info.main" }} />
-                          <Typography variant="body1">
+                          <EmailIcon sx={{ mr: 1, fontSize: "1rem", color: "info.main" }} />
+                          <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
                             {pessoa.email}
                           </Typography>
                         </Box>
+                      )}
+                    </Box>
+                  </CardContent>
+
+                  {/* Ações do Card */}
+                  <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
+                    <Box>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleOpenEditarModal(pessoa)}
+                        sx={{ color: 'primary.main' }}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDesvincular(pessoa.vinculo_id, pessoa.nome_completo)}
+                        sx={{ color: 'warning.main' }}
+                      >
+                        <LinkOffIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDeletePessoa(pessoa.id, pessoa.nome_completo)}
+                      sx={{ color: "error.main" }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        ) : (
+          <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Typography variant="h6" color="text.secondary">
+              Nenhuma pessoa vinculada a esta unidade
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Clique em "Vincular Pessoa" para adicionar moradores
+            </Typography>
+          </Box>
+        )}
+      </Paper>
+
+      {/* Seção de Veículos */}
+      <Paper elevation={3} sx={{ p: 3, mt: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+          <DirectionsCarIcon sx={{ mr: 1 }} />
+          <Typography variant="h6">Veículos da Unidade</Typography>
+          <Chip 
+            label={veiculos.length} 
+            size="small" 
+            color={veiculos.length > 0 ? "success" : "default"}
+            sx={{ ml: 2 }}
+          />
+        </Box>
+        <Divider />
+        <List>
+          {veiculos.length > 0 ? (
+            veiculos.map((veiculo) => (
+              <ListItem key={veiculo.id} divider>
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1 }}>
+                      <Typography variant="h6" component="span" sx={{ fontWeight: "bold" }}>
+                        {veiculo.marca} {veiculo.modelo}
+                      </Typography>
+                      <Chip
+                        label={veiculo.placa}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                      <Chip
+                        label={veiculo.tipo}
+                        size="small"
+                        color="secondary"
+                      />
+                    </Box>
+                  }
+                  secondary={
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Proprietário: 
+                        <Link
+                          to={`/pessoa/${veiculo.pessoa_id}`}
+                          style={{ textDecoration: "none", color: "inherit", marginLeft: 4 }}
+                        >
+                          <strong>{veiculo.proprietario_nome}</strong>
+                        </Link>
+                      </Typography>
+                      {veiculo.tipo_vinculo && (
+                        <Typography variant="body2" color="text.secondary">
+                          Vínculo: {veiculo.tipo_vinculo}
+                        </Typography>
+                      )}
+                      {veiculo.cor && (
+                        <Typography variant="body2" color="text.secondary">
+                          Cor: {veiculo.cor}
+                        </Typography>
                       )}
                     </Box>
                   }
@@ -246,7 +371,10 @@ function UnidadePage() {
             ))
           ) : (
             <ListItem>
-              <ListItemText primary="Nenhuma pessoa vinculada a esta unidade." />
+              <ListItemText 
+                primary="Nenhum veículo cadastrado" 
+                secondary="Os moradores desta unidade ainda não cadastraram veículos."
+              />
             </ListItem>
           )}
         </List>

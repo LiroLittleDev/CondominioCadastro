@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("get-pessoa-details", pessoaId),
   getVeiculosByPessoa: (pessoaId) =>
     ipcRenderer.invoke("get-veiculos-by-pessoa", pessoaId),
+  getVeiculosByUnidade: (unidadeId) =>
+    ipcRenderer.invoke("get-veiculos-by-unidade", unidadeId),
   createVeiculo: (veiculoData) =>
     ipcRenderer.invoke("create-veiculo", veiculoData),
   deleteVeiculo: (veiculoId) => ipcRenderer.invoke("delete-veiculo", veiculoId),

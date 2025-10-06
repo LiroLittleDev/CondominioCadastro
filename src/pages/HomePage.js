@@ -10,12 +10,14 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Divider,
   Card,
+  CardContent,
   CardActionArea,
   Button,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Chip,
+  Avatar
 } from "@mui/material";
 import { Link } from "react-router-dom";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
@@ -24,19 +26,39 @@ import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import ApartmentIcon from "@mui/icons-material/Apartment";
 import BusinessIcon from "@mui/icons-material/Business";
 import AssessmentIcon from "@mui/icons-material/Assessment";
+import SearchIcon from "@mui/icons-material/Search";
 
-const StatCard = ({ title, value, icon, to }) => (
-  <Card elevation={3}>
-    <CardActionArea component={Link} to={to} disabled={!to} sx={{ p: 2 }}>
-      <Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
-        {icon}
-        <Box sx={{ ml: 2 }}>
-          <Typography variant="h5" component="div">
-            {value}
-          </Typography>
-          <Typography color="text.secondary">{title}</Typography>
+const StatCard = ({ title, value, icon, to, color, subtitle }) => (
+  <Card 
+    elevation={2} 
+    sx={{ 
+      height: '100%',
+      transition: 'all 0.3s ease',
+      '&:hover': {
+        elevation: 4,
+        transform: 'translateY(-2px)'
+      }
+    }}
+  >
+    <CardActionArea component={Link} to={to} disabled={!to} sx={{ height: '100%' }}>
+      <CardContent sx={{ p: 3 }}>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+          <Avatar sx={{ bgcolor: color, mr: 2, width: 48, height: 48 }}>
+            {icon}
+          </Avatar>
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography variant="h4" component="div" sx={{ fontWeight: 'bold', color: color }}>
+              {value}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {subtitle}
+            </Typography>
+          </Box>
         </Box>
-      </Box>
+        <Typography variant="h6" sx={{ fontWeight: 500 }}>
+          {title}
+        </Typography>
+      </CardContent>
     </CardActionArea>
   </Card>
 );
@@ -91,105 +113,139 @@ function HomePage() {
         return <DirectionsCarIcon />;
       case "Unidade":
         return <ApartmentIcon />;
+      case "Bloco":
+        return <BusinessIcon />;
       default:
-        return null;
+        return <SearchIcon />;
     }
   };
 
   return (
     <Box>
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        flexDirection: isMobile ? 'column' : 'row',
-        gap: isMobile ? 2 : 0,
-        mb: 3
-      }}>
-        <Typography variant={isMobile ? "h5" : "h4"} gutterBottom={!isMobile}>
-          Dashboard
-        </Typography>
-        
-        {/* Botões de Ação Rápida */}
+      {/* Header do Dashboard */}
+      <Paper elevation={1} sx={{ p: 3, mb: 4, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
         <Box sx={{ 
           display: 'flex', 
-          gap: 1,
+          justifyContent: 'space-between', 
+          alignItems: 'center',
           flexDirection: isMobile ? 'column' : 'row',
-          width: isMobile ? '100%' : 'auto'
+          gap: isMobile ? 2 : 0
         }}>
-          <Button
-            variant="outlined"
-            startIcon={<BusinessIcon />}
-            component={Link}
-            to="/blocos"
-            size={isMobile ? "medium" : "small"}
-            fullWidth={isMobile}
-          >
-            Gerenciar Blocos
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<AssessmentIcon />}
-            component={Link}
-            to="/relatorios"
-            size={isMobile ? "medium" : "small"}
-            fullWidth={isMobile}
-          >
-            Relatórios
-          </Button>
+          <Box>
+            <Typography variant={isMobile ? "h4" : "h3"} sx={{ fontWeight: 'bold', mb: 1 }}>
+              SGC Dashboard
+            </Typography>
+            <Typography variant="body1" sx={{ opacity: 0.9 }}>
+              Sistema de Gestão Condominial - Visão Geral
+            </Typography>
+          </Box>
+          
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 1,
+            flexDirection: isMobile ? 'column' : 'row',
+            width: isMobile ? '100%' : 'auto'
+          }}>
+            <Button
+              variant="contained"
+              startIcon={<BusinessIcon />}
+              component={Link}
+              to="/blocos"
+              sx={{ 
+                bgcolor: 'rgba(255,255,255,0.2)', 
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
+                backdropFilter: 'blur(10px)'
+              }}
+              fullWidth={isMobile}
+            >
+              Gerenciar Blocos
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AssessmentIcon />}
+              component={Link}
+              to="/relatorios"
+              sx={{ 
+                bgcolor: 'rgba(255,255,255,0.2)', 
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' },
+                backdropFilter: 'blur(10px)'
+              }}
+              fullWidth={isMobile}
+            >
+              Relatórios
+            </Button>
+          </Box>
         </Box>
-      </Box>
+      </Paper>
       {loadingStats ? (
         <CircularProgress />
       ) : (
-        <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: 4 }}>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={6} md={4}>
             <StatCard
               to="/unidades"
-              title="Total de Unidades"
+              title="Unidades Cadastradas"
+              subtitle="Apartamentos no condomínio"
               value={stats.unidades}
-              icon={
-                <HomeWorkIcon sx={{ fontSize: isMobile ? 32 : 40, color: "primary.main" }} />
-              }
+              color="primary.main"
+              icon={<HomeWorkIcon />}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={4}>
             <StatCard
               to="/pessoas"
-              title="Total de Pessoas"
+              title="Moradores Ativos"
+              subtitle="Pessoas cadastradas"
               value={stats.pessoas}
-              icon={
-                <PeopleIcon sx={{ fontSize: isMobile ? 32 : 40, color: "secondary.main" }} />
-              }
+              color="secondary.main"
+              icon={<PeopleIcon />}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={4}>
             <StatCard
               to="/veiculos"
-              title="Total de Veículos"
+              title="Veículos Registrados"
+              subtitle="Carros e motos"
               value={stats.veiculos}
-              icon={
-                <DirectionsCarIcon
-                  sx={{ fontSize: isMobile ? 32 : 40, color: "success.main" }}
-                />
-              }
+              color="success.main"
+              icon={<DirectionsCarIcon />}
             />
           </Grid>
         </Grid>
       )}
 
-      <Divider sx={{ my: 4 }} />
-
-      <Typography variant={isMobile ? "h6" : "h5"} gutterBottom>
-        Busca Universal
-      </Typography>
-      <TextField
-        fullWidth
-        label="Digite um nome, CPF, placa ou unidade..."
-        variant="outlined"
-        value={termoBusca}
-        onChange={(e) => setTermoBusca(e.target.value)}
-      />
+      {/* Seção de Busca */}
+      <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <SearchIcon sx={{ mr: 1, color: 'primary.main' }} />
+          <Typography variant="h5" sx={{ fontWeight: 500 }}>
+            Busca Universal
+          </Typography>
+          <Chip 
+            label="Rápida" 
+            size="small" 
+            color="primary" 
+            sx={{ ml: 2 }}
+          />
+        </Box>
+        <TextField
+          fullWidth
+          label="Digite um nome, CPF, placa, unidade ou bloco..."
+          variant="outlined"
+          value={termoBusca}
+          onChange={(e) => setTermoBusca(e.target.value)}
+          InputProps={{
+            startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              '&:hover fieldset': {
+                borderColor: 'primary.main',
+              },
+            },
+          }}
+        />
+      </Paper>
       {buscando && (
         <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
           <CircularProgress />
@@ -197,8 +253,8 @@ function HomePage() {
       )}
 
       {termoBusca.length >= 2 && !buscando && (
-        <Paper elevation={3} sx={{ mt: 2 }}>
-          <List>
+        <Paper elevation={2} sx={{ overflow: 'hidden' }}>
+          <List disablePadding>
             {resultados.length > 0 ? (
               resultados.map((resultado, index) => (
                 <ListItem
@@ -206,17 +262,47 @@ function HomePage() {
                   key={index}
                   component={Link}
                   to={resultado.path}
+                  sx={{
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                      transform: 'translateX(4px)',
+                      transition: 'all 0.2s ease'
+                    },
+                    borderBottom: index < resultados.length - 1 ? '1px solid' : 'none',
+                    borderColor: 'divider'
+                  }}
                 >
-                  <ListItemIcon>{getIconPorTipo(resultado.tipo)}</ListItemIcon>
+                  <ListItemIcon>
+                    <Avatar sx={{ 
+                      bgcolor: resultado.tipo === 'Pessoa' ? 'secondary.main' : 
+                               resultado.tipo === 'Veículo' ? 'success.main' : 
+                               resultado.tipo === 'Bloco' ? 'warning.main' : 'primary.main',
+                      width: 32,
+                      height: 32
+                    }}>
+                      {getIconPorTipo(resultado.tipo)}
+                    </Avatar>
+                  </ListItemIcon>
                   <ListItemText
                     primary={resultado.label}
-                    secondary={resultado.tipo}
+                    secondary={
+                      <Chip 
+                        label={resultado.tipo} 
+                        size="small" 
+                        variant="outlined"
+                        color={resultado.tipo === 'Pessoa' ? 'secondary' : 
+                               resultado.tipo === 'Veículo' ? 'success' : 'primary'}
+                      />
+                    }
                   />
                 </ListItem>
               ))
             ) : (
-              <ListItem>
-                <ListItemText primary="Nenhum resultado encontrado." />
+              <ListItem sx={{ textAlign: 'center', py: 3 }}>
+                <ListItemText 
+                  primary="Nenhum resultado encontrado" 
+                  secondary="Tente buscar por nome, CPF, placa ou número da unidade"
+                />
               </ListItem>
             )}
           </List>
