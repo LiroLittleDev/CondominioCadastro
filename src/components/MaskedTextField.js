@@ -5,9 +5,11 @@ import PropTypes from "prop-types";
 
 const MaskInput = React.forwardRef(function MaskInput(props, ref) {
   const { onChange, onComplete, mask, ...other } = props;
+  
   return (
     <IMaskInput
       {...other}
+
       mask={mask}
       definitions={{
         "#": /[0-9]/,

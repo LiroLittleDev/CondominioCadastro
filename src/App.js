@@ -13,8 +13,10 @@ import {
 } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
 import BusinessIcon from "@mui/icons-material/Business";
-
+import AssessmentIcon from "@mui/icons-material/Assessment";
 import SettingsIcon from "@mui/icons-material/Settings";
+import PeopleIcon from "@mui/icons-material/People";
+import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 
 // Imports do roteador
 import { HashRouter, Routes, Route, Link } from "react-router-dom";
@@ -22,11 +24,12 @@ import { HashRouter, Routes, Route, Link } from "react-router-dom";
 // Importa nossas páginas
 import HomePage from "./pages/HomePage";
 import UnidadePage from "./pages/UnidadePage";
-import PessoasListPage from './pages/PessoasListPage';
-import VeiculosListPage from './pages/VeiculosListPage';
-import UnidadesListPage from './pages/UnidadesListPage';
+import ReportsPage from "./pages/ReportsPage";
+import PessoasListPage from "./pages/PessoasListPage";
+import VeiculosListPage from "./pages/VeiculosListPage";
+import UnidadesListPage from "./pages/UnidadesListPage";
 import BlocosPage from "./pages/BlocosPage";
-import PessoaPage from './pages/PessoaPage';
+import PessoaPage from "./pages/PessoaPage";
 import SettingsPage from "./pages/SettingsPage";
 
 const drawerWidth = 240;
@@ -80,6 +83,27 @@ function App() {
               <ListItemText primary="Blocos" />
             </ListItem>
 
+            <ListItem button component={Link} to="/pessoas">
+              <ListItemIcon>
+                <PeopleIcon />
+              </ListItemIcon>
+              <ListItemText primary="Pessoas" />
+            </ListItem>
+
+            <ListItem button component={Link} to="/veiculos">
+              <ListItemIcon>
+                <DirectionsCarIcon />
+              </ListItemIcon>
+              <ListItemText primary="Veículos" />
+            </ListItem>
+
+            <ListItem button component={Link} to="/relatorios">
+              <ListItemIcon>
+                <AssessmentIcon />
+              </ListItemIcon>
+              <ListItemText primary="Relatórios" />
+            </ListItem>
+
             <ListItem button component={Link} to="/configuracoes">
               <ListItemIcon>
                 <SettingsIcon />
@@ -105,6 +129,7 @@ function App() {
             <Route path="/pessoas" element={<PessoasListPage />} />
             <Route path="/veiculos" element={<VeiculosListPage />} />
             <Route path="/unidade/:unidadeId" element={<UnidadePage />} />
+            <Route path="/relatorios" element={<ReportsPage />} />
             <Route path="/configuracoes" element={<SettingsPage />} />
           </Routes>
         </Box>

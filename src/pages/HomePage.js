@@ -13,12 +13,17 @@ import {
   Divider,
   Card,
   CardActionArea,
+  Button,
+  useTheme,
+  useMediaQuery
 } from "@mui/material";
 import { Link } from "react-router-dom";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import PeopleIcon from "@mui/icons-material/People";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import ApartmentIcon from "@mui/icons-material/Apartment";
+import BusinessIcon from "@mui/icons-material/Business";
+import AssessmentIcon from "@mui/icons-material/Assessment";
 
 const StatCard = ({ title, value, icon, to }) => (
   <Card elevation={3}>
@@ -37,6 +42,9 @@ const StatCard = ({ title, value, icon, to }) => (
 );
 
 function HomePage() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
@@ -90,41 +98,79 @@ function HomePage() {
 
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
-        Dashboard
-      </Typography>
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: isMobile ? 2 : 0,
+        mb: 3
+      }}>
+        <Typography variant={isMobile ? "h5" : "h4"} gutterBottom={!isMobile}>
+          Dashboard
+        </Typography>
+        
+        {/* Botões de Ação Rápida */}
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 1,
+          flexDirection: isMobile ? 'column' : 'row',
+          width: isMobile ? '100%' : 'auto'
+        }}>
+          <Button
+            variant="outlined"
+            startIcon={<BusinessIcon />}
+            component={Link}
+            to="/blocos"
+            size={isMobile ? "medium" : "small"}
+            fullWidth={isMobile}
+          >
+            Gerenciar Blocos
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<AssessmentIcon />}
+            component={Link}
+            to="/relatorios"
+            size={isMobile ? "medium" : "small"}
+            fullWidth={isMobile}
+          >
+            Relatórios
+          </Button>
+        </Box>
+      </Box>
       {loadingStats ? (
         <CircularProgress />
       ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} md={4}>
+        <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={4}>
             <StatCard
               to="/unidades"
               title="Total de Unidades"
               value={stats.unidades}
               icon={
-                <HomeWorkIcon sx={{ fontSize: 40, color: "primary.main" }} />
+                <HomeWorkIcon sx={{ fontSize: isMobile ? 32 : 40, color: "primary.main" }} />
               }
             />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} sm={6} md={4}>
             <StatCard
               to="/pessoas"
               title="Total de Pessoas"
               value={stats.pessoas}
               icon={
-                <PeopleIcon sx={{ fontSize: 40, color: "secondary.main" }} />
+                <PeopleIcon sx={{ fontSize: isMobile ? 32 : 40, color: "secondary.main" }} />
               }
             />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} sm={6} md={4}>
             <StatCard
               to="/veiculos"
               title="Total de Veículos"
               value={stats.veiculos}
               icon={
                 <DirectionsCarIcon
-                  sx={{ fontSize: 40, color: "success.main" }}
+                  sx={{ fontSize: isMobile ? 32 : 40, color: "success.main" }}
                 />
               }
             />
@@ -134,7 +180,7 @@ function HomePage() {
 
       <Divider sx={{ my: 4 }} />
 
-      <Typography variant="h5" gutterBottom>
+      <Typography variant={isMobile ? "h6" : "h5"} gutterBottom>
         Busca Universal
       </Typography>
       <TextField

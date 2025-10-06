@@ -11,7 +11,7 @@ function notifyDataChanged() {
 const knex = require("knex")({
   client: "sqlite3",
   connection: {
-    filename: path.join(__dirname, "../db/condominio.db"), // Corrigido para o caminho correto
+    filename: path.join(__dirname, "../db/condominio.db"),
   },
   useNullAsDefault: true,
 });
@@ -21,20 +21,77 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      // --- ESTA É A CONFIGURAÇÃO CORRETA E SEGURA ---
       preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true, // Protege contra vulnerabilidades
-      nodeIntegration: false, // Impede que o frontend acesse o Node.js diretamente
+      contextIsolation: true,
+      nodeIntegration: false,
     },
   });
 
   mainWindow.loadURL("http://localhost:3000");
 }
 
+// Handler para salvar relatórios
+ipcMain.handle('save-report', async (event, options) => {
+  const { dialog } = require('electron');
+  const fs = require('fs');
+  
+  try {
+    const result = await dialog.showSaveDialog({
+      filters: options.filters,
+      defaultPath: `relatorio_${new Date().toISOString().split('T')[0]}.${options.format}`
+    });
+    
+    if (!result.canceled) {
+      fs.writeFileSync(result.filePath, Buffer.from(options.data));
+      return { success: true, path: result.filePath };
+    }
+    return { success: false };
+  } catch (error) {
+    console.error('Erro ao salvar relatório:', error);
+    return { success: false, error: error.message };
+  }
+});
 
+// Handler para buscar dados do relatório
+ipcMain.handle('get-report-data', async () => {
+  try {
+    const vinculosAtivos = await knex('vinculos')
+      .join('pessoas', 'vinculos.pessoa_id', 'pessoas.id')
+      .join('unidades', 'vinculos.unidade_id', 'unidades.id')
+      .join('entradas', 'unidades.entrada_id', 'entradas.id')
+      .join('blocos', 'entradas.bloco_id', 'blocos.id')
+      .where('vinculos.status', 'Ativo')
+      .select(
+        'pessoas.id as pessoa_id',
+        'pessoas.nome_completo',
+        'pessoas.cpf',
+        'pessoas.telefone',
+        'pessoas.email',
+        'blocos.nome as nome_bloco',
+        'unidades.numero_apartamento'
+      )
+      .orderBy('pessoas.nome_completo', 'asc');
+
+    const todosVeiculos = await knex('veiculos').select('*');
+
+    const reportData = vinculosAtivos.map(pessoa => {
+      const veiculosDaPessoa = todosVeiculos.filter(v => v.pessoa_id === pessoa.pessoa_id);
+      return {
+        ...pessoa,
+        veiculos: veiculosDaPessoa,
+      };
+    });
+
+    return reportData;
+  } catch (error) {
+    console.error('Erro ao gerar dados do relatório:', error);
+    return [];
+  }
+});
+
+// Handler para criar vínculo
 ipcMain.handle('create-vinculo', async (event, vinculoData) => {
   try {
-    // Adicionado verificação para não criar vínculo duplicado
     const vinculoExistente = await knex('vinculos')
       .where({
         pessoa_id: vinculoData.pessoaId,
@@ -95,7 +152,6 @@ ipcMain.handle('get-all-veiculos-details', async (event, filtros = {}) => {
         'vinculos.tipo_vinculo'
       );
 
-    // Aplicar filtros
     if (filtros.tipo) {
       query = query.where('veiculos.tipo', filtros.tipo);
     }
@@ -123,10 +179,9 @@ ipcMain.handle('get-all-veiculos-details', async (event, filtros = {}) => {
   }
 });
 
-// ESTE É O CÓDIGO CORRETO E FINAL - com filtro por bloco
+// Handler para buscar todas as unidades com detalhes
 ipcMain.handle('get-all-unidades-details', async (event, blocoId = null) => {
   try {
-    // Sub-consulta para encontrar o nome do proprietário de cada unidade
     const proprietariosSubquery = knex('vinculos')
       .join('pessoas', 'vinculos.pessoa_id', 'pessoas.id')
       .where('vinculos.tipo_vinculo', 'Proprietário')
@@ -141,7 +196,6 @@ ipcMain.handle('get-all-unidades-details', async (event, blocoId = null) => {
         this.on('unidades.id', '=', 'vinculos.unidade_id')
             .andOn('vinculos.status', '=', knex.raw('?', ['Ativo']));
       })
-      // Junta com a nossa sub-consulta para pegar o nome do proprietário
       .leftJoin(proprietariosSubquery, 'unidades.id', 'proprietarios.unidade_id')
       .select(
         'unidades.id',
@@ -149,18 +203,17 @@ ipcMain.handle('get-all-unidades-details', async (event, blocoId = null) => {
         'blocos.nome as nome_bloco',
         'entradas.letra as letra_entrada',
         'unidades.numero_apartamento',
-        'proprietarios.nome_proprietario' // Seleciona o nome do proprietário
+        'proprietarios.nome_proprietario'
       )
       .count('vinculos.id as qtd_pessoas')
       .groupBy('unidades.id');
 
-    // Aplica filtro por bloco se fornecido
     if (blocoId) {
       query = query.where('blocos.id', blocoId);
     }
 
     const unidades = await query
-      .orderBy('blocos.id', 'asc') // Ordena pelo ID para garantir a ordem numérica correta
+      .orderBy('blocos.id', 'asc')
       .orderBy('entradas.letra', 'asc')
       .orderBy('unidades.id', 'asc');
     
@@ -171,38 +224,34 @@ ipcMain.handle('get-all-unidades-details', async (event, blocoId = null) => {
   }
 });
 
-
-
-// Adicione este novo handler em public/electron.js
+// Handler para deletar vínculo
 ipcMain.handle('delete-vinculo', async (event, vinculoId) => {
   try {
     await knex('vinculos').where({ id: vinculoId }).del();
-    return { success: true, message: 'Registro de vínculo histórico excluído permanentemente.' };
-    notifyDataChanged();
+    return { success: true, message: 'Vínculo removido com sucesso!' };
   } catch (error) {
-    console.error('Erro ao excluir vínculo:', error);
+    console.error('Erro ao deletar vínculo:', error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
 
-// Adicione este novo handler em public/electron.js
+// Handler para buscar pessoa por CPF
 ipcMain.handle("find-pessoa-by-cpf", async (event, cpf) => {
   try {
     const pessoa = await knex("pessoas").where({ cpf }).first();
-    return pessoa || null; // Retorna a pessoa ou nulo se não encontrar
+    return pessoa || null;
   } catch (error) {
     console.error("Erro ao buscar pessoa por CPF:", error);
     return null;
   }
 });
 
-// Handler para a operação de transferência
+// Handler para transferir pessoa
 ipcMain.handle('transferir-pessoa', async (event, transferData) => {
   try {
     await knex.transaction(async (trx) => {
       const today = new Date().toISOString().split('T')[0];
 
-      // 1. Inativa o vínculo antigo
       await trx('vinculos')
         .where({ id: transferData.oldVinculoId })
         .update({
@@ -210,7 +259,6 @@ ipcMain.handle('transferir-pessoa', async (event, transferData) => {
           data_fim: today
         });
 
-      // 2. Cria o novo vínculo
       await trx('vinculos').insert({
         pessoa_id: transferData.pessoaId,
         unidade_id: transferData.newUnitId,
@@ -227,6 +275,7 @@ ipcMain.handle('transferir-pessoa', async (event, transferData) => {
   }
 });
 
+// Handler para criar pessoa e vínculo
 ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
   if (!pessoa.cpf || pessoa.cpf.trim() === '') {
     return { success: false, message: 'O CPF é obrigatório para criar um vínculo.' };
@@ -241,14 +290,12 @@ ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
       if (pessoaExistente) {
         pessoaId = pessoaExistente.id;
         message = 'Pessoa já existente vinculada com sucesso!';
-      } 
-      else {
+      } else {
         const [novaPessoaIdObj] = await trx('pessoas').insert(pessoa).returning('id');
         pessoaId = typeof novaPessoaIdObj === 'object' ? novaPessoaIdObj.id : novaPessoaIdObj;
         message = 'Nova pessoa cadastrada e vinculada com sucesso!';
       }
 
-      // --- NOVA REGRA DE NEGÓCIO ADICIONADA AQUI ---
       if (vinculo.tipoVinculo === 'Proprietário') {
         const proprietarioExistente = await trx('vinculos')
           .where({
@@ -262,9 +309,7 @@ ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
         }
       }
 
-      // Se o novo vínculo for 'Morador' ou 'Inquilino'...
       if (['Morador', 'Inquilino'].includes(vinculo.tipoVinculo)) {
-        // ...verifica se a pessoa já tem um desses vínculos ativos em QUALQUER unidade.
         const vinculoResidencialAtivo = await trx('vinculos')
           .where({ pessoa_id: pessoaId, status: 'Ativo' })
           .whereIn('tipo_vinculo', ['Morador', 'Inquilino'])
@@ -300,6 +345,7 @@ ipcMain.handle('create-pessoa-e-vinculo', async (event, pessoa, vinculo) => {
   }
 });
 
+// Outros handlers necessários (mantendo apenas os essenciais)
 ipcMain.handle("get-vinculos-by-pessoa", async (event, pessoaId) => {
   try {
     const vinculos = await knex("vinculos")
@@ -312,8 +358,8 @@ ipcMain.handle("get-vinculos-by-pessoa", async (event, pessoaId) => {
         "blocos.nome as nome_bloco",
         "unidades.numero_apartamento"
       )
-      .orderBy("vinculos.status", "asc") // Ativos primeiro
-      .orderBy("vinculos.id", "desc"); // Mais recentes primeiro
+      .orderBy("vinculos.status", "asc")
+      .orderBy("vinculos.id", "desc");
     return vinculos;
   } catch (error) {
     console.error("Erro ao buscar vínculos da pessoa:", error);
@@ -321,20 +367,15 @@ ipcMain.handle("get-vinculos-by-pessoa", async (event, pessoaId) => {
   }
 });
 
-// Adicione este novo handler em public/electron.js
-// Substitua o handler 'update-vinculo' por este:
 ipcMain.handle('update-vinculo', async (event, vinculoId, novoTipo) => {
   try {
-    // --- A NOVA REGRA DE NEGÓCIO ESTÁ AQUI ---
     if (['Morador', 'Inquilino', 'Moradia Temporária'].includes(novoTipo)) {
-      // Pega o ID da pessoa a partir do vínculo que estamos editando
       const vinculoAtual = await knex('vinculos').where({ id: vinculoId }).first();
       if (vinculoAtual) {
-        // Verifica se a pessoa já tem OUTRO vínculo residencial ativo
         const outroVinculoResidencial = await knex('vinculos')
           .where('pessoa_id', vinculoAtual.pessoa_id)
           .where('status', 'Ativo')
-          .whereNot('id', vinculoId) // Exclui o próprio vínculo da busca
+          .whereNot('id', vinculoId)
           .whereIn('tipo_vinculo', ['Morador', 'Inquilino', 'Moradia Temporária'])
           .first();
 
@@ -354,79 +395,7 @@ ipcMain.handle('update-vinculo', async (event, vinculoId, novoTipo) => {
   }
 });
 
-ipcMain.handle("get-all-veiculos", async () => {
-  try {
-    const veiculos = await knex("veiculos")
-      .join("pessoas", "veiculos.pessoa_id", "=", "pessoas.id")
-      .select("veiculos.*", "pessoas.nome_completo as proprietario_nome")
-      .orderBy("veiculos.marca", "asc");
-    return veiculos;
-  } catch (error) {
-    console.error("Erro ao buscar todos os veículos:", error);
-    return [];
-  }
-});
-
-ipcMain.handle("get-filtered-pessoas", async (event, filters) => {
-  try {
-    // 1. A sub-consulta encontra o ID do último vínculo de cada pessoa (seja ativo ou inativo)
-    const subquery = knex("vinculos")
-      .select("pessoa_id", knex.raw("MAX(id) as max_id"))
-      .groupBy("pessoa_id");
-
-    // 2. A consulta principal junta tudo
-    const query = knex("pessoas")
-      .join(subquery.as("recentes"), "pessoas.id", "=", "recentes.pessoa_id")
-      .join("vinculos", "recentes.max_id", "=", "vinculos.id")
-      .join("unidades", "vinculos.unidade_id", "=", "unidades.id")
-      .join("entradas", "unidades.entrada_id", "=", "entradas.id")
-      .join("blocos", "entradas.bloco_id", "=", "blocos.id")
-      .select(
-        "pessoas.*",
-        "vinculos.tipo_vinculo as vinculos",
-        "vinculos.status",
-        // --- A LÓGICA DA CORREÇÃO ESTÁ AQUI ---
-        // Usa um 'CASE' do SQL para mostrar o endereço SOMENTE SE o status for 'Ativo'
-        knex.raw(
-          "CASE WHEN vinculos.status = 'Ativo' THEN blocos.nome ELSE '' END as nome_bloco"
-        ),
-        knex.raw(
-          "CASE WHEN vinculos.status = 'Ativo' THEN unidades.numero_apartamento ELSE '' END as numero_apartamento"
-        )
-      );
-
-    // 3. O filtro para mostrar inativos é aplicado na consulta principal
-    if (!filters.showInactive) {
-      query.where("vinculos.status", "Ativo");
-    }
-
-    if (filters.tipoVinculo) {
-      query.where("vinculos.tipo_vinculo", filters.tipoVinculo);
-    }
-
-    query.orderBy("pessoas.nome_completo", filters.sortBy || "asc");
-
-    const pessoas = await query;
-    return pessoas;
-  } catch (error) {
-    console.error("Erro ao buscar pessoas filtradas:", error);
-    return [];
-  }
-});
-
-ipcMain.handle("get-vinculo-types", async () => {
-  try {
-    const tipos = await knex("vinculos")
-      .distinct("tipo_vinculo")
-      .orderBy("tipo_vinculo", "asc");
-    return tipos.map((t) => t.tipo_vinculo); // Retorna um array de strings
-  } catch (error) {
-    console.error("Erro ao buscar tipos de vínculo:", error);
-    return [];
-  }
-});
-
-// Handler para buscar blocos
+// Handlers básicos necessários para o funcionamento
 ipcMain.handle("get-blocos", async () => {
   try {
     const blocos = await knex("blocos").select("*");
@@ -436,7 +405,6 @@ ipcMain.handle("get-blocos", async () => {
     return [];
   }
 });
-// --- NOVOS HANDLERS PARA ENTRADAS E UNIDADES ---
 
 ipcMain.handle("get-entradas", async (event, blocoId) => {
   try {
@@ -462,23 +430,70 @@ ipcMain.handle("get-unidades", async (event, entradaId) => {
   }
 });
 
-ipcMain.handle("create-veiculo", async (event, veiculoData) => {
+ipcMain.handle("get-unidade-details", async (event, unidadeId) => {
   try {
-    // Verifica se a placa já existe
-    const veiculoExistente = await knex("veiculos")
-      .where("placa", veiculoData.placa)
+    const unidade = await knex("unidades")
+      .join("entradas", "unidades.entrada_id", "=", "entradas.id")
+      .join("blocos", "entradas.bloco_id", "=", "blocos.id")
+      .where("unidades.id", unidadeId)
+      .select(
+        "unidades.id as unidade_id",
+        "unidades.numero_apartamento",
+        "entradas.letra as letra_entrada",
+        "blocos.nome as nome_bloco"
+      )
       .first();
-    if (veiculoExistente) {
+    return unidade;
+  } catch (error) {
+    console.error("Erro ao buscar detalhes da unidade:", error);
+    return null;
+  }
+});
+
+ipcMain.handle("getPessoasByUnidade", async (event, unidadeId) => {
+  try {
+    const pessoas = await knex("vinculos")
+      .join("pessoas", "vinculos.pessoa_id", "=", "pessoas.id")
+      .where("vinculos.unidade_id", unidadeId)
+      .where("vinculos.status", "Ativo")
+      .select(
+        "pessoas.*",
+        "vinculos.tipo_vinculo",
+        "vinculos.id as vinculo_id"
+      );
+    return pessoas;
+  } catch (error) {
+    console.error("Erro ao buscar pessoas da unidade:", error);
+    return [];
+  }
+});
+
+ipcMain.handle("update-pessoa", async (event, pessoaId, pessoaData) => {
+  try {
+    const pessoaExistente = await knex("pessoas")
+      .where("cpf", pessoaData.cpf)
+      .whereNot("id", pessoaId)
+      .first();
+
+    if (pessoaExistente) {
       return {
         success: false,
-        message: "Esta placa já está cadastrada no sistema.",
+        message: "Este CPF já está cadastrado para outra pessoa.",
       };
     }
 
-    await knex("veiculos").insert(veiculoData);
-    return { success: true, message: "Veículo cadastrado com sucesso!" };
+    await knex("pessoas").where({ id: pessoaId }).update({
+      nome_completo: pessoaData.nome_completo,
+      cpf: pessoaData.cpf,
+      email: pessoaData.email,
+      telefone: pessoaData.telefone,
+    });
+    return {
+      success: true,
+      message: "Dados da pessoa atualizados com sucesso!",
+    };
   } catch (error) {
-    console.error("Erro ao criar veículo:", error);
+    console.error("Erro ao atualizar pessoa:", error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
@@ -502,6 +517,26 @@ ipcMain.handle("get-veiculos-by-pessoa", async (event, pessoaId) => {
   } catch (error) {
     console.error("Erro ao buscar veículos da pessoa:", error);
     return [];
+  }
+});
+
+ipcMain.handle("create-veiculo", async (event, veiculoData) => {
+  try {
+    const veiculoExistente = await knex("veiculos")
+      .where("placa", veiculoData.placa)
+      .first();
+    if (veiculoExistente) {
+      return {
+        success: false,
+        message: "Esta placa já está cadastrada no sistema.",
+      };
+    }
+
+    await knex("veiculos").insert(veiculoData);
+    return { success: true, message: "Veículo cadastrado com sucesso!" };
+  } catch (error) {
+    console.error("Erro ao criar veículo:", error);
+    return { success: false, message: `Erro: ${error.message}` };
   }
 });
 
@@ -536,79 +571,6 @@ ipcMain.handle("update-veiculo", async (event, veiculoId, veiculoData) => {
   }
 });
 
-ipcMain.handle("get-unidade-details", async (event, unidadeId) => {
-  try {
-    // Esta consulta busca a unidade e junta os nomes do bloco e da entrada
-    const unidade = await knex("unidades")
-      .join("entradas", "unidades.entrada_id", "=", "entradas.id")
-      .join("blocos", "entradas.bloco_id", "=", "blocos.id")
-      .where("unidades.id", unidadeId)
-      .select(
-        "unidades.id as unidade_id",
-        "unidades.numero_apartamento",
-        "entradas.letra as letra_entrada",
-        "blocos.nome as nome_bloco"
-      )
-      .first(); // .first() para pegar apenas um resultado
-    return unidade;
-  } catch (error) {
-    console.error("Erro ao buscar detalhes da unidade:", error);
-    return null;
-  }
-});
-
-// Em public/electron.js, substitua o handler getPessoasByUnidade por este:
-ipcMain.handle("getPessoasByUnidade", async (event, unidadeId) => {
-  try {
-    const pessoas = await knex("vinculos")
-      .join("pessoas", "vinculos.pessoa_id", "=", "pessoas.id")
-      .where("vinculos.unidade_id", unidadeId)
-      .where("vinculos.status", "Ativo")
-      .select(
-        "pessoas.*", // Seleciona todos os campos da tabela pessoas (id, nome, cpf, etc)
-        "vinculos.tipo_vinculo",
-        "vinculos.id as vinculo_id"
-      );
-    return pessoas;
-  } catch (error) {
-    console.error("Erro ao buscar pessoas da unidade:", error);
-    return [];
-  }
-});
-
-// Adicione este novo handler em public/electron.js
-ipcMain.handle("update-pessoa", async (event, pessoaId, pessoaData) => {
-  try {
-    // Procura por CPF duplicado, excluindo a pessoa atual da busca
-    const pessoaExistente = await knex("pessoas")
-      .where("cpf", pessoaData.cpf)
-      .whereNot("id", pessoaId)
-      .first();
-
-    if (pessoaExistente) {
-      return {
-        success: false,
-        message: "Este CPF já está cadastrado para outra pessoa.",
-      };
-    }
-
-    // Atualiza os dados da pessoa no banco de dados
-    await knex("pessoas").where({ id: pessoaId }).update({
-      nome_completo: pessoaData.nome_completo,
-      cpf: pessoaData.cpf,
-      email: pessoaData.email,
-      telefone: pessoaData.telefone,
-    });
-    return {
-      success: true,
-      message: "Dados da pessoa atualizados com sucesso!",
-    };
-  } catch (error) {
-    console.error("Erro ao atualizar pessoa:", error);
-    return { success: false, message: `Erro: ${error.message}` };
-  }
-});
-
 ipcMain.handle("desvincular-pessoa", async (event, vinculoId) => {
   try {
     const today = new Date().toISOString().split("T")[0];
@@ -619,6 +581,29 @@ ipcMain.handle("desvincular-pessoa", async (event, vinculoId) => {
     return { success: true, message: "Pessoa desvinculada com sucesso." };
   } catch (error) {
     console.error("Erro ao desvincular pessoa:", error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Handler para criar pessoa sem vínculo obrigatório
+ipcMain.handle('create-pessoa-simples', async (event, pessoaData) => {
+  try {
+    // Verifica se CPF já existe
+    const pessoaExistente = await knex('pessoas').where('cpf', pessoaData.cpf).first();
+    if (pessoaExistente) {
+      return { success: false, message: 'Este CPF já está cadastrado no sistema.' };
+    }
+
+    const [pessoaId] = await knex('pessoas').insert(pessoaData).returning('id');
+    const finalId = typeof pessoaId === 'object' ? pessoaId.id : pessoaId;
+    
+    return { 
+      success: true, 
+      message: 'Pessoa cadastrada com sucesso!',
+      pessoaId: finalId
+    };
+  } catch (error) {
+    console.error('Erro ao criar pessoa:', error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
@@ -640,8 +625,6 @@ ipcMain.handle("get-dashboard-stats", async () => {
   }
 });
 
-// Substitua o handler 'search-geral' por este em public/electron.js
-
 ipcMain.handle('search-geral', async (event, termo) => {
   if (!termo || termo.length < 2) {
     return [];
@@ -650,7 +633,6 @@ ipcMain.handle('search-geral', async (event, termo) => {
 
   try {
     const [vinculosPessoa, veiculos, unidades] = await Promise.all([
-      // NOVA LÓGICA DE BUSCA: Busca por vínculos de pessoas que correspondem ao termo
       knex('vinculos')
         .join('pessoas', 'vinculos.pessoa_id', 'pessoas.id')
         .join('unidades', 'vinculos.unidade_id', 'unidades.id')
@@ -669,7 +651,6 @@ ipcMain.handle('search-geral', async (event, termo) => {
           'unidades.numero_apartamento'
         ),
 
-      // A busca por veículos continua a mesma
       knex('veiculos')
         .join('pessoas', 'veiculos.pessoa_id', '=', 'pessoas.id')
         .where('placa', 'like', termoBusca)
@@ -677,7 +658,6 @@ ipcMain.handle('search-geral', async (event, termo) => {
         .orWhere('veiculos.modelo', 'like', termoBusca)
         .select('veiculos.id as veiculo_id', 'veiculos.placa', 'veiculos.modelo', 'pessoas.id as pessoa_id'),
 
-      // A busca por unidades continua a mesma
       knex('unidades')
         .join('entradas', 'unidades.entrada_id', 'entradas.id')
         .join('blocos', 'entradas.bloco_id', 'blocos.id')
@@ -686,9 +666,8 @@ ipcMain.handle('search-geral', async (event, termo) => {
     ]);
 
     const resultadosFormatados = [
-      // Formata os resultados da nova busca de vínculos
       ...vinculosPessoa.map(v => ({
-        tipo: v.tipo_vinculo, // O tipo agora é dinâmico (Proprietário, Morador...)
+        tipo: v.tipo_vinculo,
         label: `${v.nome_completo} (${v.nome_bloco} - Apto ${v.numero_apartamento})`,
         path: `/pessoa/${v.pessoa_id}`
       })),
@@ -715,11 +694,8 @@ ipcMain.handle('search-geral', async (event, termo) => {
 ipcMain.handle("delete-pessoa", async (event, pessoaId) => {
   try {
     await knex.transaction(async (trx) => {
-      // 1. Apaga todos os vínculos associados à pessoa
       await trx("vinculos").where("pessoa_id", pessoaId).del();
-      // 2. Apaga todos os veículos associados à pessoa
       await trx("veiculos").where("pessoa_id", pessoaId).del();
-      // 3. Finalmente, apaga a pessoa
       await trx("pessoas").where("id", pessoaId).del();
     });
     return {
@@ -732,7 +708,86 @@ ipcMain.handle("delete-pessoa", async (event, pessoaId) => {
   }
 });
 
-// Handler para criar a estrutura inicial
+ipcMain.handle("get-filtered-pessoas", async (event, filters) => {
+  try {
+    const subquery = knex("vinculos")
+      .select("pessoa_id", knex.raw("MAX(id) as max_id"))
+      .groupBy("pessoa_id");
+
+    const query = knex("pessoas")
+      .join(subquery.as("recentes"), "pessoas.id", "=", "recentes.pessoa_id")
+      .join("vinculos", "recentes.max_id", "=", "vinculos.id")
+      .join("unidades", "vinculos.unidade_id", "=", "unidades.id")
+      .join("entradas", "unidades.entrada_id", "=", "entradas.id")
+      .join("blocos", "entradas.bloco_id", "=", "blocos.id")
+      .select(
+        "pessoas.*",
+        "vinculos.tipo_vinculo as vinculos",
+        "vinculos.status",
+        knex.raw(
+          "CASE WHEN vinculos.status = 'Ativo' THEN blocos.nome ELSE '' END as nome_bloco"
+        ),
+        knex.raw(
+          "CASE WHEN vinculos.status = 'Ativo' THEN unidades.numero_apartamento ELSE '' END as numero_apartamento"
+        )
+      );
+
+    if (!filters.showInactive) {
+      query.where("vinculos.status", "Ativo");
+    }
+
+    if (filters.tipoVinculo) {
+      query.where("vinculos.tipo_vinculo", filters.tipoVinculo);
+    }
+
+    query.orderBy("pessoas.nome_completo", filters.sortBy || "asc");
+
+    const pessoas = await query;
+    return pessoas;
+  } catch (error) {
+    console.error("Erro ao buscar pessoas filtradas:", error);
+    return [];
+  }
+});
+
+ipcMain.handle("get-vinculo-types", async () => {
+  try {
+    const tipos = await knex("vinculos")
+      .distinct("tipo_vinculo")
+      .orderBy("tipo_vinculo", "asc");
+    return tipos.map((t) => t.tipo_vinculo);
+  } catch (error) {
+    console.error("Erro ao buscar tipos de vínculo:", error);
+    return [];
+  }
+});
+
+ipcMain.handle("get-all-veiculos", async () => {
+  try {
+    const veiculos = await knex("veiculos")
+      .join("pessoas", "veiculos.pessoa_id", "=", "pessoas.id")
+      .select("veiculos.*", "pessoas.nome_completo as proprietario_nome")
+      .orderBy("veiculos.marca", "asc");
+    return veiculos;
+  } catch (error) {
+    console.error("Erro ao buscar todos os veículos:", error);
+    return [];
+  }
+});
+
+ipcMain.handle("delete-all-inactive-vinculos", async (event, pessoaId) => {
+  try {
+    await knex("vinculos")
+      .where("pessoa_id", pessoaId)
+      .where("status", "Inativo")
+      .del();
+    return { success: true, message: "Histórico de vínculos limpo com sucesso!" };
+  } catch (error) {
+    console.error("Erro ao limpar histórico:", error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
 ipcMain.handle("run-setup", async () => {
   try {
     const blocosExistentes = await knex("blocos").select("id").first();
