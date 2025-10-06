@@ -10,6 +10,9 @@ import {
   ListItemIcon,
   ListItemText,
   CssBaseline,
+  Divider,
+  Avatar,
+  Chip,
 } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
 import BusinessIcon from "@mui/icons-material/Business";
@@ -42,15 +45,60 @@ function App() {
         <CssBaseline />
         <AppBar
           position="fixed"
+          elevation={0}
           sx={{
             width: `calc(100% - ${drawerWidth}px)`,
             ml: `${drawerWidth}px`,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            borderBottom: '1px solid rgba(255,255,255,0.1)'
           }}
         >
-          <Toolbar>
-            <Typography variant="h6" noWrap component="div">
-              Sistema de Gestão Condominial
-            </Typography>
+          <Toolbar sx={{ minHeight: '70px !important' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexGrow: 1 }}>
+              <Box
+                component="img"
+                src="https://cdn-icons-png.flaticon.com/512/2830/2830284.png"
+                alt="SGC Logo"
+                sx={{
+                  width: 32,
+                  height: 32,
+                  filter: 'brightness(0) invert(1)'
+                }}
+              />
+              <Box>
+                <Typography 
+                  variant="h6" 
+                  noWrap 
+                  component="div"
+                  sx={{ 
+                    fontWeight: 600,
+                    fontSize: '1.3rem',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                  }}
+                >
+                  Sistema de Gestão Condominial
+                </Typography>
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    opacity: 0.8,
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  Versão 2.3.0 • SGC Desktop
+                </Typography>
+              </Box>
+            </Box>
+            <Chip 
+              label="Administrador" 
+              size="small" 
+              sx={{
+                bgcolor: 'rgba(76, 175, 80, 0.2)',
+                color: '#4CAF50',
+                border: '1px solid rgba(76, 175, 80, 0.3)',
+                fontWeight: 600
+              }}
+            />
           </Toolbar>
         </AppBar>
 
@@ -61,54 +109,202 @@ function App() {
             "& .MuiDrawer-paper": {
               width: drawerWidth,
               boxSizing: "border-box",
+              background: 'linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%)',
+              borderRight: '1px solid rgba(0,0,0,0.08)'
             },
           }}
           variant="permanent"
           anchor="left"
         >
-          <Toolbar />
-          <List>
+          <Toolbar sx={{ minHeight: '70px !important', justifyContent: 'center' }}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Avatar 
+                sx={{ 
+                  width: 48, 
+                  height: 48, 
+                  bgcolor: 'primary.main',
+                  mb: 1,
+                  mx: 'auto'
+                }}
+              >
+                🏢
+              </Avatar>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                SGC Desktop
+              </Typography>
+            </Box>
+          </Toolbar>
+          <Divider sx={{ mx: 2, mb: 1 }} />
+          <List sx={{ px: 1 }}>
             {/* Cada ListItem agora é um Link que aponta para uma rota */}
-            <ListItem button component={Link} to="/">
-              <ListItemIcon>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/"
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                mx: 0.5,
+                '&:hover': {
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  transform: 'translateX(4px)',
+                  '& .MuiListItemIcon-root': {
+                    color: 'white'
+                  }
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
                 <HomeIcon />
               </ListItemIcon>
-              <ListItemText primary="Início" />
+              <ListItemText 
+                primary="Dashboard" 
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
             </ListItem>
 
-            <ListItem button component={Link} to="/blocos">
-              <ListItemIcon>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/blocos"
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                mx: 0.5,
+                '&:hover': {
+                  bgcolor: 'secondary.main',
+                  color: 'white',
+                  transform: 'translateX(4px)',
+                  '& .MuiListItemIcon-root': {
+                    color: 'white'
+                  }
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
                 <BusinessIcon />
               </ListItemIcon>
-              <ListItemText primary="Blocos" />
+              <ListItemText 
+                primary="Blocos" 
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
             </ListItem>
 
-            <ListItem button component={Link} to="/pessoas">
-              <ListItemIcon>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/pessoas"
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                mx: 0.5,
+                '&:hover': {
+                  bgcolor: 'success.main',
+                  color: 'white',
+                  transform: 'translateX(4px)',
+                  '& .MuiListItemIcon-root': {
+                    color: 'white'
+                  }
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
                 <PeopleIcon />
               </ListItemIcon>
-              <ListItemText primary="Pessoas" />
+              <ListItemText 
+                primary="Moradores" 
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
             </ListItem>
 
-            <ListItem button component={Link} to="/veiculos">
-              <ListItemIcon>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/veiculos"
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                mx: 0.5,
+                '&:hover': {
+                  bgcolor: 'warning.main',
+                  color: 'white',
+                  transform: 'translateX(4px)',
+                  '& .MuiListItemIcon-root': {
+                    color: 'white'
+                  }
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
                 <DirectionsCarIcon />
               </ListItemIcon>
-              <ListItemText primary="Veículos" />
+              <ListItemText 
+                primary="Veículos" 
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
             </ListItem>
 
-            <ListItem button component={Link} to="/relatorios">
-              <ListItemIcon>
+            <Divider sx={{ my: 1, mx: 2 }} />
+
+            <ListItem 
+              button 
+              component={Link} 
+              to="/relatorios"
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                mx: 0.5,
+                '&:hover': {
+                  bgcolor: 'info.main',
+                  color: 'white',
+                  transform: 'translateX(4px)',
+                  '& .MuiListItemIcon-root': {
+                    color: 'white'
+                  }
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
                 <AssessmentIcon />
               </ListItemIcon>
-              <ListItemText primary="Relatórios" />
+              <ListItemText 
+                primary="Relatórios" 
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
             </ListItem>
 
-            <ListItem button component={Link} to="/configuracoes">
-              <ListItemIcon>
+            <ListItem 
+              button 
+              component={Link} 
+              to="/configuracoes"
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                mx: 0.5,
+                '&:hover': {
+                  bgcolor: 'grey.600',
+                  color: 'white',
+                  transform: 'translateX(4px)',
+                  '& .MuiListItemIcon-root': {
+                    color: 'white'
+                  }
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
                 <SettingsIcon />
               </ListItemIcon>
-              <ListItemText primary="Configurações" />
+              <ListItemText 
+                primary="Configurações" 
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
             </ListItem>
           </List>
         </Drawer>

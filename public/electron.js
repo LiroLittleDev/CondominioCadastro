@@ -7,19 +7,137 @@ function notifyDataChanged() {
   });
 }
 
-// Configuração do Knex para conectar ao banco de dados
+// Configuração do banco de dados
+const fs = require('fs');
+const os = require('os');
+
+// Determinar caminho do banco baseado no ambiente
+let dbPath;
+const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+if (isDev) {
+  // Desenvolvimento: usar pasta do projeto
+  dbPath = path.join(__dirname, "../db/condominio.db");
+} else {
+  // Produção: usar pasta do usuário para permitir escrita
+  const userDataPath = app.getPath('userData');
+  dbPath = path.join(userDataPath, 'condominio.db');
+}
+
+console.log('Caminho do banco:', dbPath);
+
+// Criar diretório se não existir
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+// Configuração do Knex
 const knex = require("knex")({
   client: "sqlite3",
   connection: {
-    filename: path.join(__dirname, "../db/condominio.db"),
+    filename: dbPath,
   },
   useNullAsDefault: true,
+  pool: {
+    afterCreate: (conn, cb) => {
+      conn.run('PRAGMA foreign_keys = ON', cb);
+    }
+  }
 });
 
-function createWindow() {
-  const mainWindow = new BrowserWindow({
+// Função para inicializar banco
+async function initializeDatabase() {
+  try {
+    // Verificar se as tabelas existem
+    const hasTable = await knex.schema.hasTable('blocos');
+    
+    if (!hasTable) {
+      console.log('Criando estrutura do banco de dados...');
+      
+      // Criar tabelas
+      await knex.schema
+        .createTable('blocos', function (table) {
+          table.increments('id');
+          table.string('nome', 255).notNullable();
+        })
+        .createTable('entradas', function (table) {
+          table.increments('id');
+          table.string('letra', 1).notNullable();
+          table.integer('bloco_id').unsigned().references('id').inTable('blocos');
+        })
+        .createTable('unidades', function (table) {
+          table.increments('id');
+          table.string('numero_apartamento', 10).notNullable();
+          table.integer('entrada_id').unsigned().references('id').inTable('entradas');
+        })
+        .createTable('pessoas', function (table) {
+          table.increments('id');
+          table.string('nome_completo', 255).notNullable();
+          table.string('cpf', 14).unique().notNullable();
+          table.string('email', 255);
+          table.string('telefone', 20);
+        })
+        .createTable('veiculos', function (table) {
+          table.increments('id');
+          table.string('placa', 10).unique().notNullable();
+          table.string('marca', 255);
+          table.string('modelo', 255);
+          table.string('cor', 50);
+          table.string('tipo', 50);
+          table.integer('pessoa_id').unsigned().references('id').inTable('pessoas');
+          table.text('observacao');
+        })
+        .createTable('vinculos', function (table) {
+          table.increments('id');
+          table.integer('pessoa_id').unsigned().references('id').inTable('pessoas');
+          table.integer('unidade_id').unsigned().references('id').inTable('unidades');
+          table.string('tipo_vinculo', 255).notNullable();
+          table.date('data_inicio');
+          table.date('data_fim');
+          table.string('status', 50).notNullable().defaultTo('Ativo');
+          table.text('observacao');
+        });
+      
+      console.log('✅ Estrutura do banco criada com sucesso!');
+    } else {
+      console.log('✅ Banco de dados já existe e está pronto!');
+    }
+  } catch (error) {
+    console.error('❌ Erro ao inicializar banco:', error);
+  }
+}
+
+
+
+let splashWindow;
+let mainWindow;
+
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 400,
+    height: 300,
+    frame: false,
+    alwaysOnTop: true,
+    transparent: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+  
+  splashWindow.on('closed', () => {
+    splashWindow = null;
+  });
+}
+
+function createMainWindow() {
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -27,7 +145,25 @@ function createWindow() {
     },
   });
 
-  mainWindow.loadURL("http://localhost:3000");
+  // Carrega a aplicação
+  const isDev = process.env.NODE_ENV === 'development';
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:3000');
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../build/index.html'));
+  }
+  
+  mainWindow.once('ready-to-show', () => {
+    if (splashWindow) {
+      splashWindow.close();
+    }
+    mainWindow.show();
+  });
+}
+
+function createWindow() {
+  createSplashWindow();
+  createMainWindow();
 }
 
 // Handler para salvar relatórios
@@ -1033,7 +1169,10 @@ ipcMain.handle("run-setup", async () => {
   }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  await initializeDatabase();
+  createWindow();
+});
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

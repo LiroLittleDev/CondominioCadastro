@@ -80,7 +80,7 @@ function ReportsPage() {
     // Título personalizado baseado nos filtros
     let titulo = "Relatório de Moradores";
     if (filtros.blocoId) {
-      const bloco = blocos.find(b => b.id == filtros.blocoId);
+      const bloco = blocos.find(b => b.id === filtros.blocoId);
       titulo += ` - ${bloco?.nome}`;
     }
     if (filtros.tipoVinculo) {
