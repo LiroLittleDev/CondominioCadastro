@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Typography, Box, Button, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Paper, IconButton, Chip, TextField, FormControl,
@@ -12,7 +12,7 @@ import RemoveIcon from '@mui/icons-material/Remove';
 function MovimentacoesPage() {
   const navigate = useNavigate();
   const [movimentacoes, setMovimentacoes] = useState([]);
-  const [loading, setLoading] = useState(true);
+
   const [filtros, setFiltros] = useState({
     dataInicio: '',
     dataFim: '',
@@ -20,20 +20,18 @@ function MovimentacoesPage() {
     produto: ''
   });
 
-  useEffect(() => {
-    fetchMovimentacoes();
-  }, [filtros]);
-
-  const fetchMovimentacoes = async () => {
-    setLoading(true);
+  const fetchMovimentacoes = useCallback(async () => {
     try {
       const data = await window.api.getMovimentacoes(filtros);
       setMovimentacoes(data);
     } catch (error) {
       console.error('Erro ao buscar movimentações:', error);
     }
-    setLoading(false);
-  };
+  }, [filtros]);
+
+  useEffect(() => {
+    fetchMovimentacoes();
+  }, [fetchMovimentacoes]);
 
   const getTipoColor = (tipo) => {
     return tipo === 'ENTRADA' ? 'success' : 'error';

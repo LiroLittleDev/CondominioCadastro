@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Typography, Box, Button, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Paper, IconButton, Chip, TextField, FormControl,
@@ -17,7 +17,7 @@ function ProdutosPage() {
   const navigate = useNavigate();
   const [produtos, setProdutos] = useState([]);
   const [categorias, setCategorias] = useState([]);
-  const [loading, setLoading] = useState(true);
+
   const [filtros, setFiltros] = useState({
     busca: '',
     categoria: '',
@@ -26,12 +26,7 @@ function ProdutosPage() {
   const [produtoModal, setProdutoModal] = useState({ open: false, produto: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, produto: null });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = useCallback(async () => {
     try {
       const [produtosData, categoriasData] = await Promise.all([
         window.api.getProdutos(filtros),
@@ -42,12 +37,11 @@ function ProdutosPage() {
     } catch (error) {
       console.error('Erro ao buscar dados:', error);
     }
-    setLoading(false);
-  };
+  }, [filtros]);
 
   useEffect(() => {
     fetchData();
-  }, [filtros]);
+  }, [fetchData]);
 
   const handleDelete = async () => {
     try {

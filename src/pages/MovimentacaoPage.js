@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Typography, Box, Button, TextField, FormControl, InputLabel, Select, 
-  MenuItem, Grid, Paper, Alert, Autocomplete
+  Typography, Box, Button, TextField, Grid, Paper, Alert, Autocomplete
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -68,26 +67,7 @@ function MovimentacaoPage() {
     setLoading(false);
   };
 
-  const motivosEntrada = [
-    'Compra',
-    'Doação',
-    'Devolução',
-    'Transferência',
-    'Ajuste de inventário',
-    'Outros'
-  ];
 
-  const motivosSaida = [
-    'Uso/Consumo',
-    'Manutenção',
-    'Limpeza',
-    'Evento',
-    'Transferência',
-    'Perda/Avaria',
-    'Outros'
-  ];
-
-  const motivosDisponiveis = isEntrada ? motivosEntrada : motivosSaida;
 
   return (
     <Box>
