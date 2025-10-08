@@ -21,6 +21,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import PeopleIcon from "@mui/icons-material/People";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import InventoryIcon from "@mui/icons-material/Inventory";
+import HandshakeIcon from "@mui/icons-material/Handshake";
 
 // Imports do roteador
 import { HashRouter, Routes, Route, Link } from "react-router-dom";
@@ -39,6 +40,7 @@ import EstoquePage from "./pages/EstoquePage";
 import ProdutosPage from "./pages/ProdutosPage";
 import MovimentacoesPage from "./pages/MovimentacoesPage";
 import MovimentacaoPage from "./pages/MovimentacaoPage";
+import AcordosPage from "./pages/AcordosPage";
 
 const drawerWidth = 240;
 
@@ -282,6 +284,34 @@ function App() {
               />
             </ListItem>
 
+            <ListItem 
+              button 
+              component={Link} 
+              to="/acordos"
+              sx={{
+                borderRadius: 2,
+                mb: 0.5,
+                mx: 0.5,
+                '&:hover': {
+                  bgcolor: 'purple',
+                  color: 'white',
+                  transform: 'translateX(4px)',
+                  '& .MuiListItemIcon-root': {
+                    color: 'white'
+                  }
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <ListItemIcon sx={{ minWidth: 40 }}>
+                <HandshakeIcon />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Acordos" 
+                primaryTypographyProps={{ fontWeight: 500 }}
+              />
+            </ListItem>
+
             <Divider sx={{ my: 1, mx: 2 }} />
 
             <ListItem 
@@ -364,6 +394,7 @@ function App() {
             <Route path="/estoque/produtos" element={<ProdutosPage />} />
             <Route path="/estoque/movimentacoes" element={<MovimentacoesPage />} />
             <Route path="/estoque/:tipo" element={<MovimentacaoPage />} />
+            <Route path="/acordos" element={<AcordosPage />} />
           </Routes>
         </Box>
       </Box>

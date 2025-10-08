@@ -1,5 +1,9 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+contextBridge.exposeInMainWorld("electronAPI", {
+  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args)
+});
+
 contextBridge.exposeInMainWorld("api", {
   // ... (funções existentes)
   getBlocos: () => ipcRenderer.invoke("get-blocos"),
@@ -70,4 +74,21 @@ contextBridge.exposeInMainWorld("api", {
   updateProduto: (produtoId, produtoData) => ipcRenderer.invoke('update-produto', produtoId, produtoData),
   getMovimentacoes: (filtros) => ipcRenderer.invoke('get-movimentacoes', filtros),
   createMovimentacao: (movimentacaoData) => ipcRenderer.invoke('create-movimentacao', movimentacaoData),
+  
+  // APIs do Sistema de Acordos
+  getAcordos: (filtros) => ipcRenderer.invoke('get-acordos', filtros),
+  createAcordo: (acordoData) => ipcRenderer.invoke('create-acordo', acordoData),
+  getAcordoDetails: (acordoId) => ipcRenderer.invoke('get-acordo-details', acordoId),
+  marcarParcelaPaga: (parcelaId, dataPagamento) => ipcRenderer.invoke('marcar-parcela-paga', parcelaId, dataPagamento),
+  getAcordosStats: () => ipcRenderer.invoke('get-acordos-stats'),
+  searchPessoasAcordos: (termo) => ipcRenderer.invoke('search-pessoas-acordos', termo),
+  debugCountPessoas: () => ipcRenderer.invoke('debug-count-pessoas'),
+  // Enviar mensagens de debug do renderer para o processo main (aparecerá no terminal do Electron)
+  sendDebug: (message) => ipcRenderer.send('renderer-debug', message),
+  // Registrar um listener para mudanças de dados disparadas pelo main
+  onDataChanged: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('data-changed', listener);
+    return () => ipcRenderer.removeListener('data-changed', listener);
+  },
 });

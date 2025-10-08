@@ -95,13 +95,57 @@ async function initializeDatabase() {
           table.date('data_fim');
           table.string('status', 50).notNullable().defaultTo('Ativo');
           table.text('observacao');
-
+        })
+        .createTable('acordos_parcelas', function(table) {
+          table.increments('id').primary();
+          table.integer('pessoa_id').unsigned().notNullable();
+          table.string('descricao').notNullable();
+          table.decimal('valor_total', 10, 2).notNullable();
+          table.decimal('valor_entrada', 10, 2).defaultTo(0);
+          table.integer('numero_parcela').notNullable();
+          table.integer('total_parcelas').notNullable();
+          table.decimal('valor_parcela', 10, 2).notNullable();
+          table.date('data_acordo').notNullable();
+          table.date('data_vencimento').notNullable();
+          table.date('data_pagamento').nullable();
+          table.string('status_parcela').defaultTo('Pendente');
+          table.string('status_acordo').defaultTo('Ativo');
+          table.timestamps(true, true);
+          
+          table.foreign('pessoa_id').references('id').inTable('pessoas');
+          table.index(['pessoa_id', 'status_acordo']);
         });
       
 
       
       console.log('✅ Estrutura do banco criada com sucesso!');
     } else {
+      // Verificar se tabela de acordos existe e criar se necessário
+      const hasAcordosTable = await knex.schema.hasTable('acordos_parcelas');
+      if (!hasAcordosTable) {
+        console.log('Criando tabela de acordos...');
+        await knex.schema.createTable('acordos_parcelas', function(table) {
+          table.increments('id').primary();
+          table.integer('pessoa_id').unsigned().notNullable();
+          table.string('descricao').notNullable();
+          table.decimal('valor_total', 10, 2).notNullable();
+          table.decimal('valor_entrada', 10, 2).defaultTo(0);
+          table.integer('numero_parcela').notNullable();
+          table.integer('total_parcelas').notNullable();
+          table.decimal('valor_parcela', 10, 2).notNullable();
+          table.date('data_acordo').notNullable();
+          table.date('data_vencimento').notNullable();
+          table.date('data_pagamento').nullable();
+          table.string('status_parcela').defaultTo('Pendente');
+          table.string('status_acordo').defaultTo('Ativo');
+          table.timestamps(true, true);
+          
+          table.foreign('pessoa_id').references('id').inTable('pessoas');
+          table.index(['pessoa_id', 'status_acordo']);
+        });
+        console.log('✅ Tabela de acordos criada!');
+      }
+      
       // Verificar se tabelas de estoque existem e criar se necessário
       const hasEstoqueTable = await knex.schema.hasTable('produtos');
       if (!hasEstoqueTable) {
@@ -1655,6 +1699,369 @@ ipcMain.handle('create-movimentacao', async (event, movimentacaoData) => {
     return { success: true, message: 'Movimentação registrada com sucesso!' };
   } catch (error) {
     console.error('Erro ao criar movimentação:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Handlers do Sistema de Acordos
+ipcMain.handle('get-acordos', async (event, filtros = {}) => {
+  try {
+    // Subquery agregada para contar parcelas pendentes/pagas por acordo
+    const agg = knex('acordos_parcelas')
+      .select('pessoa_id', 'descricao', 'data_acordo')
+      .select(knex.raw("SUM(CASE WHEN status_parcela = 'Pendente' THEN 1 ELSE 0 END) as pending_count"))
+      .select(knex.raw("SUM(CASE WHEN status_parcela = 'Pago' THEN 1 ELSE 0 END) as paid_count"))
+      .groupBy('pessoa_id', 'descricao', 'data_acordo')
+      .as('agg');
+
+    let query = knex('acordos_parcelas')
+      .join('pessoas', 'acordos_parcelas.pessoa_id', 'pessoas.id')
+      .leftJoin('vinculos', function() {
+        this.on('pessoas.id', '=', 'vinculos.pessoa_id')
+            .andOn('vinculos.status', '=', knex.raw('?', ['Ativo']));
+      })
+      .leftJoin('unidades', 'vinculos.unidade_id', 'unidades.id')
+      .leftJoin('entradas', 'unidades.entrada_id', 'entradas.id')
+      .leftJoin('blocos', 'entradas.bloco_id', 'blocos.id')
+      // fazer leftJoin com a agregação para trazer contagens de parcelas
+      .leftJoin(agg, function() {
+        this.on('acordos_parcelas.pessoa_id', '=', knex.raw('agg.pessoa_id'))
+            .andOn('acordos_parcelas.descricao', '=', knex.raw('agg.descricao'))
+            .andOn('acordos_parcelas.data_acordo', '=', knex.raw('agg.data_acordo'));
+      })
+      .select(
+        'acordos_parcelas.id',
+        'acordos_parcelas.pessoa_id',
+        'acordos_parcelas.descricao',
+        'acordos_parcelas.valor_total',
+        'acordos_parcelas.total_parcelas as quantidade_parcelas',
+        'acordos_parcelas.data_acordo',
+        'acordos_parcelas.status_acordo as status',
+        'pessoas.nome_completo',
+        'blocos.nome as nome_bloco',
+        'unidades.numero_apartamento',
+        knex.raw('COALESCE(agg.pending_count, 0) as pending_count'),
+        knex.raw('COALESCE(agg.paid_count, 0) as paid_count')
+      )
+      .where('acordos_parcelas.numero_parcela', 1);
+
+    if (filtros.status) {
+      query = query.where('acordos_parcelas.status_acordo', filtros.status);
+    }
+    if (filtros.busca) {
+      query = query.where('pessoas.nome_completo', 'like', `%${filtros.busca}%`);
+    }
+
+    const acordos = await query.orderBy('acordos_parcelas.data_acordo', 'desc');
+    return acordos;
+  } catch (error) {
+    console.error('Erro ao buscar acordos:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('create-acordo', async (event, acordoData) => {
+  try {
+    const valorParcela = (acordoData.valor_total - acordoData.valor_entrada) / acordoData.quantidade_parcelas;
+    
+    const parcelas = [];
+    for (let i = 1; i <= acordoData.quantidade_parcelas; i++) {
+      const dataVencimento = new Date(acordoData.data_acordo);
+      dataVencimento.setMonth(dataVencimento.getMonth() + i);
+      
+      parcelas.push({
+        pessoa_id: acordoData.pessoa_id,
+        descricao: acordoData.descricao,
+        valor_total: acordoData.valor_total,
+        valor_entrada: acordoData.valor_entrada,
+        numero_parcela: i,
+        total_parcelas: acordoData.quantidade_parcelas,
+        valor_parcela: valorParcela,
+        data_acordo: acordoData.data_acordo,
+        data_vencimento: dataVencimento.toISOString().split('T')[0],
+        status_parcela: 'Pendente',
+        status_acordo: 'Ativo'
+      });
+    }
+    
+    await knex('acordos_parcelas').insert(parcelas);
+    return { success: true, message: 'Acordo criado com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao criar acordo:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+ipcMain.handle('get-acordo-details', async (event, acordoId) => {
+  try {
+    const acordo = await knex('acordos_parcelas')
+      .join('pessoas', 'acordos_parcelas.pessoa_id', 'pessoas.id')
+      .leftJoin('vinculos', function() {
+        this.on('pessoas.id', '=', 'vinculos.pessoa_id')
+            .andOn('vinculos.status', '=', knex.raw('?', ['Ativo']));
+      })
+      .leftJoin('unidades', 'vinculos.unidade_id', 'unidades.id')
+      .leftJoin('entradas', 'unidades.entrada_id', 'entradas.id')
+      .leftJoin('blocos', 'entradas.bloco_id', 'blocos.id')
+      .where('acordos_parcelas.id', acordoId)
+      .select(
+        'acordos_parcelas.*',
+        'pessoas.nome_completo',
+        'pessoas.telefone',
+        'blocos.nome as nome_bloco',
+        'unidades.numero_apartamento'
+      )
+      .first();
+
+    const parcelas = await knex('acordos_parcelas')
+      .where('pessoa_id', acordo.pessoa_id)
+      .where('descricao', acordo.descricao)
+      .where('data_acordo', acordo.data_acordo)
+      .orderBy('numero_parcela', 'asc');
+
+    return { acordo, parcelas };
+  } catch (error) {
+    console.error('Erro ao buscar detalhes do acordo:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('marcar-parcela-paga', async (event, parcelaId, dataPagamento) => {
+  try {
+    await knex('acordos_parcelas')
+      .where('id', parcelaId)
+      .update({
+        status_parcela: 'Pago',
+        data_pagamento: dataPagamento
+      });
+    // Após marcar, verificar se todas as parcelas do mesmo acordo foram pagas
+    const parcela = await knex('acordos_parcelas').where('id', parcelaId).first();
+    if (parcela) {
+      const restantes = await knex('acordos_parcelas')
+        .where({ pessoa_id: parcela.pessoa_id, descricao: parcela.descricao, data_acordo: parcela.data_acordo })
+        .whereNot('status_parcela', 'Pago')
+        .count('id as count');
+      const restantesCount = Array.isArray(restantes) ? (restantes[0] && restantes[0].count ? parseInt(restantes[0].count) : 0) : (restantes.count || 0);
+      if (restantesCount === 0) {
+        // Todas pagas: marcar acordo como Quitado
+        await knex('acordos_parcelas')
+          .where({ pessoa_id: parcela.pessoa_id, descricao: parcela.descricao, data_acordo: parcela.data_acordo })
+          .update({ status_acordo: 'Quitado' });
+        return { success: true, message: 'Parcela marcada como paga!', acordoQuitado: true };
+      }
+    }
+
+    return { success: true, message: 'Parcela marcada como paga!', acordoQuitado: false };
+  } catch (error) {
+    console.error('Erro ao marcar parcela como paga:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+ipcMain.handle('get-acordos-stats', async () => {
+  try {
+    const [totalAcordos] = await knex('acordos_parcelas')
+      .where('status_acordo', 'Ativo')
+      .where('numero_parcela', 1)
+      .count('id as count');
+    const [valorTotal] = await knex('acordos_parcelas')
+      .where('status_acordo', 'Ativo')
+      .where('numero_parcela', 1)
+      .sum('valor_total as total');
+    const [parcelasPendentes] = await knex('acordos_parcelas')
+      .where('status_parcela', 'Pendente')
+      .count('id as count');
+    const [valorPendente] = await knex('acordos_parcelas')
+      .where('status_parcela', 'Pendente')
+      .sum('valor_parcela as total');
+    
+    return {
+      totalAcordos: totalAcordos.count,
+      valorTotalAcordos: valorTotal.total || 0,
+      parcelasPendentes: parcelasPendentes.count,
+      valorPendente: valorPendente.total || 0
+    };
+  } catch (error) {
+    console.error('Erro ao buscar estatísticas dos acordos:', error);
+    return { totalAcordos: 0, valorTotalAcordos: 0, parcelasPendentes: 0, valorPendente: 0 };
+  }
+});
+
+// Handler para buscar pessoas para acordos (baseado na busca universal)
+ipcMain.handle('search-pessoas-acordos', async (event, termo = '') => {
+  try {
+    if (!termo || termo.length < 2) {
+      // Retornar as últimas 10 pessoas se não houver termo
+      const pessoas = await knex('pessoas')
+        .leftJoin('vinculos', function() {
+          this.on('pessoas.id', '=', 'vinculos.pessoa_id')
+              .andOn('vinculos.status', '=', knex.raw('?', ['Ativo']));
+        })
+        .leftJoin('unidades', 'vinculos.unidade_id', 'unidades.id')
+        .leftJoin('entradas', 'unidades.entrada_id', 'entradas.id')
+        .leftJoin('blocos', 'entradas.bloco_id', 'blocos.id')
+        .select(
+          'pessoas.id',
+          'pessoas.nome_completo',
+          'pessoas.cpf',
+          'pessoas.telefone',
+          'blocos.nome as nome_bloco',
+          'unidades.numero_apartamento'
+        )
+        .orderBy('pessoas.nome_completo', 'asc')
+        .limit(10);
+      
+      return pessoas.map(p => ({
+        ...p,
+        status: p.nome_bloco ? 'Ativo' : 'Inativo'
+      }));
+    }
+
+    const termoBusca = termo.trim();
+    const termoBuscaLimpo = termoBusca.replace(/\D/g, '');
+    
+    let query = knex('pessoas')
+      .leftJoin('vinculos', function() {
+        this.on('pessoas.id', '=', 'vinculos.pessoa_id')
+            .andOn('vinculos.status', '=', knex.raw('?', ['Ativo']));
+      })
+      .leftJoin('unidades', 'vinculos.unidade_id', 'unidades.id')
+      .leftJoin('entradas', 'unidades.entrada_id', 'entradas.id')
+      .leftJoin('blocos', 'entradas.bloco_id', 'blocos.id')
+      .select(
+        'pessoas.id',
+        'pessoas.nome_completo', 
+        'pessoas.cpf',
+        'pessoas.telefone',
+        'blocos.nome as nome_bloco',
+        'unidades.numero_apartamento'
+      );
+
+    query = query.where(function() {
+      // Busca por nome
+      const palavras = termoBusca.toLowerCase().split(' ').filter(p => p.length >= 2);
+      palavras.forEach(palavra => {
+        this.orWhereRaw('LOWER(pessoas.nome_completo) LIKE ?', [`%${palavra}%`]);
+      });
+      
+      // Busca por CPF se for número
+      if (termoBuscaLimpo.length >= 3) {
+        this.orWhere('pessoas.cpf', 'like', `%${termoBuscaLimpo}%`);
+      }
+    });
+
+    const pessoas = await query
+      .orderBy('pessoas.nome_completo', 'asc')
+      .limit(20);
+    
+    return pessoas.map(p => ({
+      ...p,
+      status: p.nome_bloco ? 'Ativo' : 'Inativo'
+    }));
+  } catch (error) {
+    console.error('Erro ao buscar pessoas para acordos:', error);
+    return [];
+  }
+});
+
+// Handler para debug - contar pessoas
+ipcMain.handle('debug-count-pessoas', async () => {
+  try {
+    const [count] = await knex('pessoas').count('id as total');
+    const pessoas = await knex('pessoas').select('id', 'nome_completo', 'cpf').limit(5);
+    return { total: count.total, exemplos: pessoas };
+  } catch (error) {
+    console.error('Erro no debug:', error);
+    return { total: 0, exemplos: [] };
+  }
+});
+
+// Recebe mensagens de debug do renderer e escreve no terminal do Electron
+ipcMain.on('renderer-debug', (event, message) => {
+  try {
+    console.log(`[renderer-debug] ${new Date().toISOString()} - ${message}`);
+  } catch (err) {
+    console.error('Erro ao receber debug do renderer:', err);
+  }
+});
+
+// Handler para desmarcar parcela como paga (reverter)
+ipcMain.handle('desmarcar-parcela-paga', async (event, parcelaId) => {
+  try {
+    await knex('acordos_parcelas')
+      .where('id', parcelaId)
+      .update({
+        status_parcela: 'Pendente',
+        data_pagamento: null
+      });
+    // Após desmarcar, garantir que o acordo esteja como 'Ativo' (se houver alguma pendente)
+    const parcela = await knex('acordos_parcelas').where('id', parcelaId).first();
+    if (parcela) {
+      await knex('acordos_parcelas')
+        .where({ pessoa_id: parcela.pessoa_id, descricao: parcela.descricao, data_acordo: parcela.data_acordo })
+        .update({ status_acordo: 'Ativo' });
+    }
+
+    return { success: true, message: 'Parcela desmarcada como paga.' };
+  } catch (error) {
+    console.error('Erro ao desmarcar parcela como paga:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Handler para arquivar (marcar como Quitado) um acordo manualmente
+ipcMain.handle('arquivar-acordo', async (event, acordoId) => {
+  try {
+    const acordo = await knex('acordos_parcelas').where('id', acordoId).first();
+    if (!acordo) return { success: false, message: 'Acordo não encontrado' };
+    // Data local do arquivamento (YYYY-MM-DD)
+    const hoje = (() => {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    })();
+
+    // Marcar acordo como Quitado
+    await knex('acordos_parcelas')
+      .where({ pessoa_id: acordo.pessoa_id, descricao: acordo.descricao, data_acordo: acordo.data_acordo })
+      .update({ status_acordo: 'Quitado' });
+
+    // Marcar todas as parcelas pendentes como pagas na data do arquivamento
+    const parcelasAtualizadas = await knex('acordos_parcelas')
+      .where({ pessoa_id: acordo.pessoa_id, descricao: acordo.descricao, data_acordo: acordo.data_acordo })
+      .whereNot('status_parcela', 'Pago')
+      .update({ status_parcela: 'Pago', data_pagamento: hoje });
+
+    // Notificar renderers sobre alteração de dados
+    try { notifyDataChanged(); } catch (e) { /* noop */ }
+
+    return { success: true, message: 'Acordo arquivado (Quitado) com sucesso', parcelasAtualizadas };
+  } catch (error) {
+    console.error('Erro ao arquivar acordo:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Handler para desarquivar (marcar como Ativo) um acordo manualmente
+// Nota: handler 'desarquivar-acordo' removido — frontend usa apenas 'desarquivar-acordo-forcar-ativo' quando necessário.
+
+// Handler para forçar desarquivamento e marcar acordo como Ativo
+ipcMain.handle('desarquivar-acordo-forcar-ativo', async (event, acordoId) => {
+  try {
+    const acordo = await knex('acordos_parcelas').where('id', acordoId).first();
+    if (!acordo) return { success: false, message: 'Acordo não encontrado' };
+
+    await knex('acordos_parcelas')
+      .where({ pessoa_id: acordo.pessoa_id, descricao: acordo.descricao, data_acordo: acordo.data_acordo })
+      .update({ status_acordo: 'Ativo' });
+
+    try { notifyDataChanged(); } catch (e) { /* noop */ }
+
+    return { success: true, message: 'Acordo desarquivado e marcado como Ativo' };
+  } catch (error) {
+    console.error('Erro ao forçar desarquivar acordo:', error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });

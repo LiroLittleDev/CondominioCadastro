@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { formatDate } from '../utils/date';
 import { 
   Typography, Box, Button, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Paper, IconButton, Chip, TextField, FormControl,
@@ -137,7 +138,7 @@ function MovimentacoesPage() {
             {movimentacoes.map((mov) => (
               <TableRow key={mov.id}>
                 <TableCell>
-                  {new Date(mov.data_movimentacao).toLocaleDateString('pt-BR')}
+                  {formatDate(mov.data_movimentacao)}
                 </TableCell>
                 <TableCell>
                   <Chip 
