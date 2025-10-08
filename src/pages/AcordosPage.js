@@ -672,9 +672,16 @@ const AcordosPage = () => {
 
       {/* Dialog de confirmação: Arquivar */}
       <Dialog open={confirmArquivarOpen} onClose={() => { setConfirmArquivarOpen(false); setPendingActionAcordo(null); }}>
-        <DialogTitle>Arquivar acordo</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Archive color="primary" sx={{ fontSize: 32 }} /> Arquivar acordo
+        </DialogTitle>
         <DialogContent>
-          <Typography>Deseja arquivar este acordo como finalizado?</Typography>
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Alert severity="info" icon={false} sx={{ flex: 1, bgcolor: 'primary.light', color: 'primary.contrastText', fontWeight: 500 }}>
+              Tem certeza que deseja arquivar este acordo como finalizado?
+            </Alert>
+          </Box>
+          <Typography variant="body2" color="text.secondary">Todas as parcelas serão marcadas como pagas e o acordo será movido para finalizados.</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setConfirmArquivarOpen(false); setPendingActionAcordo(null); }}>Cancelar</Button>
@@ -704,10 +711,16 @@ const AcordosPage = () => {
 
       {/* Dialog de confirmação: Desarquivar */}
       <Dialog open={confirmDesarquivarOpen} onClose={() => { setConfirmDesarquivarOpen(false); setPendingActionAcordo(null); }}>
-        <DialogTitle>Desarquivar acordo</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Unarchive color="success" sx={{ fontSize: 32 }} /> Desarquivar acordo
+        </DialogTitle>
         <DialogContent>
-          <Typography>Deseja desarquivar este acordo?</Typography>
-          <Typography variant="caption" color="text.secondary">As parcelas permanecem no estado atual (pagas). Use "Forçar Ativo" para reativar o acordo mesmo que as parcelas estejam pagas.</Typography>
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Alert severity="success" icon={false} sx={{ flex: 1, bgcolor: 'success.light', color: 'success.contrastText', fontWeight: 500 }}>
+              Deseja desarquivar este acordo?
+            </Alert>
+          </Box>
+          <Typography variant="body2" color="text.secondary">As parcelas permanecem no estado atual (pagas). Use <b>Forçar Ativo</b> para reativar o acordo mesmo que as parcelas estejam pagas.</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setConfirmDesarquivarOpen(false); setPendingActionAcordo(null); }}>Cancelar</Button>
@@ -735,9 +748,16 @@ const AcordosPage = () => {
 
       {/* Dialog de confirmação: Desmarcar parcela (marcar como pendente) */}
       <Dialog open={confirmDesmarcarOpen} onClose={() => { setConfirmDesmarcarOpen(false); setPendingActionParcela(null); }}>
-        <DialogTitle>Desmarcar pagamento</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Undo color="warning" sx={{ fontSize: 32 }} /> Desmarcar pagamento
+        </DialogTitle>
         <DialogContent>
-          <Typography>Deseja desmarcar esta parcela como paga?</Typography>
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Alert severity="warning" icon={false} sx={{ flex: 1, bgcolor: 'warning.light', color: 'warning.contrastText', fontWeight: 500 }}>
+              Deseja desmarcar esta parcela como paga?
+            </Alert>
+          </Box>
+          <Typography variant="body2" color="text.secondary">A parcela voltará para o estado pendente e poderá ser marcada novamente.</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setConfirmDesmarcarOpen(false); setPendingActionParcela(null); }}>Cancelar</Button>
@@ -768,10 +788,16 @@ const AcordosPage = () => {
 
       {/* Dialog de confirmação: Excluir acordo */}
       <Dialog open={confirmDeleteOpen} onClose={closeDeleteDialog}>
-        <DialogTitle>Excluir acordo</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Delete color="error" sx={{ fontSize: 32 }} /> Excluir acordo
+        </DialogTitle>
         <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>Esta ação é irreversível e removerá todas as parcelas relacionadas.</Alert>
-          <Typography>Tem certeza que deseja excluir o acordo de "{pendingDeleteAcordo?.nome_completo}"?</Typography>
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Alert severity="error" icon={false} sx={{ flex: 1, bgcolor: 'error.light', color: 'error.contrastText', fontWeight: 500 }}>
+              Esta ação é <b>irreversível</b> e removerá todas as parcelas relacionadas.
+            </Alert>
+          </Box>
+          <Typography variant="body1">Tem certeza que deseja excluir o acordo de "{pendingDeleteAcordo?.nome_completo}"?</Typography>
           {pendingDeleteAcordo && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
               {deleteCountdowns[pendingDeleteAcordo.id] > 0 ? `Aguarde ${deleteCountdowns[pendingDeleteAcordo.id]}s para habilitar a exclusão.` : 'Pronto para excluir.'}
@@ -817,9 +843,16 @@ const AcordosPage = () => {
 
       {/* Dialog de confirmação: Marcar parcela como paga (hoje) */}
       <Dialog open={confirmMarcarOpen} onClose={() => { setConfirmMarcarOpen(false); setPendingActionParcela(null); }}>
-        <DialogTitle>Marcar parcela como paga</DialogTitle>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CheckCircle color="success" sx={{ fontSize: 32 }} /> Marcar como paga
+        </DialogTitle>
         <DialogContent>
-          <Typography>Deseja marcar esta parcela como paga hoje?</Typography>
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Alert severity="success" icon={false} sx={{ flex: 1, bgcolor: 'success.light', color: 'success.contrastText', fontWeight: 500 }}>
+              Deseja marcar esta parcela como paga hoje?
+            </Alert>
+          </Box>
+          <Typography variant="body2" color="text.secondary">A data de pagamento será registrada como hoje.</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setConfirmMarcarOpen(false); setPendingActionParcela(null); }}>Cancelar</Button>

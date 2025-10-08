@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Alert } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Typography,
@@ -49,6 +50,9 @@ const formatPhone = (phone) => {
 };
 
 function PessoaPage() {
+  // Estados para dialogs de confirmação e erro
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', content: '', onConfirm: null });
+  const [errorDialog, setErrorDialog] = useState({ open: false, message: '' });
   const { pessoaId } = useParams();
   const navigate = useNavigate();
   const [pessoa, setPessoa] = useState(null);
@@ -76,83 +80,98 @@ function PessoaPage() {
 
   // Adicione estas duas funções dentro de PessoaPage
   const handleDesvincular = async (vinculo) => {
-    if (
-      window.confirm(
-        `Tem certeza que deseja desvincular '${pessoa.nome_completo}' da unidade ${vinculo.nome_bloco}/${vinculo.numero_apartamento}?`
-      )
-    ) {
-      const result = await window.api.desvincularPessoa(vinculo.id);
-      if (result.success) {
-        fetchData();
-      } else {
-        alert(`Erro ao desvincular: ${result.message}`);
+    setConfirmDialog({
+      open: true,
+      title: 'Desvincular pessoa',
+      content: `Tem certeza que deseja desvincular '${pessoa.nome_completo}' da unidade ${vinculo.nome_bloco}/${vinculo.numero_apartamento}?`,
+      onConfirm: async () => {
+        const result = await window.api.desvincularPessoa(vinculo.id);
+        if (result.success) {
+          fetchData();
+        } else {
+          setErrorDialog({ open: true, message: `Erro ao desvincular: ${result.message}` });
+        }
+        setConfirmDialog({ ...confirmDialog, open: false });
       }
-    }
+    });
   };
 
   // Adicione esta função dentro de PessoaPage
   const handleDeleteAllInactive = async () => {
-    if (
-      window.confirm(
-        `Tem certeza que deseja apagar PERMANENTEMENTE TODOS os ${vinculosInativos.length} vínculos anteriores desta pessoa?`
-      )
-    ) {
-      const result = await window.api.deleteAllInactiveVinculos(pessoa.id);
-      if (result.success) {
-        fetchData();
-      } else {
-        alert(`Erro: ${result.message}`);
+    setConfirmDialog({
+      open: true,
+      title: 'Excluir histórico de vínculos',
+      content: `Tem certeza que deseja apagar PERMANENTEMENTE TODOS os ${vinculosInativos.length} vínculos anteriores desta pessoa?`,
+      onConfirm: async () => {
+        const result = await window.api.deleteAllInactiveVinculos(pessoa.id);
+        if (result.success) {
+          fetchData();
+        } else {
+          setErrorDialog({ open: true, message: `Erro: ${result.message}` });
+        }
+        setConfirmDialog({ ...confirmDialog, open: false });
       }
-    }
+    });
   };
 
   const handleDeleteVinculo = async (vinculo) => {
-    if (
-      window.confirm(
-        `ATENÇÃO: Tem certeza que deseja apagar PERMANENTEMENTE o registro histórico de que '${pessoa.nome_completo}' esteve na unidade ${vinculo.nome_bloco}/${vinculo.numero_apartamento}?`
-      )
-    ) {
-      const result = await window.api.deleteVinculo(vinculo.id);
-      if (result.success) {
-        fetchData();
-      } else {
-        alert(`Erro ao excluir: ${result.message}`);
+    setConfirmDialog({
+      open: true,
+      title: 'Excluir vínculo histórico',
+      content: `ATENÇÃO: Tem certeza que deseja apagar PERMANENTEMENTE o registro histórico de que '${pessoa.nome_completo}' esteve na unidade ${vinculo.nome_bloco}/${vinculo.numero_apartamento}?`,
+      onConfirm: async () => {
+        const result = await window.api.deleteVinculo(vinculo.id);
+        if (result.success) {
+          fetchData();
+        } else {
+          setErrorDialog({ open: true, message: `Erro ao excluir: ${result.message}` });
+        }
+        setConfirmDialog({ ...confirmDialog, open: false });
       }
-    }
+    });
   };
 
   const handleDeletePessoa = async () => {
     if (!pessoa) return;
-    const confirm1 = window.confirm(
-      `Tem certeza que deseja EXCLUIR PERMANENTEMENTE '${pessoa.nome_completo}' e todos os seus dados?`
-    );
-    if (confirm1) {
-      const confirm2 = window.confirm(
-        "Esta ação não pode ser desfeita. Confirma a exclusão permanente?"
-      );
-      if (confirm2) {
-        const result = await window.api.deletePessoa(pessoa.id);
-        if (result.success) {
-          alert(result.message);
-          navigate(-1); // Volta para a página anterior após a exclusão
-        } else {
-          alert(`Erro ao excluir: ${result.message}`);
-        }
+    setConfirmDialog({
+      open: true,
+      title: 'Excluir pessoa',
+      content: `Tem certeza que deseja EXCLUIR PERMANENTEMENTE '${pessoa.nome_completo}' e todos os seus dados?`,
+      onConfirm: async () => {
+        setConfirmDialog({
+          open: true,
+          title: 'Confirmação final',
+          content: 'Esta ação não pode ser desfeita. Confirma a exclusão permanente?',
+          onConfirm: async () => {
+            const result = await window.api.deletePessoa(pessoa.id);
+            if (result.success) {
+              setErrorDialog({ open: true, message: result.message });
+              navigate(-1);
+            } else {
+              setErrorDialog({ open: true, message: `Erro ao excluir: ${result.message}` });
+            }
+            setConfirmDialog({ ...confirmDialog, open: false });
+          }
+        });
       }
-    }
+    });
   };
 
   const handleDeleteVeiculo = async (veiculoId, veiculoNome) => {
-    if (
-      window.confirm(`Tem certeza que deseja excluir o veículo ${veiculoNome}?`)
-    ) {
-      const result = await window.api.deleteVeiculo(veiculoId);
-      if (result.success) {
-        fetchData(); // Atualiza a lista
-      } else {
-        alert(`Erro ao excluir veículo: ${result.message}`);
+    setConfirmDialog({
+      open: true,
+      title: 'Excluir veículo',
+      content: `Tem certeza que deseja excluir o veículo ${veiculoNome}?`,
+      onConfirm: async () => {
+        const result = await window.api.deleteVeiculo(veiculoId);
+        if (result.success) {
+          fetchData();
+        } else {
+          setErrorDialog({ open: true, message: `Erro ao excluir veículo: ${result.message}` });
+        }
+        setConfirmDialog({ ...confirmDialog, open: false });
       }
-    }
+    });
   };
 
   const handleOpenEditarVeiculoModal = (veiculo) => {
@@ -209,17 +228,67 @@ function PessoaPage() {
     return <Typography color="error">Pessoa não encontrada.</Typography>;
 
   return (
-    <Box>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-        <IconButton onClick={() => navigate(-1)} sx={{ mr: 1 }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" component="h1">
-          Perfil de Morador
-        </Typography>
-      </Box>
+    <>
+      {/* Dialog de confirmação genérico com ícones e cores */}
+      <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {confirmDialog.title.includes('Excluir pessoa') && <DeleteIcon color="error" sx={{ fontSize: 32 }} />}
+          {confirmDialog.title.includes('Excluir veículo') && <DirectionsCarIcon color="error" sx={{ fontSize: 32 }} />}
+          {confirmDialog.title.includes('Excluir vínculo') && <LinkOffIcon color="warning" sx={{ fontSize: 32 }} />}
+          {confirmDialog.title.includes('Excluir histórico') && <DeleteIcon color="error" sx={{ fontSize: 32 }} />}
+          {confirmDialog.title.includes('Desvincular') && <LinkOffIcon color="warning" sx={{ fontSize: 32 }} />}
+          {confirmDialog.title.includes('Confirmação final') && <DeleteIcon color="error" sx={{ fontSize: 32 }} />}
+          {confirmDialog.title}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Alert severity={confirmDialog.title.includes('Excluir') ? 'error' : confirmDialog.title.includes('Desvincular') ? 'warning' : 'info'} icon={false} sx={{ flex: 1, bgcolor: confirmDialog.title.includes('Excluir') ? 'error.light' : confirmDialog.title.includes('Desvincular') ? 'warning.light' : 'info.light', color: confirmDialog.title.includes('Excluir') ? 'error.contrastText' : confirmDialog.title.includes('Desvincular') ? 'warning.contrastText' : 'info.contrastText', fontWeight: 500 }}>
+              {confirmDialog.content}
+            </Alert>
+          </Box>
+          {confirmDialog.title.includes('Excluir pessoa') && (
+            <Typography variant="body2" color="text.secondary">Esta ação é <b>irreversível</b> e removerá todos os dados da pessoa.</Typography>
+          )}
+          {confirmDialog.title.includes('Excluir veículo') && (
+            <Typography variant="body2" color="text.secondary">Esta ação irá remover o veículo permanentemente.</Typography>
+          )}
+          {confirmDialog.title.includes('Excluir vínculo') && (
+            <Typography variant="body2" color="text.secondary">O registro histórico será apagado e não poderá ser recuperado.</Typography>
+          )}
+          {confirmDialog.title.includes('Excluir histórico') && (
+            <Typography variant="body2" color="text.secondary">Todos os vínculos anteriores serão apagados permanentemente.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}>Cancelar</Button>
+          <Button variant="contained" color={confirmDialog.title.includes('Excluir') ? 'error' : confirmDialog.title.includes('Desvincular') ? 'warning' : 'primary'} onClick={() => { if (confirmDialog.onConfirm) confirmDialog.onConfirm(); }}>Confirmar</Button>
+        </DialogActions>
+      </Dialog>
 
-      <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
+      {/* Dialog de erro genérico com ícone e cor */}
+      <Dialog open={errorDialog.open} onClose={() => setErrorDialog({ open: false, message: '' })}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <DeleteIcon color="error" sx={{ fontSize: 32 }} /> Erro
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" icon={false} sx={{ mb: 2, bgcolor: 'error.light', color: 'error.contrastText', fontWeight: 500 }}>{errorDialog.message}</Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setErrorDialog({ open: false, message: '' })}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Box>
+        <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+          <IconButton onClick={() => navigate(-1)} sx={{ mr: 1 }}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h4" component="h1">
+            Perfil de Morador
+          </Typography>
+        </Box>
+        {/* ...restante do código... */}
+        <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
         <Box sx={{ 
           display: "flex", 
           flexDirection: { xs: "column", sm: "row" },
@@ -647,6 +716,7 @@ function PessoaPage() {
         onSuccess={handleSuccess}
       />
     </Box>
+    </>
   );
 }
 
