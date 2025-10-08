@@ -250,6 +250,35 @@ function createMainWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../build/index.html'));
   }
+  // Em desenvolvimento, abrir DevTools para inspecionar erros do renderer
+  try {
+    if (isDev) {
+      mainWindow.webContents.openDevTools({ mode: 'detach' });
+    }
+  } catch (e) {
+    console.error('Não foi possível abrir DevTools:', e);
+  }
+
+  // Listeners úteis para diagnosticar tela branca / falhas do renderer
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    console.error('did-fail-load', { errorCode, errorDescription, validatedURL, isMainFrame });
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('mainWindow: did-finish-load - conteúdo carregado com sucesso');
+  });
+
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('render-process-gone', details);
+  });
+
+  mainWindow.on('unresponsive', () => {
+    console.error('janela principal está sem resposta (unresponsive)');
+  });
+
+  mainWindow.webContents.on('crashed', () => {
+    console.error('Renderer crash detectado');
+  });
   
   mainWindow.once('ready-to-show', () => {
     // Aguardar pelo menos 3 segundos antes de mostrar a janela principal
@@ -1762,29 +1791,55 @@ ipcMain.handle('get-acordos', async (event, filtros = {}) => {
 
 ipcMain.handle('create-acordo', async (event, acordoData) => {
   try {
-    const valorParcela = (acordoData.valor_total - acordoData.valor_entrada) / acordoData.quantidade_parcelas;
-    
-    const parcelas = [];
-    for (let i = 1; i <= acordoData.quantidade_parcelas; i++) {
-      const dataVencimento = new Date(acordoData.data_acordo);
-      dataVencimento.setMonth(dataVencimento.getMonth() + i);
-      
-      parcelas.push({
+    // Se foram enviadas parcelas customizadas, insere-as diretamente
+    if (acordoData.parcelas && Array.isArray(acordoData.parcelas) && acordoData.parcelas.length > 0) {
+      // validar soma
+      const somaParcelas = acordoData.parcelas.reduce((s, p) => s + (parseFloat(p.valor_parcela) || 0), 0);
+      const esperado = parseFloat(acordoData.valor_total) - (parseFloat(acordoData.valor_entrada) || 0);
+      if (Math.abs(somaParcelas - esperado) > 0.01) {
+        return { success: false, message: 'Soma das parcelas diferente do valor restante (valor_total - valor_entrada)' };
+      }
+
+      const toInsert = acordoData.parcelas.map(p => ({
         pessoa_id: acordoData.pessoa_id,
         descricao: acordoData.descricao,
         valor_total: acordoData.valor_total,
         valor_entrada: acordoData.valor_entrada,
-        numero_parcela: i,
+        numero_parcela: p.numero_parcela,
         total_parcelas: acordoData.quantidade_parcelas,
-        valor_parcela: valorParcela,
+        valor_parcela: p.valor_parcela,
         data_acordo: acordoData.data_acordo,
-        data_vencimento: dataVencimento.toISOString().split('T')[0],
+        data_vencimento: p.data_vencimento,
         status_parcela: 'Pendente',
         status_acordo: 'Ativo'
-      });
+      }));
+
+      await knex('acordos_parcelas').insert(toInsert);
+    } else {
+      const valorParcela = (acordoData.valor_total - acordoData.valor_entrada) / acordoData.quantidade_parcelas;
+      
+      const parcelas = [];
+      for (let i = 1; i <= acordoData.quantidade_parcelas; i++) {
+        const dataVencimento = new Date(acordoData.data_acordo);
+        dataVencimento.setMonth(dataVencimento.getMonth() + i);
+        
+        parcelas.push({
+          pessoa_id: acordoData.pessoa_id,
+          descricao: acordoData.descricao,
+          valor_total: acordoData.valor_total,
+          valor_entrada: acordoData.valor_entrada,
+          numero_parcela: i,
+          total_parcelas: acordoData.quantidade_parcelas,
+          valor_parcela: valorParcela,
+          data_acordo: acordoData.data_acordo,
+          data_vencimento: dataVencimento.toISOString().split('T')[0],
+          status_parcela: 'Pendente',
+          status_acordo: 'Ativo'
+        });
+      }
+      
+      await knex('acordos_parcelas').insert(parcelas);
     }
-    
-    await knex('acordos_parcelas').insert(parcelas);
     return { success: true, message: 'Acordo criado com sucesso!' };
   } catch (error) {
     console.error('Erro ao criar acordo:', error);
@@ -2062,6 +2117,25 @@ ipcMain.handle('desarquivar-acordo-forcar-ativo', async (event, acordoId) => {
     return { success: true, message: 'Acordo desarquivado e marcado como Ativo' };
   } catch (error) {
     console.error('Erro ao forçar desarquivar acordo:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Handler para excluir um acordo (remove todas as parcelas relacionadas)
+ipcMain.handle('delete-acordo', async (event, acordoId) => {
+  try {
+    const acordo = await knex('acordos_parcelas').where('id', acordoId).first();
+    if (!acordo) return { success: false, message: 'Acordo não encontrado' };
+
+    await knex('acordos_parcelas')
+      .where({ pessoa_id: acordo.pessoa_id, descricao: acordo.descricao, data_acordo: acordo.data_acordo })
+      .del();
+
+    try { notifyDataChanged(); } catch (e) { /* noop */ }
+
+    return { success: true, message: 'Acordo excluído com sucesso' };
+  } catch (error) {
+    console.error('Erro ao excluir acordo:', error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });

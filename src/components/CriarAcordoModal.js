@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
-  TextField, Grid, Autocomplete, Typography, Box, Alert
+  TextField, Grid, Autocomplete, Typography, Box, Alert, Switch, FormControlLabel, Stack,
+  Avatar, Chip
 } from '@mui/material';
 
 const CriarAcordoModal = ({ open, onClose, onSuccess }) => {
@@ -13,6 +14,8 @@ const CriarAcordoModal = ({ open, onClose, onSuccess }) => {
     quantidade_parcelas: '',
     data_acordo: new Date().toISOString().split('T')[0]
   });
+  const [customParcelas, setCustomParcelas] = useState(false);
+  const [parcelasDetail, setParcelasDetail] = useState([]); // [{ numero_parcela, valor_parcela, data_vencimento }]
   const [pessoas, setPessoas] = useState([]);
   const [pessoaSelecionada, setPessoaSelecionada] = useState(null);
   const [unidadeInfo, setUnidadeInfo] = useState('');
@@ -20,12 +23,50 @@ const CriarAcordoModal = ({ open, onClose, onSuccess }) => {
   const [error, setError] = useState('');
 
 
+  const contentRef = useRef(null);
+  const parcelAreaRef = useRef(null);
+
   useEffect(() => {
     if (open) {
       carregarPessoas();
       resetForm();
     }
   }, [open]);
+
+  // quando error é setado, rola o modal para cima para mostrar o Alert
+  useEffect(() => {
+    if (error && contentRef.current) {
+      // scroll to top of DialogContent
+      contentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [error]);
+
+  const calcularValorParcela = useCallback(() => {
+    const valorTotal = parseFloat(formData.valor_total) || 0;
+    const valorEntrada = parseFloat(formData.valor_entrada) || 0;
+    const quantidadeParcelas = parseInt(formData.quantidade_parcelas) || 1;
+
+    const valorParcelado = valorTotal - valorEntrada;
+    return quantidadeParcelas ? (valorParcelado / quantidadeParcelas) : 0;
+  }, [formData.valor_total, formData.valor_entrada, formData.quantidade_parcelas]);
+
+  useEffect(() => {
+    // rebuild parcelasDetail when quantidade_parcelas or data_acordo change and customParcelas is off
+    const qty = parseInt(formData.quantidade_parcelas) || 0;
+    if (!customParcelas && qty > 0) {
+      const vals = [];
+      const base = formData.data_acordo || new Date().toISOString().split('T')[0];
+      for (let i = 1; i <= qty; i++) {
+        const dataV = new Date(base);
+        dataV.setMonth(dataV.getMonth() + i);
+        const yyyy = dataV.getFullYear();
+        const mm = String(dataV.getMonth() + 1).padStart(2, '0');
+        const dd = String(dataV.getDate()).padStart(2, '0');
+  vals.push({ numero_parcela: i, valor_parcela: calcularValorParcela().toFixed(2), data_vencimento: `${yyyy}-${mm}-${dd}` });
+      }
+      setParcelasDetail(vals);
+    }
+  }, [formData.quantidade_parcelas, formData.data_acordo, customParcelas, calcularValorParcela]);
 
   const carregarPessoas = async (termo = '') => {
     try {
@@ -71,6 +112,14 @@ const CriarAcordoModal = ({ open, onClose, onSuccess }) => {
     setPessoaSelecionada(null);
     setUnidadeInfo('');
     setError('');
+    setCustomParcelas(false);
+    setParcelasDetail([]);
+  };
+
+  const handleClose = () => {
+    // reset custom parcels when closing
+    resetForm();
+    onClose();
   };
 
   const handlePessoaChange = (event, newValue) => {
@@ -98,13 +147,66 @@ const CriarAcordoModal = ({ open, onClose, onSuccess }) => {
   };
 
 
-  const calcularValorParcela = () => {
-    const valorTotal = parseFloat(formData.valor_total) || 0;
-    const valorEntrada = parseFloat(formData.valor_entrada) || 0;
-    const quantidadeParcelas = parseInt(formData.quantidade_parcelas) || 1;
-    
-    const valorParcelado = valorTotal - valorEntrada;
-    return valorParcelado / quantidadeParcelas;
+  const handleCustomToggle = (value) => {
+    setCustomParcelas(value);
+    // if turning on, ensure parcelasDetail has entries
+    const qty = parseInt(formData.quantidade_parcelas) || 0;
+    if (value && qty > 0 && parcelasDetail.length !== qty) {
+      const vals = [];
+      const base = formData.data_acordo || new Date().toISOString().split('T')[0];
+      for (let i = 1; i <= qty; i++) {
+        const dataV = new Date(base);
+        dataV.setMonth(dataV.getMonth() + i);
+        const yyyy = dataV.getFullYear();
+        const mm = String(dataV.getMonth() + 1).padStart(2, '0');
+        const dd = String(dataV.getDate()).padStart(2, '0');
+  vals.push({ numero_parcela: i, valor_parcela: calcularValorParcela().toFixed(2), data_vencimento: `${yyyy}-${mm}-${dd}` });
+      }
+      setParcelasDetail(vals);
+    }
+    // se abriu a área de parcelas, rola para ela para ser visível
+    if (value && parcelAreaRef.current) {
+      setTimeout(() => {
+        try {
+          parcelAreaRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (e) {
+          // fallback: scroll DialogContent to top
+          if (contentRef.current) contentRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }, 120);
+    }
+  };
+
+  const updateParcelaDetail = (index, field, value) => {
+    setParcelasDetail(prev => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  };
+
+  const somaParcelas = () => parcelasDetail.reduce((s, p) => s + (parseFloat(p.valor_parcela) || 0), 0);
+  const esperado = () => (parseFloat(formData.valor_total || 0) - (parseFloat(formData.valor_entrada) || 0));
+
+  const distribuirDiferenca = () => {
+    const total = somaParcelas();
+    const diff = esperado() - total;
+    if (Math.abs(diff) < 0.005) return; // nada a fazer
+    const qtd = parcelasDetail.length;
+    const per = diff / qtd;
+    setParcelasDetail(prev => prev.map(p => ({ ...p, valor_parcela: ((parseFloat(p.valor_parcela) || 0) + per).toFixed(2) })));
+  };
+
+  const ajustarUltima = () => {
+    const total = somaParcelas();
+    const diff = esperado() - total;
+    if (Math.abs(diff) < 0.005) return;
+    setParcelasDetail(prev => {
+      const copy = [...prev];
+      const last = copy[copy.length - 1];
+      copy[copy.length - 1] = { ...last, valor_parcela: ((parseFloat(last.valor_parcela) || 0) + diff).toFixed(2) };
+      return copy;
+    });
   };
 
   const handleSubmit = async () => {
@@ -136,6 +238,17 @@ const CriarAcordoModal = ({ open, onClose, onSuccess }) => {
         valor_entrada: valorEntrada,
         quantidade_parcelas: parseInt(formData.quantidade_parcelas)
       };
+      if (customParcelas && parcelasDetail && parcelasDetail.length > 0) {
+        // validate sum
+        const somaParcelas = parcelasDetail.reduce((s, p) => s + (parseFloat(p.valor_parcela) || 0), 0);
+        const esperado = valorTotal - valorEntrada;
+        if (Math.abs(somaParcelas - esperado) > 0.01) {
+          setError('Soma das parcelas diferentes do valor restante (valor total - entrada). Ajuste os valores.');
+          setLoading(false);
+          return;
+        }
+        acordoData.parcelas = parcelasDetail.map(p => ({ numero_parcela: p.numero_parcela, valor_parcela: parseFloat(p.valor_parcela || 0), data_vencimento: p.data_vencimento }));
+      }
 
       const result = await window.electronAPI.invoke('create-acordo', acordoData);
       
@@ -154,9 +267,9 @@ const CriarAcordoModal = ({ open, onClose, onSuccess }) => {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>Criar Novo Acordo</DialogTitle>
-      <DialogContent>
+      <DialogContent ref={contentRef} dividers>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -257,6 +370,65 @@ const CriarAcordoModal = ({ open, onClose, onSuccess }) => {
             />
           </Grid>
 
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={<Switch checked={customParcelas} onChange={(e) => handleCustomToggle(e.target.checked)} />}
+              label="Valores por parcela personalizados"
+            />
+          </Grid>
+
+          {/* Mostrar área de parcelas personalizadas logo abaixo do switch para maior visibilidade */}
+          {customParcelas && (
+            <Grid item xs={12} ref={parcelAreaRef}>
+              <Box sx={{ p: 2, borderRadius: 1, bgcolor: 'grey.100', border: '1px solid', borderColor: 'divider' }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                  <Box>
+                      <Typography variant="subtitle2">Parcelas personalizadas</Typography>
+                      {/* pessoa destacada com Chip + Avatar */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                        <Chip
+                          avatar={<Avatar sx={{ bgcolor: 'primary.main', width: 28, height: 28 }}>{pessoaSelecionada ? (pessoaSelecionada.nome_completo || '').split(' ').map(n=>n[0]).slice(0,2).join('') : '?'}</Avatar>}
+                          label={<Typography variant="body2" sx={{ fontWeight: 700 }}>{pessoaSelecionada ? pessoaSelecionada.nome_completo : 'Pessoa não selecionada'}</Typography>}
+                          variant="outlined"
+                        />
+                      </Box>
+                      {unidadeInfo && <Typography variant="caption" color="textSecondary" display="block" sx={{ mt: 0.5 }}>{unidadeInfo}</Typography>}
+                      {pessoaSelecionada?.cpf && <Typography variant="caption" color="textSecondary">CPF: {pessoaSelecionada.cpf}</Typography>}
+                    </Box>
+                  <Box sx={{ textAlign: 'right' }}>
+                    <Typography variant="caption" display="block">Entrada: <strong>R$ {parseFloat(formData.valor_entrada || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></Typography>
+                    <Typography variant="caption">Soma: R$ {somaParcelas().toFixed(2)}</Typography>
+                    <Typography variant="caption" display="block">Esperado: <Typography component="span" sx={{ fontWeight: 700, color: 'primary.main' }}>R$ {esperado().toFixed(2)}</Typography></Typography>
+                    <Typography variant="caption" sx={{ display: 'block', color: Math.abs(somaParcelas() - esperado()) > 0.01 ? 'error.main' : 'text.secondary' }}>Diferença: R$ {(somaParcelas() - esperado()).toFixed(2)}</Typography>
+                  </Box>
+                </Stack>
+                <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                  <Button size="small" onClick={distribuirDiferenca}>Distribuir diferença</Button>
+                  <Button size="small" onClick={ajustarUltima}>Ajustar última</Button>
+                </Box>
+                {parcelasDetail && parcelasDetail.length > 0 ? (
+                  <Grid container spacing={1}>
+                    {parcelasDetail.map((p, idx) => (
+                      <React.Fragment key={idx}>
+                        <Grid item xs={2}>
+                          <TextField label="#" value={p.numero_parcela} InputProps={{ readOnly: true }} fullWidth />
+                        </Grid>
+                        <Grid item xs={5}>
+                          <TextField label="Valor da Parcela" type="number" inputProps={{ step: '0.01' }} value={p.valor_parcela} onChange={(e) => updateParcelaDetail(idx, 'valor_parcela', e.target.value)} fullWidth />
+                        </Grid>
+                        <Grid item xs={5}>
+                          <TextField label="Vencimento" type="date" value={p.data_vencimento} onChange={(e) => updateParcelaDetail(idx, 'data_vencimento', e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
+                        </Grid>
+                      </React.Fragment>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Typography variant="body2" color="textSecondary">Nenhuma parcela gerada ainda. Preencha quantidade de parcelas e/ou verifique os valores para gerar parcelas automaticamente.</Typography>
+                )}
+              </Box>
+            </Grid>
+          )}
+
           <Grid item xs={6}>
             <TextField
               label="Data do Acordo"
@@ -268,28 +440,30 @@ const CriarAcordoModal = ({ open, onClose, onSuccess }) => {
             />
           </Grid>
 
-          {formData.valor_total && formData.quantidade_parcelas && (
+          {formData.valor_total && (
             <Grid item xs={12}>
               <Box sx={{ p: 2, bgcolor: 'primary.50', borderRadius: 1 }}>
                 <Typography variant="body2">
                   <strong>Resumo:</strong>
                 </Typography>
                 <Typography variant="body2">
-                  Valor Total: R$ {parseFloat(formData.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  Valor Total: R$ {parseFloat(formData.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Typography>
                 <Typography variant="body2">
-                  Entrada: R$ {parseFloat(formData.valor_entrada || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  Entrada: R$ {parseFloat(formData.valor_entrada || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Typography>
                 <Typography variant="body2">
-                  Valor por Parcela: R$ {calcularValorParcela().toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  Valor por Parcela: R$ {calcularValorParcela().toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Typography>
               </Box>
             </Grid>
           )}
+
+          
         </Grid>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancelar</Button>
+        <Button onClick={handleClose}>Cancelar</Button>
         <Button 
           onClick={handleSubmit} 
           variant="contained"

@@ -5,9 +5,9 @@ import AnimatedNumber from '../components/AnimatedNumber';
 import {
   Box, Typography, Card, CardContent, Grid, Button, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Paper, Chip, IconButton,
-  Drawer, Divider, TextField, LinearProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Stack, Avatar, Snackbar, Alert, CircularProgress, Tabs, Tab, Badge
+  Drawer, TextField, LinearProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Avatar, Snackbar, Alert, CircularProgress, Tabs, Tab, Badge
 } from '@mui/material';
-import { Add, Visibility, AttachMoney, Assignment, Schedule, CheckCircle, Payment, Close, Archive, Unarchive, Undo } from '@mui/icons-material';
+import { Add, Visibility, AttachMoney, Assignment, Schedule, CheckCircle, Payment, Close, Archive, Unarchive, Undo, Delete } from '@mui/icons-material';
 import CriarAcordoModal from '../components/CriarAcordoModal';
 
 const AcordosPage = () => {
@@ -33,6 +33,10 @@ const AcordosPage = () => {
   const [confirmDesarquivarOpen, setConfirmDesarquivarOpen] = useState(false);
   const [confirmDesmarcarOpen, setConfirmDesmarcarOpen] = useState(false);
   const [confirmMarcarOpen, setConfirmMarcarOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [pendingDeleteAcordo, setPendingDeleteAcordo] = useState(null);
+  const [deleteCountdowns, setDeleteCountdowns] = useState({});
+  const deleteTimersRef = useRef({});
   const [pendingActionAcordo, setPendingActionAcordo] = useState(null);
   const [pendingActionParcela, setPendingActionParcela] = useState(null);
   const theme = useTheme();
@@ -107,6 +111,9 @@ const AcordosPage = () => {
   const pendentesCount = parcelas.filter(p => p.status_parcela === 'Pendente').length;
   const atrasadasCount = parcelas.filter(p => p.status_parcela === 'Pendente' && new Date(p.data_vencimento) < new Date()).length;
   const percentPago = totalParcelas ? Math.round((pagasCount / totalParcelas) * 100) : 0;
+  // const somaParcelas = parcelas.reduce((s, p) => s + (parseFloat(p.valor_parcela) || 0), 0);
+  const entradaValor = acordoSelecionado ? (parseFloat(acordoSelecionado.valor_entrada || 0)) : 0;
+  const esperadoValor = acordoSelecionado ? (parseFloat(acordoSelecionado.valor_total || 0) - entradaValor) : 0;
 
   // carregarDados é definido acima usando useCallback
 
@@ -119,6 +126,26 @@ const AcordosPage = () => {
     } catch (error) {
       console.error('Erro ao carregar detalhes:', error);
     }
+  };
+
+  const closeDeleteDialog = () => {
+    // limpar timer do acordo selecionado (se houver)
+    try {
+      const id = pendingDeleteAcordo?.id;
+      if (id && deleteTimersRef.current[id]) {
+        clearInterval(deleteTimersRef.current[id]);
+        deleteTimersRef.current[id] = null;
+      }
+      if (id) {
+        setDeleteCountdowns(prev => {
+          const copy = { ...prev };
+          delete copy[id];
+          return copy;
+        });
+      }
+    } catch (e) { /* ignore */ }
+    setConfirmDeleteOpen(false);
+    setPendingDeleteAcordo(null);
   };
 
   const marcarParcela = async (parcelaId, dataPagamento) => {
@@ -230,6 +257,32 @@ const AcordosPage = () => {
     }
   };
 
+  // inicia contagem regressiva de 5s para habilitar exclusão
+  const startDeleteCountdown = (acordoId) => {
+    if (deleteTimersRef.current[acordoId]) return; // já rodando
+    setDeleteCountdowns(prev => ({ ...prev, [acordoId]: 5 }));
+    deleteTimersRef.current[acordoId] = setInterval(() => {
+      setDeleteCountdowns(prev => {
+        const current = prev[acordoId] ?? 0;
+        if (current <= 1) {
+          // finalizar contagem
+          try { clearInterval(deleteTimersRef.current[acordoId]); } catch (e) {}
+          deleteTimersRef.current[acordoId] = null;
+          return { ...prev, [acordoId]: 0 };
+        }
+        return { ...prev, [acordoId]: current - 1 };
+      });
+    }, 1000);
+  };
+
+  // limpar timers ao desmontar
+  useEffect(() => {
+    return () => {
+      Object.values(deleteTimersRef.current).forEach(t => { try { if (t) clearInterval(t); } catch (e) {} });
+      deleteTimersRef.current = {};
+    };
+  }, []);
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -279,7 +332,7 @@ const AcordosPage = () => {
                     Valor Total
                   </Typography>
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    <AnimatedNumber value={Math.round((stats.valorTotalAcordos || 0) * 100)} format={v => `R$ ${(v/100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                    <AnimatedNumber value={Math.round((stats.valorTotalAcordos || 0) * 100)} format={v => `R$ ${(v/100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
                   </Typography>
                   <Typography variant="caption" color="text.secondary">Inclui entradas e parcelas</Typography>
                 </Box>
@@ -321,7 +374,7 @@ const AcordosPage = () => {
                     Valor Pendente
                   </Typography>
                   <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    <AnimatedNumber value={Math.round((stats.valorPendente || 0) * 100)} format={v => `R$ ${(v/100).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                    <AnimatedNumber value={Math.round((stats.valorPendente || 0) * 100)} format={v => `R$ ${(v/100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} />
                   </Typography>
                   <Typography variant="caption" color="text.secondary">Valores ainda não pagos</Typography>
                 </Box>
@@ -366,7 +419,7 @@ const AcordosPage = () => {
                       }
                     </TableCell>
                     <TableCell>
-                      R$ {acordo.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      R$ {acordo.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell>{acordo.quantidade_parcelas}x</TableCell>
                     <TableCell>
@@ -400,31 +453,51 @@ const AcordosPage = () => {
                       </Box>
                     </TableCell>
                     <TableCell align="center">
-                      <Tooltip title="Visualizar parcelas">
-                        <IconButton
-                          onClick={() => abrirDetalhes(acordo)}
-                          color="primary"
-                          aria-label="Visualizar parcelas"
-                        >
-                          <Visibility />
-                        </IconButton>
-                      </Tooltip>
-
-                      {activeTab === 'ativos' && (
-                        <Tooltip title="Arquivar acordo">
-                          <IconButton size="small" onClick={() => { setPendingActionAcordo({ tipo: 'arquivar', acordo }); setConfirmArquivarOpen(true); }} aria-label="Arquivar acordo">
-                            <Archive />
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                        <Tooltip title="Visualizar parcelas">
+                          <IconButton onClick={() => abrirDetalhes(acordo)} color="primary" aria-label="Visualizar parcelas">
+                            <Visibility />
                           </IconButton>
                         </Tooltip>
-                      )}
 
-                      {activeTab === 'finalizados' && (
-                        <Tooltip title="Desarquivar acordo">
-                          <IconButton size="small" color="inherit" onClick={() => { setPendingActionAcordo({ tipo: 'desarquivar', acordo }); setConfirmDesarquivarOpen(true); }} aria-label="Desarquivar acordo">
-                            <Unarchive />
-                          </IconButton>
+                        {activeTab === 'ativos' && (
+                          <Tooltip title="Arquivar acordo">
+                            <IconButton size="small" onClick={() => { setPendingActionAcordo({ tipo: 'arquivar', acordo }); setConfirmArquivarOpen(true); }} aria-label="Arquivar acordo">
+                              <Archive />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+
+                        {activeTab === 'finalizados' && (
+                          <Tooltip title="Desarquivar acordo">
+                            <IconButton size="small" color="inherit" onClick={() => { setPendingActionAcordo({ tipo: 'desarquivar', acordo }); setConfirmDesarquivarOpen(true); }} aria-label="Desarquivar acordo">
+                              <Unarchive />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+
+                        {/* Botão de excluir fica abaixo com comportamento de countdown */}
+                        <Tooltip title={'Excluir acordo'}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => {
+                                // abrir diálogo imediatamente e iniciar countdown dentro do diálogo
+                                setPendingDeleteAcordo(acordo);
+                                setConfirmDeleteOpen(true);
+                                // iniciar contagem caso não esteja rodando
+                                if (!Object.prototype.hasOwnProperty.call(deleteCountdowns, acordo.id) || (deleteCountdowns[acordo.id] === undefined)) {
+                                  startDeleteCountdown(acordo.id);
+                                }
+                              }}
+                              aria-label="Excluir acordo"
+                            >
+                              <Delete />
+                            </IconButton>
+                          </span>
                         </Tooltip>
-                      )}
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -438,37 +511,73 @@ const AcordosPage = () => {
         anchor="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        sx={{ '& .MuiDrawer-paper': { width: { xs: '100%', sm: 680 }, height: '100%' } }}
+        sx={{ '& .MuiDrawer-paper': { width: { xs: '100%', sm: 680 }, height: '100%', px: { xs: 2, sm: 3 }, pt: 0, pb: { xs: 2, sm: 3 } } }}
       >
+        
         {acordoSelecionado && (
-          <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
-            <Box sx={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'background.paper', pb: 1, pt: 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Avatar sx={{ bgcolor: 'primary.main' }}>
-                    {acordoSelecionado.nome_completo ? acordoSelecionado.nome_completo.split(' ').map(n => n[0]).slice(0,2).join('') : 'A'}
-                  </Avatar>
-                  <Box>
-                    <Typography variant="h6">{acordoSelecionado.nome_completo}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {acordoSelecionado.nome_bloco && acordoSelecionado.numero_apartamento ? `${acordoSelecionado.nome_bloco} • Apto ${acordoSelecionado.numero_apartamento}` : 'Sem vínculo ativo'} • {formatDate(acordoSelecionado.data_acordo)}
-                    </Typography>
+          <Box sx={{ p: 0, display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
+            {/* Header hero encostado no topo e nas laterais */}
+            <Box sx={{ position: 'sticky', top: 0, zIndex: 11, pb: 1, mt: { xs: -2, sm: -3 }, ml: { xs: -2, sm: -3 }, mr: { xs: -2, sm: -3 }, mb: 5 }}>
+              <Box sx={{ background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`, color: '#fff', p: 3, pt: 4, pb: 3, borderBottomLeftRadius: 12, borderBottomRightRadius: 12 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ position: 'relative', mr: 1 }}>
+                      <Avatar sx={{ bgcolor: theme.palette.success.main, color: '#fff', width: 86, height: 86, fontSize: 28, boxShadow: '0 6px 18px rgba(0,0,0,0.12)' }}>
+                        {acordoSelecionado.nome_completo ? acordoSelecionado.nome_completo.split(' ').map(n => n[0]).slice(0,2).join('').toUpperCase() : 'A'}
+                      </Avatar>
+                    </Box>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 700 }}>{acordoSelecionado.nome_completo}</Typography>
+                      <Typography variant="subtitle1" sx={{ color: 'rgba(255,255,255,0.78)', fontWeight: 600 }}>{acordoSelecionado.nome_bloco && acordoSelecionado.numero_apartamento ? `${acordoSelecionado.nome_bloco} • Apto ${acordoSelecionado.numero_apartamento}` : 'Sem vínculo ativo'}</Typography>
+                      <Typography variant="subtitle1" sx={{ color: 'rgba(255,255,255,0.78)', fontWeight: 500 }}>{formatDate(acordoSelecionado.data_acordo)}</Typography>
+                    </Box>
                   </Box>
-                </Stack>
-                <IconButton onClick={() => setDrawerOpen(false)} aria-label="Fechar painel">
-                  <Close />
-                </IconButton>
+
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                 
+                    <IconButton onClick={() => setDrawerOpen(false)} aria-label="Fechar painel" sx={{ bgcolor: 'error.main', color: '#fff', '&:hover': { bgcolor: 'error.dark' }, width: 40, height: 40 }}>
+                      <Close />
+                    </IconButton>
+                  </Box>
+                </Box>
               </Box>
-              <Divider sx={{ mt: 1 }} />
             </Box>
 
-            <Box sx={{ mt: 2, pb: 2 }}>
-              <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-                <Typography variant="subtitle2">Descrição</Typography>
-                <Typography sx={{ mt: 0.5 }}>{acordoSelecionado.descricao}</Typography>
-                <Box sx={{ mt: 1 }}>
-                  <Typography variant="subtitle2">Valor Total</Typography>
-                  <Typography sx={{ mt: 0.5, fontWeight: 600 }}>R$ {acordoSelecionado.valor_total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</Typography>
+            {/* Card resumo com valores e progresso */}
+            <Box sx={{ mt: 2, px: 2, pb: 2 }}>
+              <Paper elevation={3} sx={{ p: 2, borderRadius: 3, display: 'flex', gap: 2, alignItems: 'center', background: 'linear-gradient(90deg, rgba(255,255,255,0.98), rgba(250,250,250,0.92))' }}>
+                <Box sx={{ width: 92, height: 92, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                    <CircularProgress variant="determinate" value={percentPago} size={92} thickness={6} sx={{ color: percentPago === 100 ? theme.palette.success.main : theme.palette.primary.main }} />
+                    <Box sx={{ top: 0, left: 0, bottom: 0, right: 0, position: 'absolute', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700 }}>{percentPago}%</Typography>
+                    </Box>
+                  </Box>
+                </Box>
+
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle2" color="text.secondary">Resumo do Acordo</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.5 }}>R$ {Math.round((acordoSelecionado.valor_total || 0) * 100).toLocaleString('pt-BR')}</Typography>
+                  <Grid container spacing={1} sx={{ mt: 1 }}>
+                    <Grid item xs={4}>
+                      <Typography variant="caption" color="text.secondary">Entrada</Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>R$ {Math.round(entradaValor * 100).toLocaleString('pt-BR')}</Typography>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Typography variant="caption" color="text.secondary">Parcelas</Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{totalParcelas}x</Typography>
+                    </Grid>
+                    <Grid item xs={4}>
+                      <Typography variant="caption" color="text.secondary">Restante</Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>R$ {Math.round(esperadoValor * 100).toLocaleString('pt-BR')}</Typography>
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                  <Chip label={`Pagas ${pagasCount}`} color="success" size="small" />
+                  <Chip label={`Pendentes ${pendentesCount}`} color="warning" size="small" />
+                  {atrasadasCount > 0 && <Chip label={`Atrasadas ${atrasadasCount}`} color="error" size="small" />}
                 </Box>
               </Paper>
             </Box>
@@ -513,7 +622,7 @@ const AcordosPage = () => {
                         return (
                           <TableRow key={parcela.id} sx={{ backgroundColor: isOverdue ? 'rgba(255,0,0,0.03)' : 'inherit' }}>
                             <TableCell>{parcela.numero_parcela}</TableCell>
-                            <TableCell>R$ {parcela.valor_parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell>R$ {parcela.valor_parcela.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                             <TableCell>{formatDate(parcela.data_vencimento)}</TableCell>
                             <TableCell>
                               <Chip label={parcela.status_parcela} color={getParcelaColor(parcela.status_parcela)} size="small" />
@@ -657,6 +766,55 @@ const AcordosPage = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Dialog de confirmação: Excluir acordo */}
+      <Dialog open={confirmDeleteOpen} onClose={closeDeleteDialog}>
+        <DialogTitle>Excluir acordo</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>Esta ação é irreversível e removerá todas as parcelas relacionadas.</Alert>
+          <Typography>Tem certeza que deseja excluir o acordo de "{pendingDeleteAcordo?.nome_completo}"?</Typography>
+          {pendingDeleteAcordo && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              {deleteCountdowns[pendingDeleteAcordo.id] > 0 ? `Aguarde ${deleteCountdowns[pendingDeleteAcordo.id]}s para habilitar a exclusão.` : 'Pronto para excluir.'}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeDeleteDialog}>Cancelar</Button>
+          {/* Mostrar um IconButton no diálogo com a mesma proporção do botão de ações e exibir o contador */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 1 }}>
+            <Button
+              color="error"
+              variant="contained"
+              disabled={!(pendingDeleteAcordo && (deleteCountdowns[pendingDeleteAcordo.id] === 0))}
+              onClick={async () => {
+                if (!pendingDeleteAcordo) return;
+                try {
+                  const res = await window.electronAPI.invoke('delete-acordo', pendingDeleteAcordo.id);
+                  if (res && res.success) {
+                    setSnackbarSeverity('success'); setSnackbarMsg('Acordo excluído com sucesso'); setSnackbarOpen(true);
+                    carregarDados();
+                    closeDeleteDialog();
+                  } else {
+                    setSnackbarSeverity('error'); setSnackbarMsg(res.message || 'Erro ao excluir acordo'); setSnackbarOpen(true);
+                  }
+                } catch (err) {
+                  console.error('Erro ao excluir acordo:', err);
+                  setSnackbarSeverity('error'); setSnackbarMsg('Erro ao excluir acordo'); setSnackbarOpen(true);
+                }
+              }}
+              startIcon={pendingDeleteAcordo && (deleteCountdowns[pendingDeleteAcordo.id] === 0) ? <Delete /> : null}
+              sx={{ minWidth: 120, height: 40 }}
+            >
+              {pendingDeleteAcordo && (deleteCountdowns[pendingDeleteAcordo.id] > 0) ? (
+                <Typography sx={{ fontWeight: 800 }}>{deleteCountdowns[pendingDeleteAcordo.id]}</Typography>
+              ) : (
+                'Excluir'
+              )}
+            </Button>
+          </Box>
+        </DialogActions>
+      </Dialog>
+
       {/* Dialog de confirmação: Marcar parcela como paga (hoje) */}
       <Dialog open={confirmMarcarOpen} onClose={() => { setConfirmMarcarOpen(false); setPendingActionParcela(null); }}>
         <DialogTitle>Marcar parcela como paga</DialogTitle>
@@ -740,5 +898,4 @@ const AcordosPage = () => {
     </Box>
   );
 };
-
 export default AcordosPage;

@@ -165,7 +165,7 @@ function ProdutosPage() {
                     <Chip label={status.label} color={status.color} size="small" />
                   </TableCell>
                   <TableCell>
-                    R$ {produto.valor_unitario?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) || '0,00'}
+                    R$ {produto.valor_unitario?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0,00'}
                   </TableCell>
                   <TableCell>
                     <IconButton 

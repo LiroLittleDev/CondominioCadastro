@@ -114,7 +114,7 @@ function EstoquePage() {
                 Valor Total
               </Typography>
               <Typography variant="h4">
-                R$ {stats.valorTotalEstoque.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {stats.valorTotalEstoque.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </Typography>
             </CardContent>
           </Card>
