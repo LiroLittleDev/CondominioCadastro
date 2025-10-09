@@ -113,6 +113,17 @@ contextBridge.exposeInMainWorld("api", {
   // Atualizações
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
+  onUpdateStatus: (cb) => {
+    const listener = (_e, payload) => { try { cb(payload); } catch(_) {} };
+    ipcRenderer.on('update-status', listener);
+    return () => ipcRenderer.removeListener('update-status', listener);
+  },
+  onUpdateProgress: (cb) => {
+    const listener = (_e, payload) => { try { cb(payload); } catch(_) {} };
+    ipcRenderer.on('update-progress', listener);
+    return () => ipcRenderer.removeListener('update-progress', listener);
+  },
   // Agendamento de backups automáticos
   setBackupSchedule: (schedule) => ipcRenderer.invoke('set-backup-schedule', schedule),
   getBackupSchedule: () => ipcRenderer.invoke('get-backup-schedule'),

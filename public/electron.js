@@ -29,9 +29,18 @@ function setupAutoUpdate() {
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.on('error', (err) => console.warn('AutoUpdater error:', err?.message || err));
-    autoUpdater.on('update-available', (info) => console.info('Update available:', info?.version));
+    autoUpdater.on('update-available', (info) => {
+      console.info('Update available:', info?.version);
+      try { BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-status', { status: 'available', version: info?.version })); } catch(_) {}
+    });
     autoUpdater.on('update-not-available', () => console.info('No updates available'));
-    autoUpdater.on('update-downloaded', () => console.info('Update ready, will install on quit'));
+    autoUpdater.on('download-progress', (progress) => {
+      try { BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-progress', { percent: progress?.percent || 0 })); } catch(_) {}
+    });
+    autoUpdater.on('update-downloaded', (info) => {
+      console.info('Update ready, will install on quit');
+      try { BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-status', { status: 'downloaded', version: info?.version })); } catch(_) {}
+    });
     // Iniciar checagem
     setTimeout(() => { try { autoUpdater.checkForUpdatesAndNotify(); } catch(_) {} }, 3000);
   } catch (e) {
@@ -44,6 +53,16 @@ ipcMain.handle('check-for-updates', async () => {
     if (!app.isPackaged) return { success: false, message: 'Somente em produção' };
     const res = await autoUpdater.checkForUpdates();
     return { success: true, result: res?.updateInfo || null };
+  } catch (e) {
+    return { success: false, message: e?.message || String(e) };
+  }
+});
+
+ipcMain.handle('quit-and-install', async () => {
+  try {
+    if (!app.isPackaged) return { success: false, message: 'Somente em produção' };
+    setTimeout(() => { try { autoUpdater.quitAndInstall(); } catch(_) {} }, 200);
+    return { success: true };
   } catch (e) {
     return { success: false, message: e?.message || String(e) };
   }

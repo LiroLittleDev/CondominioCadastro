@@ -46,6 +46,7 @@ function SettingsPage() {
   const [clearBackupBeforeErase, setClearBackupBeforeErase] = useState(true);
   // Updates feedback
   const [updating, setUpdating] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState({ status: 'idle', version: null, progress: 0 });
 
   useEffect(() => {
     (async () => {
@@ -71,6 +72,24 @@ function SettingsPage() {
     })();
 
     return () => { try { if (deleteTimerRef.current) { clearInterval(deleteTimerRef.current); deleteTimerRef.current = null; } } catch (e) {} };
+  }, []);
+
+  // Listeners de update
+  useEffect(() => {
+    if (!window.api) return;
+    const offStatus = window.api.onUpdateStatus ? window.api.onUpdateStatus((p) => {
+      setUpdateInfo((prev) => ({ ...prev, status: p?.status || 'unknown', version: p?.version || prev.version }));
+      if (p?.status === 'available') setFeedback({ type: 'info', message: `Atualização disponível: v${p.version}. Baixando...` });
+      if (p?.status === 'downloaded') setFeedback({ type: 'success', message: `Atualização baixada: v${p.version}. Clique em Reiniciar para aplicar.` });
+    }) : null;
+    const offProg = window.api.onUpdateProgress ? window.api.onUpdateProgress((p) => {
+      const percent = typeof p?.percent === 'number' ? Math.max(0, Math.min(100, p.percent)) : 0;
+      setUpdateInfo((prev) => ({ ...prev, progress: percent }));
+    }) : null;
+    return () => {
+      try { if (typeof offStatus === 'function') offStatus(); } catch(_) {}
+      try { if (typeof offProg === 'function') offProg(); } catch(_) {}
+    };
   }, []);
 
   // Abre o Snackbar sempre que houver uma nova mensagem de feedback
@@ -263,7 +282,13 @@ function SettingsPage() {
 
   const handleOpenReleases = async () => {
     try {
-      await window.api.openExternal('https://github.com/LiroLittleDev/sgc-desktop/releases');
+      await window.api.openExternal('https://github.com/LiroLittleDev/SGC-CONDOMINIO/releases');
+    } catch (_) { /* ignore */ }
+  };
+
+  const handleRestartToUpdate = async () => {
+    try {
+      await window.api.quitAndInstall();
     } catch (_) { /* ignore */ }
   };
 
@@ -479,20 +504,28 @@ function SettingsPage() {
           <CloudUploadIcon sx={{ mr: 1 }} />
           <Typography variant="h6">Atualizações</Typography>
         </Box>
-        <Typography paragraph color="text.secondary">
-          O aplicativo verifica atualizações automaticamente em segundo plano. Você também pode:
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Button variant="contained" onClick={handleCheckUpdates} disabled={updating}>
-            {updating ? <CircularProgress size={18} sx={{ mr: 1 }} /> : null}
-            Verificar atualizações agora
-          </Button>
+        <Typography paragraph color="text.secondary">Versão atual: v{appVersion}</Typography>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 1 }}>
+          <Button variant="contained" onClick={handleCheckUpdates} disabled={updating} startIcon={<CloudUploadIcon />}>{updating ? <CircularProgress size={20} /> : 'Verificar atualizações agora'}</Button>
           <Button variant="outlined" onClick={handleOpenReleases}>Baixar manualmente (Releases)</Button>
+          {updateInfo?.status === 'downloaded' && (
+            <Button color="success" variant="contained" onClick={handleRestartToUpdate}>Reiniciar agora para atualizar</Button>
+          )}
         </Box>
-        <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
-          Se uma atualização estiver disponível, ela será baixada automaticamente e instalada ao fechar o aplicativo.
-        </Typography>
+        {updateInfo?.status === 'available' && (
+          <Alert severity="info" sx={{ mt: 1 }}>Baixando atualização v{updateInfo.version}...</Alert>
+        )}
+        {typeof updateInfo?.progress === 'number' && updateInfo.progress > 0 && updateInfo.progress < 100 && (
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">Progresso do download: {updateInfo.progress.toFixed(0)}%</Typography>
+          </Box>
+        )}
+        {updateInfo?.status === 'downloaded' && (
+          <Alert severity="success" sx={{ mt: 1 }}>Atualização baixada. Clique em "Reiniciar agora para atualizar".</Alert>
+        )}
       </Paper>
+
+      
 
       {/* Limpezas Específicas - seção separada abaixo de Import/Export */}
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
