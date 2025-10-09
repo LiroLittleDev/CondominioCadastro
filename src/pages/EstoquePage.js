@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Typography, Box, Grid, Card, CardContent, Button, IconButton } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import InventoryIcon from '@mui/icons-material/Inventory';
-import AddBoxIcon from '@mui/icons-material/AddBox';
-import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import WarningIcon from '@mui/icons-material/Warning';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -13,6 +11,7 @@ function EstoquePage() {
   const [stats, setStats] = useState({
     totalProdutos: 0,
     produtosBaixoEstoque: 0,
+    produtosSemEstoque: 0,
     valorTotalEstoque: 0,
     movimentacoesHoje: 0
   });
@@ -45,20 +44,7 @@ function EstoquePage() {
       path: '/estoque/movimentacoes',
       color: 'secondary'
     },
-    {
-      title: 'Nova Entrada',
-      description: 'Adicionar produtos ao estoque',
-      icon: <AddBoxIcon sx={{ fontSize: 40 }} />,
-      path: '/estoque/entrada',
-      color: 'success'
-    },
-    {
-      title: 'Nova Saída',
-      description: 'Retirar produtos do estoque',
-      icon: <RemoveCircleIcon sx={{ fontSize: 40 }} />,
-      path: '/estoque/saida',
-      color: 'error'
-    }
+    // Novas entradas/saídas foram removidas do menu principal — use Movimentações para ajustar estoque
   ];
 
   return (
@@ -72,62 +58,57 @@ function EstoquePage() {
         </Typography>
       </Box>
 
-      {/* Estatísticas */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+  {/* Estatísticas */}
+  <Grid container spacing={3} sx={{ mb: 4 }} justifyContent="center">
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
+          <Card sx={{ minHeight: 150, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
               <Typography color="textSecondary" gutterBottom>
                 Total de Produtos
               </Typography>
               <Typography variant="h4">
-                {stats.totalProdutos}
+                {stats.totalProdutos ?? 0}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography color="textSecondary" gutterBottom>
-                    Baixo Estoque
-                  </Typography>
-                  <Typography variant="h4" color={stats.produtosBaixoEstoque > 0 ? 'error' : 'inherit'}>
-                    {stats.produtosBaixoEstoque}
-                  </Typography>
-                </Box>
-                {stats.produtosBaixoEstoque > 0 && (
-                  <WarningIcon color="error" />
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
+          <Card sx={{ minHeight: 150, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
               <Typography color="textSecondary" gutterBottom>
-                Valor Total
+                Baixo Estoque
               </Typography>
-              <Typography variant="h4">
-                R$ {stats.valorTotalEstoque.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <Typography variant="h4" color={(stats.produtosBaixoEstoque ?? 0) > 0 ? 'warning.main' : 'inherit'}>
+                {stats.produtosBaixoEstoque ?? 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ minHeight: 150, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography color="textSecondary" gutterBottom>
+                Sem Estoque
+              </Typography>
+              <Typography variant="h4" color={(stats.produtosSemEstoque ?? 0) > 0 ? 'error' : 'inherit'}>
+                {stats.produtosSemEstoque ?? 0}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
         
+        {/* Card de Valor Total removido conforme solicitado */}
+        
         <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
+          <Card sx={{ minHeight: 150, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CardContent sx={{ textAlign: 'center' }}>
               <Typography color="textSecondary" gutterBottom>
                 Movimentações Hoje
               </Typography>
               <Typography variant="h4">
-                {stats.movimentacoesHoje}
+                {stats.movimentacoesHoje ?? 0}
               </Typography>
             </CardContent>
           </Card>
@@ -135,12 +116,16 @@ function EstoquePage() {
       </Grid>
 
       {/* Menu de Opções */}
-      <Grid container spacing={3}>
+      <Grid container spacing={3} justifyContent="center">
         {menuItems.map((item, index) => (
           <Grid item xs={12} sm={6} md={3} key={index}>
             <Card 
-              sx={{ 
+              sx={{
                 cursor: 'pointer',
+                minHeight: 200,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 '&:hover': { 
                   transform: 'scale(1.02)',
                   boxShadow: 6
@@ -166,24 +151,30 @@ function EstoquePage() {
       </Grid>
 
       {/* Alertas de Baixo Estoque */}
-      {stats.produtosBaixoEstoque > 0 && (
+      {(stats.produtosBaixoEstoque > 0 || stats.produtosSemEstoque > 0) && (
         <Box sx={{ mt: 4 }}>
           <Card sx={{ bgcolor: 'warning.light', color: 'warning.contrastText' }}>
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <WarningIcon sx={{ mr: 2 }} />
-                  <Typography variant="h6">
-                    {stats.produtosBaixoEstoque} produto(s) com estoque baixo
-                  </Typography>
-                </Box>
-                <Button 
-                  variant="contained" 
-                  color="warning"
-                  onClick={() => navigate('/estoque/produtos?filtro=baixo-estoque')}
-                >
-                  Ver Produtos
-                </Button>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                { (stats.produtosSemEstoque ?? 0) > 0 && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <WarningIcon sx={{ mr: 2 }} />
+                      <Typography variant="h6">{stats.produtosSemEstoque ?? 0} produto(s) sem estoque</Typography>
+                    </Box>
+                    <Button variant="contained" color="error" onClick={() => navigate('/estoque/produtos?filtro=sem-estoque')}>Ver Produtos</Button>
+                  </Box>
+                )}
+
+                { (stats.produtosBaixoEstoque ?? 0) > 0 && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <WarningIcon sx={{ mr: 2 }} />
+                      <Typography variant="h6">{stats.produtosBaixoEstoque ?? 0} produto(s) com estoque baixo</Typography>
+                    </Box>
+                    <Button variant="contained" color="warning" onClick={() => navigate('/estoque/produtos?filtro=baixo-estoque')}>Ver Produtos</Button>
+                  </Box>
+                )}
               </Box>
             </CardContent>
           </Card>

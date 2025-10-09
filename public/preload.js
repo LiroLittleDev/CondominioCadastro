@@ -74,6 +74,8 @@ contextBridge.exposeInMainWorld("api", {
   updateProduto: (produtoId, produtoData) => ipcRenderer.invoke('update-produto', produtoId, produtoData),
   getMovimentacoes: (filtros) => ipcRenderer.invoke('get-movimentacoes', filtros),
   createMovimentacao: (movimentacaoData) => ipcRenderer.invoke('create-movimentacao', movimentacaoData),
+  updateMovimentacao: (movimentacaoId, movimentacaoData) => ipcRenderer.invoke('update-movimentacao', movimentacaoId, movimentacaoData),
+  deleteMovimentacao: (movimentacaoId) => ipcRenderer.invoke('delete-movimentacao', movimentacaoId),
   
   // APIs do Sistema de Acordos
   getAcordos: (filtros) => ipcRenderer.invoke('get-acordos', filtros),
@@ -83,8 +85,7 @@ contextBridge.exposeInMainWorld("api", {
   getAcordosStats: () => ipcRenderer.invoke('get-acordos-stats'),
   searchPessoasAcordos: (termo) => ipcRenderer.invoke('search-pessoas-acordos', termo),
   debugCountPessoas: () => ipcRenderer.invoke('debug-count-pessoas'),
-  // Enviar mensagens de debug do renderer para o processo main (aparecerá no terminal do Electron)
-  sendDebug: (message) => ipcRenderer.send('renderer-debug', message),
+  // (dev) sendDebug removido — não expor função de debug do renderer no preload
   // Registrar um listener para mudanças de dados disparadas pelo main
   onDataChanged: (callback) => {
     const listener = () => callback();

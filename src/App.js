@@ -39,7 +39,6 @@ import SettingsPage from "./pages/SettingsPage";
 import EstoquePage from "./pages/EstoquePage";
 import ProdutosPage from "./pages/ProdutosPage";
 import MovimentacoesPage from "./pages/MovimentacoesPage";
-import MovimentacaoPage from "./pages/MovimentacaoPage";
 import AcordosPage from "./pages/AcordosPage";
 
 const drawerWidth = 240;
@@ -393,7 +392,6 @@ function App() {
             <Route path="/estoque" element={<EstoquePage />} />
             <Route path="/estoque/produtos" element={<ProdutosPage />} />
             <Route path="/estoque/movimentacoes" element={<MovimentacoesPage />} />
-            <Route path="/estoque/:tipo" element={<MovimentacaoPage />} />
             <Route path="/acordos" element={<AcordosPage />} />
           </Routes>
         </Box>

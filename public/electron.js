@@ -205,7 +205,7 @@ function createSplashWindow() {
     width: 500,
     height: 350,
     frame: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     transparent: false,
     center: true,
     resizable: false,
@@ -227,7 +227,7 @@ function createMainWindow() {
     width: 1200,
     height: 800,
     show: false,
-    alwaysOnTop: true,
+    alwaysOnTop: false,
     resizable: false,
     maximizable: false,
     autoHideMenuBar: true,
@@ -245,6 +245,48 @@ function createMainWindow() {
 
   // Carrega a aplicação
   const isDev = process.env.NODE_ENV === 'development';
+
+  // Filtrar mensagens ruidosas do DevTools (por exemplo, Autofill protocol) para não poluir o log
+  // Usar a assinatura moderna: receber um único objeto de evento com as propriedades de mensagem
+  mainWindow.webContents.on('console-message', (event) => {
+    try {
+      // Alguns lançamentos do Electron usam um objeto com { level, message, sourceId, line }
+      // Em outros casos, pode haver um campo `args` com os argumentos do console.
+      const level = event?.level ?? 0;
+
+      let message = '';
+      if (typeof event?.message === 'string' && event.message.length > 0) {
+        message = event.message;
+      } else if (Array.isArray(event?.args) && event.args.length > 0) {
+        message = event.args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+      }
+
+      // Se não conseguimos extrair mensagem, não poluir o log
+      if (!message) return;
+
+      // Ignorar mensagens ruidosas/esperadas do DevTools e bibliotecas:
+      const ignorePatterns = [
+        'Autofill.enable',
+        'Autofill.setAddresses',
+        'Download the React DevTools',
+        'React DevTools',
+        'Electron Security Warning (Insecure Content-Security-Policy)',
+        'React Router Future Flag Warning'
+      ];
+
+      for (const pat of ignorePatterns) {
+        if (message.includes(pat)) return;
+      }
+
+      // Encaminhar mensagens relevantes para o terminal principal (mantendo o nível)
+      if (level === 2) console.error(`[renderer] ${message}`);
+      else if (level === 1) console.warn(`[renderer] ${message}`);
+      else console.log(`[renderer] ${message}`);
+    } catch (err) {
+      // Se houver problema ao inspecionar a mensagem, apenas seguir adiante
+    }
+  });
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:3000');
   } else {
@@ -253,11 +295,13 @@ function createMainWindow() {
   // Em desenvolvimento, abrir DevTools para inspecionar erros do renderer
   try {
     if (isDev) {
-      mainWindow.webContents.openDevTools({ mode: 'detach' });
+      // Não abrir DevTools automaticamente em desenvolvimento para evitar sobreposição
+      // mainWindow.webContents.openDevTools({ mode: 'detach' });
     }
   } catch (e) {
     console.error('Não foi possível abrir DevTools:', e);
   }
+
 
   // Listeners úteis para diagnosticar tela branca / falhas do renderer
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
@@ -286,9 +330,8 @@ function createMainWindow() {
       if (splashWindow) {
         splashWindow.close();
       }
-      mainWindow.show();
-      mainWindow.focus();
-      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+  mainWindow.show();
+  mainWindow.focus();
     }, 3000);
   });
 }
@@ -1594,6 +1637,17 @@ ipcMain.handle('get-estoque-stats', async () => {
       .whereRaw('COALESCE(estoque.estoque_atual, 0) <= produtos.estoque_minimo')
       .count('produtos.id as count');
     
+    const produtosSemEstoque = await knex('produtos')
+      .leftJoin(knex.raw(`(
+        SELECT produto_id, 
+               SUM(CASE WHEN tipo = 'ENTRADA' THEN quantidade ELSE -quantidade END) as estoque_atual
+        FROM movimentacoes_estoque 
+        GROUP BY produto_id
+      ) as estoque`), 'produtos.id', 'estoque.produto_id')
+      .where('produtos.ativo', true)
+      .whereRaw('COALESCE(estoque.estoque_atual, 0) = 0')
+      .count('produtos.id as count');
+    
     const [movimentacoesHoje] = await knex('movimentacoes_estoque')
       .whereRaw('DATE(data_movimentacao) = DATE("now")')
       .count('id as count');
@@ -1601,12 +1655,13 @@ ipcMain.handle('get-estoque-stats', async () => {
     return {
       totalProdutos: totalProdutos.count,
       produtosBaixoEstoque: produtosBaixoEstoque[0].count,
+      produtosSemEstoque: produtosSemEstoque[0].count,
       valorTotalEstoque: valorTotal.total || 0,
       movimentacoesHoje: movimentacoesHoje.count
     };
   } catch (error) {
     console.error('Erro ao buscar estatísticas do estoque:', error);
-    return { totalProdutos: 0, produtosBaixoEstoque: 0, valorTotalEstoque: 0, movimentacoesHoje: 0 };
+    return { totalProdutos: 0, produtosBaixoEstoque: 0, produtosSemEstoque: 0, valorTotalEstoque: 0, movimentacoesHoje: 0 };
   }
 });
 
@@ -1673,7 +1728,26 @@ ipcMain.handle('delete-produto', async (event, produtoId) => {
 
 ipcMain.handle('create-produto', async (event, produtoData) => {
   try {
-    await knex('produtos').insert(produtoData);
+    // produtoData pode conter `quantidade_inicial` que não é coluna da tabela produtos
+    const quantidadeInicial = produtoData.quantidade_inicial ? parseInt(produtoData.quantidade_inicial, 10) : 0;
+    // Remover campo não existente antes de inserir
+    const toInsert = { ...produtoData };
+    delete toInsert.quantidade_inicial;
+
+    // Inserir o produto e obter o id
+    const inserted = await knex('produtos').insert(toInsert).returning('id');
+    const produtoId = Array.isArray(inserted) ? (inserted[0].id || inserted[0]) : inserted;
+
+    // Se foi enviada uma quantidade inicial, criar movimentação do tipo ENTRADA
+    if (quantidadeInicial && quantidadeInicial > 0) {
+      await knex('movimentacoes_estoque').insert({
+        produto_id: produtoId,
+        tipo: 'ENTRADA',
+        quantidade: quantidadeInicial,
+        motivo: 'Quantidade inicial ao criar produto'
+      });
+    }
+
     return { success: true, message: 'Produto criado com sucesso!' };
   } catch (error) {
     console.error('Erro ao criar produto:', error);
@@ -1724,10 +1798,83 @@ ipcMain.handle('get-movimentacoes', async (event, filtros = {}) => {
 
 ipcMain.handle('create-movimentacao', async (event, movimentacaoData) => {
   try {
+    // validar quantidade e produto
+    const quantidade = parseInt(movimentacaoData.quantidade, 10) || 0;
+    if (!movimentacaoData.produto_id) return { success: false, message: 'Produto obrigatório' };
+    if (quantidade <= 0) return { success: false, message: 'Quantidade deve ser maior que zero' };
+
+    // calcular estoque atual do produto
+    const [{ estoque_atual = 0 }] = await knex('movimentacoes_estoque')
+      .where('produto_id', movimentacaoData.produto_id)
+      .select(knex.raw('COALESCE(SUM(CASE WHEN tipo = "ENTRADA" THEN quantidade ELSE -quantidade END), 0) as estoque_atual'));
+
+    const tipo = String(movimentacaoData.tipo || '').toUpperCase();
+    const novoEstoque = tipo === 'ENTRADA' ? (estoque_atual + quantidade) : (estoque_atual - quantidade);
+    if (novoEstoque < 0) {
+      return { success: false, message: 'Operação inválida: estoque não pode ficar negativo' };
+    }
+
     await knex('movimentacoes_estoque').insert(movimentacaoData);
     return { success: true, message: 'Movimentação registrada com sucesso!' };
   } catch (error) {
     console.error('Erro ao criar movimentação:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+ipcMain.handle('update-movimentacao', async (event, movimentacaoId, movimentacaoData) => {
+  try {
+    // recuperar movimentação existente
+    const existing = await knex('movimentacoes_estoque').where('id', movimentacaoId).first();
+    if (!existing) return { success: false, message: 'Movimentação não encontrada' };
+
+    const quantidadeNova = parseInt(movimentacaoData.quantidade, 10) || 0;
+    if (quantidadeNova <= 0) return { success: false, message: 'Quantidade deve ser maior que zero' };
+
+    // calcular estoque atual
+    const [{ estoque_atual = 0 }] = await knex('movimentacoes_estoque')
+      .where('produto_id', existing.produto_id)
+      .select(knex.raw('COALESCE(SUM(CASE WHEN tipo = "ENTRADA" THEN quantidade ELSE -quantidade END), 0) as estoque_atual'));
+
+    // remover efeito da movimentação existente
+    const efeitoExistente = (String(existing.tipo).toUpperCase() === 'ENTRADA') ? existing.quantidade : -existing.quantidade;
+    const estoqueSemExistente = estoque_atual - efeitoExistente;
+
+    const tipoNovo = String(movimentacaoData.tipo || existing.tipo).toUpperCase();
+    const efeitoNovo = (tipoNovo === 'ENTRADA') ? quantidadeNova : -quantidadeNova;
+    const novoEstoque = estoqueSemExistente + efeitoNovo;
+    if (novoEstoque < 0) {
+      return { success: false, message: 'Operação inválida: atualização deixaria estoque negativo' };
+    }
+
+    await knex('movimentacoes_estoque').where('id', movimentacaoId).update(movimentacaoData);
+    return { success: true, message: 'Movimentação atualizada com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao atualizar movimentação:', error);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+ipcMain.handle('delete-movimentacao', async (event, movimentacaoId) => {
+  try {
+    const existing = await knex('movimentacoes_estoque').where('id', movimentacaoId).first();
+    if (!existing) return { success: false, message: 'Movimentação não encontrada' };
+
+    // calcular estoque atual
+    const [{ estoque_atual = 0 }] = await knex('movimentacoes_estoque')
+      .where('produto_id', existing.produto_id)
+      .select(knex.raw('COALESCE(SUM(CASE WHEN tipo = "ENTRADA" THEN quantidade ELSE -quantidade END), 0) as estoque_atual'));
+
+    const efeitoExistente = (String(existing.tipo).toUpperCase() === 'ENTRADA') ? existing.quantidade : -existing.quantidade;
+    const novoEstoque = estoque_atual - efeitoExistente; // estoque sem esta movimentação
+    if (novoEstoque < 0) {
+      return { success: false, message: 'Operação inválida: exclusão deixaria estoque negativo' };
+    }
+
+    await knex('movimentacoes_estoque').where('id', movimentacaoId).del();
+    return { success: true, message: 'Movimentação excluída com sucesso!' };
+  } catch (error) {
+    console.error('Erro ao excluir movimentação:', error);
     return { success: false, message: `Erro: ${error.message}` };
   }
 });
@@ -2031,14 +2178,7 @@ ipcMain.handle('debug-count-pessoas', async () => {
   }
 });
 
-// Recebe mensagens de debug do renderer e escreve no terminal do Electron
-ipcMain.on('renderer-debug', (event, message) => {
-  try {
-    console.log(`[renderer-debug] ${new Date().toISOString()} - ${message}`);
-  } catch (err) {
-    console.error('Erro ao receber debug do renderer:', err);
-  }
-});
+
 
 // Handler para desmarcar parcela como paga (reverter)
 ipcMain.handle('desmarcar-parcela-paga', async (event, parcelaId) => {

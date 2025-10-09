@@ -11,6 +11,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import WarningIcon from '@mui/icons-material/Warning';
+import InventoryIcon from '@mui/icons-material/Inventory';
 import ProdutoModal from '../components/ProdutoModal';
 
 function ProdutosPage() {
@@ -73,13 +74,24 @@ function ProdutosPage() {
             Produtos
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setProdutoModal({ open: true, produto: null })}
-        >
-          Novo Produto
-        </Button>
+        <Box>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<InventoryIcon />}
+            onClick={() => navigate('/estoque/movimentacoes')}
+            sx={{ mr: 1 }}
+          >
+            Ajustar Estoque
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setProdutoModal({ open: true, produto: null })}
+          >
+            Novo Produto
+          </Button>
+        </Box>
       </Box>
 
       {/* Filtros */}
@@ -132,13 +144,13 @@ function ProdutosPage() {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Nome</TableCell>
-              <TableCell>Categoria</TableCell>
-              <TableCell>Estoque Atual</TableCell>
-              <TableCell>Estoque Mínimo</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Valor Unit.</TableCell>
-              <TableCell>Ações</TableCell>
+              <TableCell align="center">Nome</TableCell>
+              <TableCell align="center">Categoria</TableCell>
+              <TableCell align="center">Estoque Atual</TableCell>
+              <TableCell align="center">Estoque Mínimo</TableCell>
+              <TableCell align="center">Status</TableCell>
+              
+              <TableCell align="center">Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -146,28 +158,28 @@ function ProdutosPage() {
               const status = getEstoqueStatus(produto);
               return (
                 <TableRow key={produto.id}>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight="medium">
+                  <TableCell align="center">
+                    <Typography variant="body2" fontWeight="medium" align="center">
                       {produto.nome}
                     </Typography>
                   </TableCell>
-                  <TableCell>{produto.categoria_nome}</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <TableCell align="center">{produto.categoria_nome}</TableCell>
+                  <TableCell align="center">
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {produto.estoque_atual || 0} {produto.unidade_medida}
                       {status.color === 'warning' && (
                         <WarningIcon color="warning" sx={{ ml: 1, fontSize: 16 }} />
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell>{produto.estoque_minimo} {produto.unidade_medida}</TableCell>
-                  <TableCell>
-                    <Chip label={status.label} color={status.color} size="small" />
+                  <TableCell align="center">{produto.estoque_minimo} {produto.unidade_medida}</TableCell>
+                  <TableCell align="center">
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Chip label={status.label} color={status.color} size="small" />
+                    </Box>
                   </TableCell>
-                  <TableCell>
-                    R$ {produto.valor_unitario?.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0,00'}
-                  </TableCell>
-                  <TableCell>
+                  
+                  <TableCell align="center">
                     <IconButton 
                       size="small" 
                       onClick={() => setProdutoModal({ open: true, produto })}

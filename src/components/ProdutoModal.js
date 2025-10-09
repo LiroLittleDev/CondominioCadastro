@@ -17,11 +17,10 @@ function ProdutoModal({ open, handleClose, produto, onSuccess }) {
   const [formData, setFormData] = useState({
     nome: '',
     categoria_id: '',
-    unidade_medida: 'un',
-    estoque_minimo: 0,
-    valor_unitario: 0
+    estoque_minimo: 0
   });
   const [categorias, setCategorias] = useState([]);
+  const [estoqueMinimoOption, setEstoqueMinimoOption] = useState('0');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -32,18 +31,19 @@ function ProdutoModal({ open, handleClose, produto, onSuccess }) {
         setFormData({
           nome: produto.nome || '',
           categoria_id: produto.categoria_id || '',
-          unidade_medida: produto.unidade_medida || 'un',
-          estoque_minimo: produto.estoque_minimo || 0,
-          valor_unitario: produto.valor_unitario || 0
+          estoque_minimo: produto.estoque_minimo || 0
         });
+        // inicializar opção do select para estoque mínimo
+        const presets = ['0','1','2','5','10','20','50','100'];
+        const s = String(produto.estoque_minimo || 0);
+        setEstoqueMinimoOption(presets.includes(s) ? s : 'other');
       } else {
         setFormData({
           nome: '',
           categoria_id: '',
-          unidade_medida: 'un',
-          estoque_minimo: 0,
-          valor_unitario: 0
+          estoque_minimo: 0
         });
+        setEstoqueMinimoOption('0');
       }
       setError('');
     }
@@ -70,10 +70,21 @@ function ProdutoModal({ open, handleClose, produto, onSuccess }) {
 
     setLoading(true);
     try {
-      const result = produto 
-        ? await window.api.updateProduto(produto.id, formData)
-        : await window.api.createProduto(formData);
-      
+      let result;
+      if (produto) {
+        // Ao editar, por aqui apenas atualizamos nome e categoria (ações restritas)
+        const updateData = { nome: formData.nome, categoria_id: formData.categoria_id };
+        result = await window.api.updateProduto(produto.id, updateData);
+      } else {
+        // Ao criar, enviamos apenas os campos necessários: nome, categoria e estoque_minimo
+        const createData = {
+          nome: formData.nome,
+          categoria_id: formData.categoria_id,
+          estoque_minimo: parseInt(formData.estoque_minimo, 10) || 0
+        };
+        result = await window.api.createProduto(createData);
+      }
+
       if (result.success) {
         onSuccess();
         handleClose();
@@ -121,46 +132,49 @@ function ProdutoModal({ open, handleClose, produto, onSuccess }) {
               </Select>
             </FormControl>
           </Grid>
+          {/* sem campo de status: o sistema determina sem/baixo/normal pelo estoque */}
+          {/* Estoque mínimo: selecionar entre presets ou 'Outro' para valor customizado */}
           <Grid item xs={12} sm={4}>
             <FormControl fullWidth>
-              <InputLabel>Unidade de Medida</InputLabel>
+              <InputLabel>Estoque Mínimo</InputLabel>
               <Select
-                value={formData.unidade_medida}
-                label="Unidade de Medida"
-                onChange={(e) => setFormData({...formData, unidade_medida: e.target.value})}
+                value={estoqueMinimoOption}
+                label="Estoque Mínimo"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setEstoqueMinimoOption(val);
+                  if (val === 'other') {
+                    // manter o valor atual em formData
+                    setFormData({...formData});
+                  } else {
+                    setFormData({...formData, estoque_minimo: parseInt(val, 10) || 0});
+                  }
+                }}
               >
-                <MenuItem value="un">Unidade</MenuItem>
-                <MenuItem value="kg">Quilograma</MenuItem>
-                <MenuItem value="l">Litro</MenuItem>
-                <MenuItem value="m">Metro</MenuItem>
-                <MenuItem value="m²">Metro²</MenuItem>
-                <MenuItem value="cx">Caixa</MenuItem>
-                <MenuItem value="pct">Pacote</MenuItem>
-                <MenuItem value="gl">Galão</MenuItem>
+                <MenuItem value="0">0</MenuItem>
+                <MenuItem value="1">1</MenuItem>
+                <MenuItem value="2">2</MenuItem>
+                <MenuItem value="5">5</MenuItem>
+                <MenuItem value="10">10</MenuItem>
+                <MenuItem value="20">20</MenuItem>
+                <MenuItem value="50">50</MenuItem>
+                <MenuItem value="100">100</MenuItem>
+                <MenuItem value="other">Outro...</MenuItem>
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              label="Estoque Mínimo"
-              type="number"
-              value={formData.estoque_minimo}
-              onChange={(e) => setFormData({...formData, estoque_minimo: parseInt(e.target.value) || 0})}
-              inputProps={{ min: 0 }}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <TextField
-              fullWidth
-              label="Valor Unitário (R$)"
-              type="number"
-              step="0.01"
-              value={formData.valor_unitario}
-              onChange={(e) => setFormData({...formData, valor_unitario: parseFloat(e.target.value) || 0})}
-              inputProps={{ min: 0, step: 0.01 }}
-            />
-          </Grid>
+          {estoqueMinimoOption === 'other' && (
+            <Grid item xs={12} sm={4}>
+              <TextField
+                fullWidth
+                label="Estoque Mínimo (outro)"
+                type="number"
+                value={formData.estoque_minimo}
+                onChange={(e) => setFormData({...formData, estoque_minimo: parseInt(e.target.value, 10) || 0})}
+                inputProps={{ min: 0, inputMode: 'numeric', pattern: '[0-9]*', style: { appearance: 'textfield' } }}
+              />
+            </Grid>
+          )}
         </Grid>
 
         {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}

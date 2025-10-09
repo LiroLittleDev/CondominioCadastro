@@ -7,6 +7,9 @@ module.exports = {
     useNullAsDefault: true, // Padrão recomendado para SQLite
     migrations: {
       directory: './db/migrations' // Pasta para os scripts de criação de tabelas
+    },
+    seeds: {
+      directory: './db/migrations' // Pasta para os arquivos de seed
     }
   }
 };
