@@ -25,15 +25,23 @@ if (isDev) {
 // Auto update (somente quando empacotado)
 function setupAutoUpdate() {
   try {
-    if (!app.isPackaged) return;
-    autoUpdater.autoDownload = true;
+    // Em desenvolvimento, o electron-updater usa dev-app-update.yml se presente.
+    if (!app.isPackaged) {
+      console.info('AutoUpdate: modo desenvolvimento — forçando uso do dev-app-update.yml.');
+      try { autoUpdater.forceDevUpdateConfig = true; } catch(_) {}
+    }
+    // Não baixar automaticamente: perguntaremos ao usuário no renderer
+    autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.on('error', (err) => console.warn('AutoUpdater error:', err?.message || err));
     autoUpdater.on('update-available', (info) => {
       console.info('Update available:', info?.version);
       try { BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-status', { status: 'available', version: info?.version })); } catch(_) {}
     });
-    autoUpdater.on('update-not-available', () => console.info('No updates available'));
+    autoUpdater.on('update-not-available', () => {
+      console.info('No updates available');
+      try { BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-status', { status: 'not-available' })); } catch(_) {}
+    });
     autoUpdater.on('download-progress', (progress) => {
       try { BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-progress', { percent: progress?.percent || 0 })); } catch(_) {}
     });
@@ -41,8 +49,8 @@ function setupAutoUpdate() {
       console.info('Update ready, will install on quit');
       try { BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-status', { status: 'downloaded', version: info?.version })); } catch(_) {}
     });
-    // Iniciar checagem
-    setTimeout(() => { try { autoUpdater.checkForUpdatesAndNotify(); } catch(_) {} }, 3000);
+    // Iniciar checagem (não baixa automaticamente por causa do autoDownload=false)
+    setTimeout(() => { try { autoUpdater.checkForUpdates(); } catch(_) {} }, 3000);
   } catch (e) {
     console.warn('Failed to initialize auto-updater:', e?.message || e);
   }
@@ -50,7 +58,6 @@ function setupAutoUpdate() {
 
 ipcMain.handle('check-for-updates', async () => {
   try {
-    if (!app.isPackaged) return { success: false, message: 'Somente em produção' };
     const res = await autoUpdater.checkForUpdates();
     return { success: true, result: res?.updateInfo || null };
   } catch (e) {
@@ -62,6 +69,16 @@ ipcMain.handle('quit-and-install', async () => {
   try {
     if (!app.isPackaged) return { success: false, message: 'Somente em produção' };
     setTimeout(() => { try { autoUpdater.quitAndInstall(); } catch(_) {} }, 200);
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: e?.message || String(e) };
+  }
+});
+
+ipcMain.handle('download-update', async () => {
+  try {
+    if (!app.isPackaged) return { success: false, message: 'Somente em produção' };
+    await autoUpdater.downloadUpdate();
     return { success: true };
   } catch (e) {
     return { success: false, message: e?.message || String(e) };

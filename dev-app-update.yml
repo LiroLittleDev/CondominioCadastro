@@ -1,0 +1,6 @@
+provider: github
+owner: LiroLittleDev
+repo: SGC-CONDOMINIO
+# releaseType: release  # uncomment if you want to ignore drafts/prereleases
+# For private repos, set GH_TOKEN in env before running the app in dev.
+# updaterCacheDirName is optional; defaults based on app name.
