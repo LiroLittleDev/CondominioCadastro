@@ -19,6 +19,9 @@ import {
   Chip,
   Avatar
 } from "@mui/material";
+import { Drawer, Divider, IconButton, Alert } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { Link } from "react-router-dom";
 import HomeWorkIcon from "@mui/icons-material/HomeWork";
 import PeopleIcon from "@mui/icons-material/People";
@@ -77,6 +80,10 @@ function HomePage() {
   const [resultados, setResultados] = useState([]);
   const [buscando, setBuscando] = useState(false);
   const [cadastroRapidoOpen, setCadastroRapidoOpen] = useState(false);
+  // Prompt de primeira execução para criação da estrutura
+  const [setupOpen, setSetupOpen] = useState(false);
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupFeedback, setSetupFeedback] = useState({ type: "", message: "" });
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -86,6 +93,29 @@ function HomePage() {
       setLoadingStats(false);
     };
     fetchStats();
+  }, []);
+
+  // Checagem inicial: se não há blocos ainda e o usuário não dispensou o aviso, sugere criar estrutura
+  useEffect(() => {
+    const checkFirstRun = async () => {
+      try {
+        const dismissed = localStorage.getItem("setupPromptDismissed");
+        if (dismissed === "true") return;
+        const blocos = await window.api.getAllBlocos?.();
+        if (Array.isArray(blocos) && blocos.length === 0) {
+          setSetupOpen(true);
+        }
+      } catch (e) {
+        // Se a API específica não existir, tenta a versão básica
+        try {
+          const blocosBasic = await window.api.getBlocos();
+          if (Array.isArray(blocosBasic) && blocosBasic.length === 0) {
+            setSetupOpen(true);
+          }
+        } catch (_) { /* ignora */ }
+      }
+    };
+    checkFirstRun();
   }, []);
 
   useEffect(() => {
@@ -125,6 +155,34 @@ function HomePage() {
 
   const highlightMatch = (text = "") => {
     return text;
+  };
+
+  const handleRunSetup = async () => {
+    setSetupBusy(true);
+    setSetupFeedback({ type: "", message: "" });
+    try {
+      const result = await window.api.runSetup();
+      if (result?.success) {
+        setSetupFeedback({ type: "success", message: result.message || "Estrutura criada com sucesso!" });
+        // Atualiza stats e fecha o drawer após curto delay
+        setTimeout(async () => {
+          const data = await window.api.getDashboardStats();
+          setStats(data);
+          setSetupOpen(false);
+        }, 1200);
+      } else {
+        setSetupFeedback({ type: "error", message: result?.message || "Não foi possível criar a estrutura." });
+      }
+    } catch (e) {
+      setSetupFeedback({ type: "error", message: e.message || "Erro ao criar estrutura." });
+    } finally {
+      setSetupBusy(false);
+    }
+  };
+
+  const handleDismissSetup = () => {
+    localStorage.setItem("setupPromptDismissed", "true");
+    setSetupOpen(false);
   };
 
   return (
@@ -469,6 +527,46 @@ function HomePage() {
           fetchStats();
         }}
       />
+
+              {/* Drawer lateral para configuração inicial */}
+              <Drawer anchor="right" open={setupOpen} onClose={handleDismissSetup} PaperProps={{ sx: { width: { xs: 340, sm: 420 } } }}>
+                <Box sx={{ p: 2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <SettingsIcon color="primary" />
+                    <Typography variant="h6">Configuração inicial</Typography>
+                  </Box>
+                  <IconButton onClick={handleDismissSetup} aria-label="Fechar">
+                    <CloseIcon />
+                  </IconButton>
+                </Box>
+                <Divider />
+                <Box sx={{ p: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+                  <Typography variant="body1">
+                    Não encontramos a estrutura do condomínio. Você pode criar automaticamente agora ou acessar as configurações para personalizar depois. Esta ação serve para criar o banco de dados de armazenamento de todo o sistema.
+                  </Typography>
+                  {setupFeedback.message && (
+                    <Alert severity={setupFeedback.type}>
+                      {setupFeedback.message}
+                    </Alert>
+                  )}
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mt: 1 }}>
+                    <Button variant="contained" onClick={handleRunSetup} disabled={setupBusy} startIcon={<SettingsIcon />}> 
+                      {setupBusy ? <CircularProgress size={22} sx={{ color: "white" }} /> : "Criar estrutura agora"}
+                    </Button>
+                    <Button variant="outlined" component={Link} to="/settings">
+                      Abrir configurações
+                    </Button>
+                    <Button variant="text" onClick={handleDismissSetup} color="inherit">
+                      Lembrar mais tarde
+                    </Button>
+                  </Box>
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Esta ação criará blocos, entradas e unidades padrão. Você poderá editar depois.
+                    </Typography>
+                  </Box>
+                </Box>
+              </Drawer>
     </Box>
   );
 }

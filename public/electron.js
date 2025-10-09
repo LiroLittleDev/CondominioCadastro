@@ -180,6 +180,20 @@ const knex = require("knex")({
   }
 });
 
+// Utilitário de migração leve: garante colunas ausentes em bases já existentes
+async function ensureColumn(tableName, columnName, builderFn) {
+  try {
+    const exists = await knex.schema.hasColumn(tableName, columnName);
+    if (!exists) {
+      console.info(`Atualizando schema: adicionando coluna ${columnName} em ${tableName}...`);
+      await knex.schema.alterTable(tableName, builderFn);
+      console.info(`✅ Coluna ${columnName} adicionada em ${tableName}`);
+    }
+  } catch (e) {
+    console.warn(`Falha ao garantir coluna ${columnName} em ${tableName}:`, e.message);
+  }
+}
+
 // Função para inicializar banco
 async function initializeDatabase() {
   try {
@@ -326,6 +340,11 @@ async function initializeDatabase() {
         
         console.log('✅ Tabelas de estoque criadas!');
       }
+
+      // Migrações leves: garantir colunas ausentes em DBs antigos
+      // pessoas.rg é usada em cadastros; alguns bancos antigos podem não ter esta coluna
+      await ensureColumn('pessoas', 'rg', (table) => table.string('rg', 27));
+
       console.log('✅ Banco de dados já existe e está pronto!');
     }
   } catch (error) {
