@@ -25,7 +25,7 @@ import LinkOffIcon from "@mui/icons-material/LinkOff";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import PageHeader from '../components/PageHeader';
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import VincularPessoaModal from "../components/VincularPessoaModal";
 import EditarPessoaModal from "../components/EditarPessoaModal";
@@ -145,15 +145,12 @@ function UnidadePage() {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-        <IconButton onClick={() => navigate(-1)} sx={{ mr: 1 }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" component="h1">
-          Gerenciar Unidade: {unidade.nome_bloco} / Apto{" "}
-          {unidade.numero_apartamento}
-        </Typography>
-      </Box>
+      <PageHeader 
+        title={`Gerenciar Unidade: ${unidade.nome_bloco} / Apto ${unidade.numero_apartamento}`}
+        showBack={true}
+        onBack={() => navigate(-1)}
+        mb={3}
+      />
 
       <Paper elevation={3} sx={{ p: 3 }}>
         <Box

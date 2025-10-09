@@ -1,7 +1,9 @@
+// import { useNavigate } from "react-router-dom"; // removido (não utilizado)
 import React, { useState, useEffect } from 'react';
-import { Typography, Box, Paper, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { Typography, Box, Paper, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+// import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import PageHeader from '../components/PageHeader';
 import { useCallback } from 'react';
 
 function UnidadesListPage() {
@@ -48,14 +50,7 @@ useEffect(() => {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <IconButton onClick={() => navigate(-1)} sx={{ mr: 1 }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" component="h1">
-          Lista Completa de Unidades
-        </Typography>
-      </Box>
+      <PageHeader title="Lista Completa de Unidades" />
 
       <Paper elevation={3} sx={{ p: 2, mb: 3 }}>
         <FormControl fullWidth>

@@ -106,6 +106,8 @@ function SettingsPage() {
         link.click();
         URL.revokeObjectURL(url);
         setFeedback({ type: 'success', message: `Backup realizado com sucesso! Incluiu DB: ${includeDb ? 'Sim' : 'Não'}` });
+        try { localStorage.setItem('lastBackupRun', new Date().toISOString()); } catch(e) { /* ignore */ }
+        try { window.dispatchEvent(new CustomEvent('backup:done', { detail: new Date().toISOString() })); } catch(e) { /* ignore */ }
       } else {
         setFeedback({ type: 'error', message: result.message });
       }
@@ -208,7 +210,13 @@ function SettingsPage() {
     setProgressMessage('Executando backup agora...');
     const res = await window.api.runBackupNow({ includeDb: scheduleIncludeDb });
     setProgressMessage('');
-    if (res && res.success) { setFeedback({ type: 'success', message: `Backup salvo em: ${res.path}` }); setScheduleInfo(prev => ({ ...prev, lastRun: new Date().toISOString() })); }
+    if (res && res.success) { 
+      setFeedback({ type: 'success', message: `Backup salvo em: ${res.path}` });
+      const ts = new Date().toISOString();
+      setScheduleInfo(prev => ({ ...prev, lastRun: ts }));
+      try { localStorage.setItem('lastBackupRun', ts); } catch(e) { /* ignore */ }
+      try { window.dispatchEvent(new CustomEvent('backup:done', { detail: ts })); } catch(e) { /* ignore */ }
+    }
     else setFeedback({ type: 'error', message: res?.message || 'Erro ao executar backup agora' });
     setLoading(false);
   };

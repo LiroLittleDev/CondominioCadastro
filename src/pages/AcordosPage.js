@@ -7,6 +7,8 @@ import {
   TableCell, TableContainer, TableHead, TableRow, Paper, Chip, IconButton,
   Drawer, TextField, LinearProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Avatar, Snackbar, Alert, CircularProgress, Tabs, Tab, Badge
 } from '@mui/material';
+// Removed ArrowBack navigation (only Blocos keeps it)
+import { useNavigate } from 'react-router-dom';
 import { Add, Visibility, AttachMoney, Assignment, Schedule, CheckCircle, Payment, Close, Archive, Unarchive, Undo, Delete } from '@mui/icons-material';
 import CriarAcordoModal from '../components/CriarAcordoModal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -41,6 +43,7 @@ const AcordosPage = () => {
   const [pendingActionAcordo, setPendingActionAcordo] = useState(null);
   const [pendingActionParcela, setPendingActionParcela] = useState(null);
   const theme = useTheme();
+  // const navigate = useNavigate(); // removido (não utilizado)
 
   // usar util centralizada de datas
   const formatDate = utilFormatDate;
@@ -66,7 +69,7 @@ const AcordosPage = () => {
   }, [activeTab]);
 
   useEffect(() => {
-    carregarDados();
+    carregarDados(); // restaurado para carregar dados iniciais
   }, [carregarDados]);
 
   useEffect(() => {
@@ -286,10 +289,8 @@ const AcordosPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Acordos de Pagamento
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: 600, flexGrow:1 }}>Acordos de Pagamento</Typography>
         <Button
           variant="contained"
           startIcon={<Add />}

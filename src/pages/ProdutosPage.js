@@ -6,7 +6,8 @@ import {
   DialogActions, Alert
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+// import { useNavigate } from 'react-router-dom'; // removido (não utilizado)
+// Removed unused ArrowBackIcon import
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -14,6 +15,7 @@ import WarningIcon from '@mui/icons-material/Warning';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ProdutoModal from '../components/ProdutoModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import PageHeader from '../components/PageHeader';
 
 function ProdutosPage() {
   const navigate = useNavigate();
@@ -66,34 +68,30 @@ function ProdutosPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton onClick={() => navigate('/estoque')} sx={{ mr: 1 }}>
-            <ArrowBackIcon />
-          </IconButton>
-          <Typography variant="h4" component="h1">
-            Produtos
-          </Typography>
-        </Box>
-        <Box>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<InventoryIcon />}
-            onClick={() => navigate('/estoque/movimentacoes')}
-            sx={{ mr: 1 }}
-          >
-            Ajustar Estoque
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setProdutoModal({ open: true, produto: null })}
-          >
-            Novo Produto
-          </Button>
-        </Box>
-      </Box>
+      <PageHeader 
+        title="Produtos" 
+        showBack={true}
+        onBack={() => navigate(-1)}
+        rightContent={
+          <Box sx={{ display:'flex', gap:1 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<InventoryIcon />}
+              onClick={() => navigate('/estoque/movimentacoes')}
+            >
+              Ajustar Estoque
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setProdutoModal({ open: true, produto: null })}
+            >
+              Novo Produto
+            </Button>
+          </Box>
+        }
+      />
 
       {/* Filtros */}
       <Paper sx={{ p: 2, mb: 3 }}>

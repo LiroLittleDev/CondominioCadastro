@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Typography, Box, Grid, Card, CardContent, Button, IconButton } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom'; // removido (não utilizado)
 import InventoryIcon from '@mui/icons-material/Inventory';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import WarningIcon from '@mui/icons-material/Warning';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+// Removed back navigation (only Blocos retains back arrow)
+import PageHeader from '../components/PageHeader';
 
 function EstoquePage() {
   const navigate = useNavigate();
@@ -49,14 +51,7 @@ function EstoquePage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-        <IconButton onClick={() => navigate(-1)} sx={{ mr: 1 }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" component="h1">
-          Controle de Estoque
-        </Typography>
-      </Box>
+  <PageHeader title="Controle de Estoque" />
 
   {/* Estatísticas */}
   <Grid container spacing={3} sx={{ mb: 4 }} justifyContent="center">

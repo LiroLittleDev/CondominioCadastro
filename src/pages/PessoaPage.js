@@ -16,7 +16,7 @@ import {
   Avatar,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+// Removed back navigation (only Blocos keeps arrow)
 import AddIcon from "@mui/icons-material/Add";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
@@ -33,6 +33,7 @@ import EditarVinculoModal from "../components/EditarVinculoModal";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import TransferirPessoaModal from "../components/TransferirPessoaModal";
 import LinkOffIcon from "@mui/icons-material/LinkOff";
+import PageHeader from '../components/PageHeader';
 
 // Funções de formatação
 const formatCPF = (cpf) => {
@@ -275,14 +276,12 @@ function PessoaPage() {
       </Dialog>
 
       <Box>
-        <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-          <IconButton onClick={() => navigate(-1)} sx={{ mr: 1 }}>
-            <ArrowBackIcon />
-          </IconButton>
-          <Typography variant="h4" component="h1">
-            Perfil de Morador
-          </Typography>
-        </Box>
+        <PageHeader 
+          title="Perfil de Morador" 
+          showBack={true} 
+          onBack={() => navigate(-1)} 
+          mb={2}
+        />
         {/* ...restante do código... */}
         <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
         <Box sx={{ 

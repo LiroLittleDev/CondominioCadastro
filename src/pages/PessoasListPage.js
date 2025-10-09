@@ -20,7 +20,9 @@ import {
   FormControlLabel,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+// import { useNavigate } from "react-router-dom"; // removido (não utilizado)
+// import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import PageHeader from '../components/PageHeader';
 
 function PessoasListPage() {
   const navigate = useNavigate();
@@ -70,14 +72,7 @@ function PessoasListPage() {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
-        <IconButton onClick={() => navigate(-1)} sx={{ mr: 1 }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" component="h1">
-          Lista Completa de Pessoas
-        </Typography>
-      </Box>
+      <PageHeader title="Lista Completa de Pessoas" />
 
       <Paper sx={{ p: 2, mb: 2 }}>
         <Grid container spacing={2} alignItems="center">

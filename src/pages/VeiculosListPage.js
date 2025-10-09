@@ -10,7 +10,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
   FormControl,
   InputLabel,
   Select,
@@ -20,7 +19,8 @@ import {
   Chip
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+// import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import PageHeader from '../components/PageHeader';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import TwoWheelerIcon from '@mui/icons-material/TwoWheeler';
 import SearchIcon from '@mui/icons-material/Search';
@@ -71,14 +71,7 @@ function VeiculosListPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <IconButton onClick={() => navigate(-1)} sx={{ mr: 1 }}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Typography variant="h4" component="h1">
-          Lista de Veículos
-        </Typography>
-      </Box>
+      <PageHeader title="Lista de Veículos" />
 
       {/* Filtros */}
       <Paper elevation={3} sx={{ p: 2, mb: 3 }}>

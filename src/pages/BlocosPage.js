@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Typography, CircularProgress, Paper, Breadcrumbs, Link, Box, IconButton, Grid } from '@mui/material';
+import { Typography, CircularProgress, Paper, Breadcrumbs, Link, Box, IconButton, Grid, Tooltip } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
 import MeetingRoomIcon from '@mui/icons-material/MeetingRoom';
 import HomeWorkIcon from '@mui/icons-material/HomeWork';
@@ -112,11 +112,13 @@ function BlocosPage() {
     <div>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
         {view !== 'blocos' && (
-          <IconButton onClick={handleBackClick} sx={{ mr: 1 }}>
-            <ArrowBackIcon />
-          </IconButton>
+          <Tooltip title={view === 'unidades' ? 'Voltar para Entradas' : 'Voltar para Blocos'} arrow>
+            <IconButton onClick={handleBackClick} sx={{ mr: 1, bgcolor:'background.paper', border:'1px solid', borderColor:'divider', '&:hover':{ bgcolor:'action.hover' } }} size="small">
+              <ArrowBackIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         )}
-        <Typography variant="h4" component="h1">Navegar por Estrutura</Typography>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: 600 }}>Navegar por Estrutura</Typography>
       </Box>
       
       <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>

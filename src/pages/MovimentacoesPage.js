@@ -10,7 +10,8 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+// Removed back navigation (only Blocos retains it)
+import PageHeader from '../components/PageHeader';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import CalculateIcon from '@mui/icons-material/Calculate';
@@ -69,67 +70,62 @@ function MovimentacoesPage() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton onClick={() => navigate('/estoque')} sx={{ mr: 1 }}>
-            <ArrowBackIcon />
-          </IconButton>
-          <Typography variant="h4" component="h1">
-            Movimentações de Estoque
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Button
-            variant="contained"
-            color="success"
-            startIcon={<AddIcon />}
-            onClick={async () => {
-              setNewModalTipo('ENTRADA');
-              setModalError('');
-              setModalSuccess('');
-              setModalForm({ produto_id: '', quantidade: '', responsavel: '' });
-              setModalCurrentStock(null);
-              // gerar idempotency token para este modal
-              modalRequestIdRef.current = `${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
-              try {
-                const data = await window.api.getProdutos();
-                setModalProdutos(data);
-              } catch (err) {
-                console.error('Erro ao carregar produtos para modal:', err);
-                setModalProdutos([]);
-              }
-              setNewModalOpen(true);
-            }}
-            sx={{ mr: 1 }}
-          >
-            Nova Entrada
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            startIcon={<RemoveIcon />}
-            onClick={async () => {
-              setNewModalTipo('SAIDA');
-              setModalError('');
-              setModalSuccess('');
-              setModalForm({ produto_id: '', quantidade: '', responsavel: '' });
-              setModalCurrentStock(null);
-              // gerar idempotency token para este modal
-              modalRequestIdRef.current = `${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
-              try {
-                const data = await window.api.getProdutos();
-                setModalProdutos(data);
-              } catch (err) {
-                console.error('Erro ao carregar produtos para modal:', err);
-                setModalProdutos([]);
-              }
-              setNewModalOpen(true);
-            }}
-          >
-            Nova Saída
-          </Button>
-        </Box>
-      </Box>
+      <PageHeader 
+        title="Movimentações de Estoque"
+        showBack={true}
+        onBack={() => navigate(-1)}
+        rightContent={
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<AddIcon />}
+              onClick={async () => {
+                setNewModalTipo('ENTRADA');
+                setModalError('');
+                setModalSuccess('');
+                setModalForm({ produto_id: '', quantidade: '', responsavel: '' });
+                setModalCurrentStock(null);
+                modalRequestIdRef.current = `${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
+                try {
+                  const data = await window.api.getProdutos();
+                  setModalProdutos(data);
+                } catch (err) {
+                  console.error('Erro ao carregar produtos para modal:', err);
+                  setModalProdutos([]);
+                }
+                setNewModalOpen(true);
+              }}
+              sx={{ mr: 1 }}
+            >
+              Nova Entrada
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
+              startIcon={<RemoveIcon />}
+              onClick={async () => {
+                setNewModalTipo('SAIDA');
+                setModalError('');
+                setModalSuccess('');
+                setModalForm({ produto_id: '', quantidade: '', responsavel: '' });
+                setModalCurrentStock(null);
+                modalRequestIdRef.current = `${Date.now()}-${Math.random().toString(36).slice(2,9)}`;
+                try {
+                  const data = await window.api.getProdutos();
+                  setModalProdutos(data);
+                } catch (err) {
+                  console.error('Erro ao carregar produtos para modal:', err);
+                  setModalProdutos([]);
+                }
+                setNewModalOpen(true);
+              }}
+            >
+              Nova Saída
+            </Button>
+          </Box>
+        }
+      />
 
       {/* Filtros */}
       <Paper sx={{ p: 2, mb: 3 }}>
