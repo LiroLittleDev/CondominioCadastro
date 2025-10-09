@@ -123,7 +123,7 @@ const CriarAcordoModal = ({ open, onClose, onSuccess }) => {
   };
 
   const handlePessoaChange = (event, newValue) => {
-    console.log('Pessoa selecionada:', newValue);
+    // Pessoa selecionada no Autocomplete. Log de debug removido.
     setPessoaSelecionada(newValue);
     if (newValue) {
       setFormData(prev => ({ ...prev, pessoa_id: newValue.id }));

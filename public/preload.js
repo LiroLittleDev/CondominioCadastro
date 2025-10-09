@@ -1,7 +1,43 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
+// WHITELIST de canais IPC que o renderer pode invocar diretamente.
+// Mantemos um wrapper seguro para evitar invocações arbitrárias de canais IPC.
+const allowedChannels = new Set([
+  // APIs gerais / setup
+  'get-blocos', 'run-setup', 'get-entradas', 'get-unidades',
+  // Unidade / Pessoas / Vinculos / Veiculos
+  'get-unidade-details', 'getPessoasByUnidade', 'create-pessoa-e-vinculo', 'desvincular-pessoa', 'update-pessoa', 'get-pessoa-details',
+  'get-veiculos-by-pessoa', 'get-veiculos-by-unidade', 'create-veiculo', 'delete-veiculo', 'update-veiculo', 'get-all-veiculos',
+  'get-all-unidades-details', 'get-all-blocos', 'get-all-veiculos-details',
+  // Dashboard / pesquisa
+  'get-dashboard-stats', 'search-geral', 'get-detailed-stats',
+  // Pessoas utilitários
+  'get-filtered-pessoas', 'find-pessoa-by-cpf', 'find-pessoa-by-rg', 'delete-pessoa',
+  // Vinculos
+  'get-vinculo-types', 'update-vinculo', 'get-vinculos-by-pessoa', 'create-vinculo', 'delete-vinculo', 'delete-all-inactive-vinculos',
+  'transferir-pessoa',
+  // Relatórios
+  'get-report-data', 'save-report',
+  // Backup / Import
+  'backup-data', 'import-backup', 'clear-all-data',
+  // Agendamento de backup
+  'set-backup-schedule', 'get-backup-schedule', 'run-backup-now',
+  // Estoque
+  'get-estoque-stats', 'get-produtos', 'get-categorias-produto', 'delete-produto', 'create-produto', 'update-produto',
+  'get-movimentacoes', 'create-movimentacao', 'update-movimentacao', 'delete-movimentacao',
+  // Acordos
+  'get-acordos', 'create-acordo', 'get-acordo-details', 'marcar-parcela-paga', 'desmarcar-parcela-paga', 'get-acordos-stats',
+  'search-pessoas-acordos', 'debug-count-pessoas', 'delete-acordo', 'arquivar-acordo', 'desarquivar-acordo-forcar-ativo'
+]);
+
 contextBridge.exposeInMainWorld("electronAPI", {
-  invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args)
+  invoke: (channel, ...args) => {
+    if (allowedChannels.has(channel)) {
+      return ipcRenderer.invoke(channel, ...args);
+    }
+    console.warn(`[preload] blocked invoke to channel: ${channel}`);
+    return Promise.reject(new Error(`IPC channel "${channel}" is not allowed.`));
+  }
 });
 
 contextBridge.exposeInMainWorld("api", {

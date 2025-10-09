@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Alert } from "@mui/material";
+import ConfirmDialog from "../components/ConfirmDialog";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Typography,
@@ -229,41 +230,36 @@ function PessoaPage() {
 
   return (
     <>
-      {/* Dialog de confirmação genérico com ícones e cores */}
-      <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {confirmDialog.title.includes('Excluir pessoa') && <DeleteIcon color="error" sx={{ fontSize: 32 }} />}
-          {confirmDialog.title.includes('Excluir veículo') && <DirectionsCarIcon color="error" sx={{ fontSize: 32 }} />}
-          {confirmDialog.title.includes('Excluir vínculo') && <LinkOffIcon color="warning" sx={{ fontSize: 32 }} />}
-          {confirmDialog.title.includes('Excluir histórico') && <DeleteIcon color="error" sx={{ fontSize: 32 }} />}
-          {confirmDialog.title.includes('Desvincular') && <LinkOffIcon color="warning" sx={{ fontSize: 32 }} />}
-          {confirmDialog.title.includes('Confirmação final') && <DeleteIcon color="error" sx={{ fontSize: 32 }} />}
-          {confirmDialog.title}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+      {/* Reusable confirmation dialog */}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.title}
+        content={(
+          <Box sx={{ mb: 2 }}>
             <Alert severity={confirmDialog.title.includes('Excluir') ? 'error' : confirmDialog.title.includes('Desvincular') ? 'warning' : 'info'} icon={false} sx={{ flex: 1, bgcolor: confirmDialog.title.includes('Excluir') ? 'error.light' : confirmDialog.title.includes('Desvincular') ? 'warning.light' : 'info.light', color: confirmDialog.title.includes('Excluir') ? 'error.contrastText' : confirmDialog.title.includes('Desvincular') ? 'warning.contrastText' : 'info.contrastText', fontWeight: 500 }}>
               {confirmDialog.content}
             </Alert>
+            {confirmDialog.title.includes('Excluir pessoa') && (
+              <Typography variant="body2" color="text.secondary">Esta ação é <b>irreversível</b> e removerá todos os dados da pessoa.</Typography>
+            )}
+            {confirmDialog.title.includes('Excluir veículo') && (
+              <Typography variant="body2" color="text.secondary">Esta ação irá remover o veículo permanentemente.</Typography>
+            )}
+            {confirmDialog.title.includes('Excluir vínculo') && (
+              <Typography variant="body2" color="text.secondary">O registro histórico será apagado e não poderá ser recuperado.</Typography>
+            )}
+            {confirmDialog.title.includes('Excluir histórico') && (
+              <Typography variant="body2" color="text.secondary">Todos os vínculos anteriores serão apagados permanentemente.</Typography>
+            )}
           </Box>
-          {confirmDialog.title.includes('Excluir pessoa') && (
-            <Typography variant="body2" color="text.secondary">Esta ação é <b>irreversível</b> e removerá todos os dados da pessoa.</Typography>
-          )}
-          {confirmDialog.title.includes('Excluir veículo') && (
-            <Typography variant="body2" color="text.secondary">Esta ação irá remover o veículo permanentemente.</Typography>
-          )}
-          {confirmDialog.title.includes('Excluir vínculo') && (
-            <Typography variant="body2" color="text.secondary">O registro histórico será apagado e não poderá ser recuperado.</Typography>
-          )}
-          {confirmDialog.title.includes('Excluir histórico') && (
-            <Typography variant="body2" color="text.secondary">Todos os vínculos anteriores serão apagados permanentemente.</Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDialog({ ...confirmDialog, open: false })}>Cancelar</Button>
-          <Button variant="contained" color={confirmDialog.title.includes('Excluir') ? 'error' : confirmDialog.title.includes('Desvincular') ? 'warning' : 'primary'} onClick={() => { if (confirmDialog.onConfirm) confirmDialog.onConfirm(); }}>Confirmar</Button>
-        </DialogActions>
-      </Dialog>
+        )}
+        destructive={confirmDialog.title.includes('Excluir')}
+        onConfirm={async () => {
+          if (confirmDialog.onConfirm) await confirmDialog.onConfirm();
+          setConfirmDialog({ ...confirmDialog, open: false });
+        }}
+        onClose={() => setConfirmDialog({ ...confirmDialog, open: false })}
+      />
 
       {/* Dialog de erro genérico com ícone e cor */}
       <Dialog open={errorDialog.open} onClose={() => setErrorDialog({ open: false, message: '' })}>

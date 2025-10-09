@@ -29,6 +29,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import VincularPessoaModal from "../components/VincularPessoaModal";
 import EditarPessoaModal from "../components/EditarPessoaModal";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { Snackbar, Alert } from '@mui/material';
 
 // Funções de formatação
 const formatCPF = (cpf) => {
@@ -56,6 +58,8 @@ function UnidadePage() {
   const [vincularModalOpen, setVincularModalOpen] = useState(false);
   const [editarModalOpen, setEditarModalOpen] = useState(false);
   const [pessoaParaEditar, setPessoaParaEditar] = useState(null);
+  const [confirmState, setConfirmState] = useState({ open: false, title: '', content: '', onConfirm: null, destructive: false });
+  const [snack, setSnack] = useState({ open: false, severity: 'info', message: '' });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -76,45 +80,48 @@ function UnidadePage() {
   }, [fetchData]);
 
   const handleDesvincular = async (vinculoId, nomePessoa) => {
-    if (
-      window.confirm(
-        `Tem certeza que deseja desvincular ${nomePessoa} desta unidade?`
-      )
-    ) {
-      const result = await window.api.desvincularPessoa(vinculoId);
-      if (result.success) {
-        fetchData();
-      } else {
-        alert(`Erro ao desvincular: ${result.message}`);
+    setConfirmState({
+      open: true,
+      title: 'Desvincular Pessoa',
+      content: `Tem certeza que deseja desvincular ${nomePessoa} desta unidade?`,
+      destructive: false,
+      onConfirm: async () => {
+        setConfirmState(s => ({ ...s, open: false }));
+        const result = await window.api.desvincularPessoa(vinculoId);
+        if (result.success) {
+          setSnack({ open: true, severity: 'success', message: 'Pessoa desvinculada com sucesso.' });
+          fetchData();
+        } else {
+          setSnack({ open: true, severity: 'error', message: `Erro ao desvincular: ${result.message}` });
+        }
       }
-    }
+    });
   };
 
   const handleDeletePessoa = async (pessoaId, nomePessoa) => {
-    const confirm1 = window.confirm(
-      `Tem certeza que deseja EXCLUIR PERMANENTEMENTE '${nomePessoa}' e todos os seus dados (vínculos, veículos)?`
-    );
-    if (confirm1) {
-      const confirm2 = window.confirm(
-        "Esta ação não pode ser desfeita. Confirma a exclusão permanente?"
-      );
-      if (confirm2) {
+    setConfirmState({
+      open: true,
+      title: 'Excluir Pessoa',
+      content: `Tem certeza que deseja EXCLUIR PERMANENTEMENTE '${nomePessoa}' e todos os seus dados (vínculos, veículos)? Esta ação é irreversível.`,
+      destructive: true,
+      onConfirm: async () => {
+        setConfirmState(s => ({ ...s, open: false }));
         const result = await window.api.deletePessoa(pessoaId);
         if (result.success) {
-          alert(result.message);
+          setSnack({ open: true, severity: 'success', message: result.message || 'Pessoa excluída.' });
           fetchData();
         } else {
-          alert(`Erro ao excluir: ${result.message}`);
+          setSnack({ open: true, severity: 'error', message: `Erro ao excluir: ${result.message}` });
         }
       }
-    }
+    });
   };
 
   const handleOpenVincularModal = () => setVincularModalOpen(true);
   const handleCloseVincularModal = () => setVincularModalOpen(false);
 
   const handleOpenEditarModal = (pessoa) => {
-    console.log("DADOS ENVIADOS PARA O MODAL:", pessoa); // Pista de Debug 1
+    // Envia dados para o modal de edição. Log de debug removido.
     setPessoaParaEditar(pessoa);
     setEditarModalOpen(true);
   };
@@ -393,6 +400,23 @@ function UnidadePage() {
         pessoa={pessoaParaEditar}
         onSuccess={handleSuccess}
       />
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        content={confirmState.content}
+        destructive={confirmState.destructive}
+        loading={false}
+        confirmLabel="Confirmar"
+        cancelLabel="Cancelar"
+        onConfirm={() => { if (confirmState.onConfirm) confirmState.onConfirm(); }}
+        onClose={() => setConfirmState(s => ({ ...s, open: false }))}
+      />
+
+      <Snackbar open={snack.open} autoHideDuration={4000} onClose={() => setSnack(s => ({ ...s, open: false }))}>
+        <Alert onClose={() => setSnack(s => ({ ...s, open: false }))} severity={snack.severity} sx={{ width: '100%' }}>
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

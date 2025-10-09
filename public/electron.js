@@ -22,7 +22,8 @@ if (isDev) {
   dbPath = path.join(userDataPath, 'condominio.db');
 }
 
-console.log('Caminho do banco:', dbPath);
+// Caminho do banco de dados (para debug/diagnóstico). Em produção isto pode apontar para userData.
+console.info('Caminho do banco:', dbPath);
 
 // Criar diretório se não existir
 const dbDir = path.dirname(dbPath);
@@ -186,7 +187,8 @@ async function initializeDatabase() {
     const hasTable = await knex.schema.hasTable('blocos');
     
     if (!hasTable) {
-      console.log('Criando estrutura do banco de dados...');
+  // Criando estrutura do banco de dados (apenas quando o DB não existe)
+  console.info('Criando estrutura do banco de dados...');
       
       // Criar tabelas
       await knex.schema
@@ -254,7 +256,7 @@ async function initializeDatabase() {
       
 
       
-      console.log('✅ Estrutura do banco criada com sucesso!');
+  console.info('✅ Estrutura do banco criada com sucesso!');
     } else {
       // Verificar se tabela de acordos existe e criar se necessário
       const hasAcordosTable = await knex.schema.hasTable('acordos_parcelas');

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { formatDate } from '../utils/date';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { 
   Typography, Box, Button, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Paper, IconButton, Chip, TextField, FormControl,
@@ -219,30 +220,33 @@ function MovimentacoesPage() {
       </TableContainer>
 
       {/* Dialog de confirmação de exclusão */}
-      <Dialog open={deleteModal.open} onClose={() => setDeleteModal({ open: false, movimentacao: null })}>
-        <DialogTitle>Confirmar Exclusão</DialogTitle>
-        <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>Esta ação não pode ser desfeita!</Alert>
-          <Typography>Tem certeza que deseja excluir a movimentação de {deleteModal.movimentacao?.quantidade} {deleteModal.movimentacao?.unidade_medida} ({deleteModal.movimentacao?.tipo})?</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteModal({ open: false, movimentacao: null })}>Cancelar</Button>
-          <Button color="error" variant="contained" onClick={async () => {
-            try {
-              const res = await window.api.deleteMovimentacao(deleteModal.movimentacao.id);
-              if (res.success) {
-                setDeleteModal({ open: false, movimentacao: null });
-                fetchMovimentacoes();
-              } else {
-                setError(res.message);
-              }
-            } catch (err) {
-              console.error(err);
-              setError('Erro ao excluir movimentação');
+      <ConfirmDialog
+        open={deleteModal.open}
+        title="Confirmar Exclusão"
+        content={(
+          <>
+            <Alert severity="warning" sx={{ mb: 2 }}>Esta ação não pode ser desfeita!</Alert>
+            <Typography>Tem certeza que deseja excluir a movimentação de {deleteModal.movimentacao?.quantidade} {deleteModal.movimentacao?.unidade_medida} ({deleteModal.movimentacao?.tipo})?</Typography>
+          </>
+        )}
+        destructive={true}
+        onConfirm={async () => {
+          try {
+            const res = await window.api.deleteMovimentacao(deleteModal.movimentacao.id);
+            if (res.success) {
+              setDeleteModal({ open: false, movimentacao: null });
+              fetchMovimentacoes();
+            } else {
+              setError(res.message);
             }
-          }}>Excluir</Button>
-        </DialogActions>
-      </Dialog>
+          } catch (err) {
+            console.error(err);
+            setError('Erro ao excluir movimentação');
+          }
+        }}
+        onClose={() => setDeleteModal({ open: false, movimentacao: null })}
+        confirmLabel="Excluir"
+      />
 
       {/* Dialog de edição */}
       <Dialog open={editModal.open} onClose={() => setEditModal({ open: false, movimentacao: null })} maxWidth="sm" fullWidth>

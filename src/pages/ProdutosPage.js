@@ -13,6 +13,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import WarningIcon from '@mui/icons-material/Warning';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ProdutoModal from '../components/ProdutoModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 function ProdutosPage() {
   const navigate = useNavigate();
@@ -210,25 +211,23 @@ function ProdutosPage() {
       />
 
       {/* Modal de Confirmação de Exclusão */}
-      <Dialog open={deleteModal.open} onClose={() => setDeleteModal({ open: false, produto: null })}>
-        <DialogTitle>Confirmar Exclusão</DialogTitle>
-        <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            Esta ação não pode ser desfeita!
-          </Alert>
-          <Typography>
-            Tem certeza que deseja excluir o produto "{deleteModal.produto?.nome}"?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteModal({ open: false, produto: null })}>
-            Cancelar
-          </Button>
-          <Button onClick={handleDelete} color="error" variant="contained">
-            Excluir
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteModal.open}
+        title="Confirmar Exclusão"
+        content={(
+          <>
+            <Alert severity="warning" sx={{ mb: 2 }}>Esta ação não pode ser desfeita!</Alert>
+            <Typography>Tem certeza que deseja excluir o produto "{deleteModal.produto?.nome}"?</Typography>
+          </>
+        )}
+        destructive={true}
+        onConfirm={async () => {
+          await handleDelete();
+          setDeleteModal({ open: false, produto: null });
+        }}
+        onClose={() => setDeleteModal({ open: false, produto: null })}
+        confirmLabel="Excluir"
+      />
     </Box>
   );
 }

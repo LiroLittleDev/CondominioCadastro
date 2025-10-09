@@ -31,7 +31,7 @@ const handleBlocoChange = (event) => {
 
 useEffect(() => {
   const handleFocus = () => {
-    console.log("Janela focada, atualizando dados...");
+    // Ao voltar ao foco, atualizar dados da lista. Removido log de debug.
     fetchData(blocoSelecionado || null);
   };
 

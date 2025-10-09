@@ -15,6 +15,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 function SettingsPage() {
   const [loading, setLoading] = useState(false);
@@ -91,7 +92,6 @@ function SettingsPage() {
   const handleBackup = async () => {
     setLoading(true);
     setFeedback({ type: '', message: '' });
-    setProgressMessage('Gerando backup...');
     try {
       const result = await window.api.backupData({ includeDb });
       if (result.success) {
@@ -111,6 +111,7 @@ function SettingsPage() {
     } catch (error) {
       setFeedback({ type: 'error', message: `Erro: ${error.message}` });
     }
+    setProgressMessage('');
     setProgressMessage('');
     setLoading(false);
   };
@@ -193,7 +194,6 @@ function SettingsPage() {
     }
   };
 
-  // --- Schedule actions ---
   const saveSchedule = async () => {
     setLoading(true);
     const payload = { mode: scheduleMode, includeDb: scheduleIncludeDb, time: scheduleTime, weekday: scheduleWeekday, day: scheduleMonthDay };

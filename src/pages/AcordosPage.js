@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import { Add, Visibility, AttachMoney, Assignment, Schedule, CheckCircle, Payment, Close, Archive, Unarchive, Undo, Delete } from '@mui/icons-material';
 import CriarAcordoModal from '../components/CriarAcordoModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const AcordosPage = () => {
   const [acordos, setAcordos] = useState([]);
@@ -671,222 +672,194 @@ const AcordosPage = () => {
       </Drawer>
 
       {/* Dialog de confirmação: Arquivar */}
-      <Dialog open={confirmArquivarOpen} onClose={() => { setConfirmArquivarOpen(false); setPendingActionAcordo(null); }}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Archive color="primary" sx={{ fontSize: 32 }} /> Arquivar acordo
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Alert severity="info" icon={false} sx={{ flex: 1, bgcolor: 'primary.light', color: 'primary.contrastText', fontWeight: 500 }}>
+      <ConfirmDialog
+        open={confirmArquivarOpen}
+        title={(<><Archive color="primary" sx={{ fontSize: 28, mr: 1 }} /> Arquivar acordo</>)}
+        content={(
+          <>
+            <Alert severity="info" icon={false} sx={{ mb: 2, bgcolor: 'primary.light', color: 'primary.contrastText', fontWeight: 500 }}>
               Tem certeza que deseja arquivar este acordo como finalizado?
             </Alert>
-          </Box>
-          <Typography variant="body2" color="text.secondary">Todas as parcelas serão marcadas como pagas e o acordo será movido para finalizados.</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => { setConfirmArquivarOpen(false); setPendingActionAcordo(null); }}>Cancelar</Button>
-          <Button variant="contained" onClick={async () => {
-            if (!pendingActionAcordo) return;
-            const acordo = pendingActionAcordo.acordo;
-            try {
-              const res = await window.electronAPI.invoke('arquivar-acordo', acordo.id);
-              if (res.success) {
-                // se main retornou numero de parcelas atualizadas, mostrar
-                if (res.parcelasAtualizadas) setSnackbarMsg(`${res.parcelasAtualizadas} parcelas marcadas como pagas e acordo arquivado.`);
-                else setSnackbarMsg('Acordo arquivado com sucesso');
-                setSnackbarSeverity('success'); setSnackbarOpen(true);
-                carregarDados();
-              } else {
-                setSnackbarSeverity('error'); setSnackbarMsg(res.message || 'Erro ao arquivar'); setSnackbarOpen(true);
-              }
-            } catch (e) {
-              console.error(e);
-              setSnackbarSeverity('error'); setSnackbarMsg('Erro ao arquivar'); setSnackbarOpen(true);
-            } finally {
-              setConfirmArquivarOpen(false); setPendingActionAcordo(null);
+            <Typography variant="body2" color="text.secondary">Todas as parcelas serão marcadas como pagas e o acordo será movido para finalizados.</Typography>
+          </>
+        )}
+        onConfirm={async () => {
+          if (!pendingActionAcordo) return;
+          const acordo = pendingActionAcordo.acordo;
+          try {
+            const res = await window.electronAPI.invoke('arquivar-acordo', acordo.id);
+            if (res.success) {
+              if (res.parcelasAtualizadas) setSnackbarMsg(`${res.parcelasAtualizadas} parcelas marcadas como pagas e acordo arquivado.`);
+              else setSnackbarMsg('Acordo arquivado com sucesso');
+              setSnackbarSeverity('success'); setSnackbarOpen(true);
+              carregarDados();
+            } else {
+              setSnackbarSeverity('error'); setSnackbarMsg(res.message || 'Erro ao arquivar'); setSnackbarOpen(true);
             }
-          }}>Arquivar</Button>
-        </DialogActions>
-      </Dialog>
+          } catch (e) {
+            console.error(e);
+            setSnackbarSeverity('error'); setSnackbarMsg('Erro ao arquivar'); setSnackbarOpen(true);
+          } finally {
+            setConfirmArquivarOpen(false); setPendingActionAcordo(null);
+          }
+        }}
+        onClose={() => { setConfirmArquivarOpen(false); setPendingActionAcordo(null); }}
+      />
 
       {/* Dialog de confirmação: Desarquivar */}
-      <Dialog open={confirmDesarquivarOpen} onClose={() => { setConfirmDesarquivarOpen(false); setPendingActionAcordo(null); }}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Unarchive color="success" sx={{ fontSize: 32 }} /> Desarquivar acordo
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Alert severity="success" icon={false} sx={{ flex: 1, bgcolor: 'success.light', color: 'success.contrastText', fontWeight: 500 }}>
+      <ConfirmDialog
+        open={confirmDesarquivarOpen}
+        title={(<><Unarchive color="success" sx={{ fontSize: 28, mr: 1 }} /> Desarquivar acordo</>)}
+        content={(
+          <>
+            <Alert severity="success" icon={false} sx={{ mb: 2, bgcolor: 'success.light', color: 'success.contrastText', fontWeight: 500 }}>
               Deseja desarquivar este acordo?
             </Alert>
-          </Box>
-          <Typography variant="body2" color="text.secondary">As parcelas permanecem no estado atual (pagas). Use <b>Forçar Ativo</b> para reativar o acordo mesmo que as parcelas estejam pagas.</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => { setConfirmDesarquivarOpen(false); setPendingActionAcordo(null); }}>Cancelar</Button>
-          <Button variant="contained" onClick={async () => {
-            // forçar para Ativo
-            if (!pendingActionAcordo) return;
-            const acordo = pendingActionAcordo.acordo;
-            try {
-              const res = await window.electronAPI.invoke('desarquivar-acordo-forcar-ativo', acordo.id);
-              if (res.success) {
-                setSnackbarSeverity('success'); setSnackbarMsg(res.message || 'Acordo forçado para Ativo'); setSnackbarOpen(true);
-                carregarDados();
-              } else {
-                setSnackbarSeverity('error'); setSnackbarMsg(res.message || 'Erro ao desarquivar'); setSnackbarOpen(true);
-              }
-            } catch (e) {
-              console.error(e);
-              setSnackbarSeverity('error'); setSnackbarMsg('Erro ao desarquivar'); setSnackbarOpen(true);
-            } finally {
-              setConfirmDesarquivarOpen(false); setPendingActionAcordo(null);
+            <Typography variant="body2" color="text.secondary">As parcelas permanecem no estado atual (pagas). Use <b>Forçar Ativo</b> para reativar o acordo mesmo que as parcelas estejam pagas.</Typography>
+          </>
+        )}
+        onConfirm={async () => {
+          if (!pendingActionAcordo) return;
+          const acordo = pendingActionAcordo.acordo;
+          try {
+            const res = await window.electronAPI.invoke('desarquivar-acordo-forcar-ativo', acordo.id);
+            if (res.success) {
+              setSnackbarSeverity('success'); setSnackbarMsg(res.message || 'Acordo forçado para Ativo'); setSnackbarOpen(true);
+              carregarDados();
+            } else {
+              setSnackbarSeverity('error'); setSnackbarMsg(res.message || 'Erro ao desarquivar'); setSnackbarOpen(true);
             }
-          }}>Forçar Ativo</Button>
-        </DialogActions>
-      </Dialog>
+          } catch (e) {
+            console.error(e);
+            setSnackbarSeverity('error'); setSnackbarMsg('Erro ao desarquivar'); setSnackbarOpen(true);
+          } finally {
+            setConfirmDesarquivarOpen(false); setPendingActionAcordo(null);
+          }
+        }}
+        onClose={() => { setConfirmDesarquivarOpen(false); setPendingActionAcordo(null); }}
+        confirmLabel="Forçar Ativo"
+      />
 
       {/* Dialog de confirmação: Desmarcar parcela (marcar como pendente) */}
-      <Dialog open={confirmDesmarcarOpen} onClose={() => { setConfirmDesmarcarOpen(false); setPendingActionParcela(null); }}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Undo color="warning" sx={{ fontSize: 32 }} /> Desmarcar pagamento
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Alert severity="warning" icon={false} sx={{ flex: 1, bgcolor: 'warning.light', color: 'warning.contrastText', fontWeight: 500 }}>
+      <ConfirmDialog
+        open={confirmDesmarcarOpen}
+        title={(<><Undo color="warning" sx={{ fontSize: 28, mr: 1 }} /> Desmarcar pagamento</>)}
+        content={(
+          <>
+            <Alert severity="warning" icon={false} sx={{ mb: 2, bgcolor: 'warning.light', color: 'warning.contrastText', fontWeight: 500 }}>
               Deseja desmarcar esta parcela como paga?
             </Alert>
-          </Box>
-          <Typography variant="body2" color="text.secondary">A parcela voltará para o estado pendente e poderá ser marcada novamente.</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => { setConfirmDesmarcarOpen(false); setPendingActionParcela(null); }}>Cancelar</Button>
-          <Button variant="contained" color="warning" onClick={async () => {
-            if (!pendingActionParcela) return;
-            const parcela = pendingActionParcela;
-            try {
-              setLoadingParcelaId(parcela.id);
-              const res = await window.electronAPI.invoke('desmarcar-parcela-paga', parcela.id);
-              if (res.success) {
-                const detalhes = await window.electronAPI.invoke('get-acordo-details', acordoSelecionado.id);
-                setParcelas(detalhes.parcelas);
-                carregarDados();
-                setSnackbarSeverity('success'); setSnackbarMsg('Parcela desmarcada com sucesso'); setSnackbarOpen(true);
-              } else {
-                setSnackbarSeverity('error'); setSnackbarMsg(res.message || 'Erro ao desmarcar parcela'); setSnackbarOpen(true);
-              }
-            } catch (err) {
-              console.error(err);
-              setSnackbarSeverity('error'); setSnackbarMsg(err && err.message ? err.message : 'Erro ao desmarcar parcela'); setSnackbarOpen(true);
-            } finally {
-              setLoadingParcelaId(null);
-              setConfirmDesmarcarOpen(false); setPendingActionParcela(null);
+            <Typography variant="body2" color="text.secondary">A parcela voltará para o estado pendente e poderá ser marcada novamente.</Typography>
+          </>
+        )}
+        confirmLabel="Desmarcar"
+        onConfirm={async () => {
+          if (!pendingActionParcela) return;
+          const parcela = pendingActionParcela;
+          try {
+            setLoadingParcelaId(parcela.id);
+            const res = await window.electronAPI.invoke('desmarcar-parcela-paga', parcela.id);
+            if (res.success) {
+              const detalhes = await window.electronAPI.invoke('get-acordo-details', acordoSelecionado.id);
+              setParcelas(detalhes.parcelas);
+              carregarDados();
+              setSnackbarSeverity('success'); setSnackbarMsg('Parcela desmarcada com sucesso'); setSnackbarOpen(true);
+            } else {
+              setSnackbarSeverity('error'); setSnackbarMsg(res.message || 'Erro ao desmarcar parcela'); setSnackbarOpen(true);
             }
-          }}>Desmarcar</Button>
-        </DialogActions>
-      </Dialog>
+          } catch (err) {
+            console.error(err);
+            setSnackbarSeverity('error'); setSnackbarMsg(err && err.message ? err.message : 'Erro ao desmarcar parcela'); setSnackbarOpen(true);
+          } finally {
+            setLoadingParcelaId(null);
+            setConfirmDesmarcarOpen(false); setPendingActionParcela(null);
+          }
+        }}
+        onClose={() => { setConfirmDesmarcarOpen(false); setPendingActionParcela(null); }}
+      />
 
-      {/* Dialog de confirmação: Excluir acordo */}
-      <Dialog open={confirmDeleteOpen} onClose={closeDeleteDialog}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Delete color="error" sx={{ fontSize: 32 }} /> Excluir acordo
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Alert severity="error" icon={false} sx={{ flex: 1, bgcolor: 'error.light', color: 'error.contrastText', fontWeight: 500 }}>
+      {/* Dialog de confirmação: Excluir acordo (conta regressiva) */}
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title={(<><Delete color="error" sx={{ fontSize: 28, mr: 1 }} /> Excluir acordo</>)}
+        content={(
+          <>
+            <Alert severity="error" icon={false} sx={{ mb: 2, bgcolor: 'error.light', color: 'error.contrastText', fontWeight: 500 }}>
               Esta ação é <b>irreversível</b> e removerá todas as parcelas relacionadas.
             </Alert>
-          </Box>
-          <Typography variant="body1">Tem certeza que deseja excluir o acordo de "{pendingDeleteAcordo?.nome_completo}"?</Typography>
-          {pendingDeleteAcordo && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-              {deleteCountdowns[pendingDeleteAcordo.id] > 0 ? `Aguarde ${deleteCountdowns[pendingDeleteAcordo.id]}s para habilitar a exclusão.` : 'Pronto para excluir.'}
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeDeleteDialog}>Cancelar</Button>
-          {/* Mostrar um IconButton no diálogo com a mesma proporção do botão de ações e exibir o contador */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 1 }}>
-            <Button
-              color="error"
-              variant="contained"
-              disabled={!(pendingDeleteAcordo && (deleteCountdowns[pendingDeleteAcordo.id] === 0))}
-              onClick={async () => {
-                if (!pendingDeleteAcordo) return;
-                try {
-                  const res = await window.electronAPI.invoke('delete-acordo', pendingDeleteAcordo.id);
-                  if (res && res.success) {
-                    setSnackbarSeverity('success'); setSnackbarMsg('Acordo excluído com sucesso'); setSnackbarOpen(true);
-                    carregarDados();
-                    closeDeleteDialog();
-                  } else {
-                    setSnackbarSeverity('error'); setSnackbarMsg(res.message || 'Erro ao excluir acordo'); setSnackbarOpen(true);
-                  }
-                } catch (err) {
-                  console.error('Erro ao excluir acordo:', err);
-                  setSnackbarSeverity('error'); setSnackbarMsg('Erro ao excluir acordo'); setSnackbarOpen(true);
-                }
-              }}
-              startIcon={pendingDeleteAcordo && (deleteCountdowns[pendingDeleteAcordo.id] === 0) ? <Delete /> : null}
-              sx={{ minWidth: 120, height: 40 }}
-            >
-              {pendingDeleteAcordo && (deleteCountdowns[pendingDeleteAcordo.id] > 0) ? (
-                <Typography sx={{ fontWeight: 800 }}>{deleteCountdowns[pendingDeleteAcordo.id]}</Typography>
-              ) : (
-                'Excluir'
-              )}
-            </Button>
-          </Box>
-        </DialogActions>
-      </Dialog>
+            <Typography variant="body1">Tem certeza que deseja excluir o acordo de "{pendingDeleteAcordo?.nome_completo}"?</Typography>
+            {pendingDeleteAcordo && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                {deleteCountdowns[pendingDeleteAcordo.id] > 0 ? `Aguarde ${deleteCountdowns[pendingDeleteAcordo.id]}s para habilitar a exclusão.` : 'Pronto para excluir.'}
+              </Typography>
+            )}
+          </>
+        )}
+        destructive={true}
+        confirmDisabled={!(pendingDeleteAcordo && (deleteCountdowns[pendingDeleteAcordo.id] === 0))}
+        confirmLabel={pendingDeleteAcordo && (deleteCountdowns[pendingDeleteAcordo.id] > 0) ? String(deleteCountdowns[pendingDeleteAcordo.id]) : 'Excluir'}
+        onConfirm={async () => {
+          if (!pendingDeleteAcordo) return;
+          try {
+            const res = await window.electronAPI.invoke('delete-acordo', pendingDeleteAcordo.id);
+            if (res && res.success) {
+              setSnackbarSeverity('success'); setSnackbarMsg('Acordo excluído com sucesso'); setSnackbarOpen(true);
+              carregarDados();
+              closeDeleteDialog();
+            } else {
+              setSnackbarSeverity('error'); setSnackbarMsg(res.message || 'Erro ao excluir acordo'); setSnackbarOpen(true);
+            }
+          } catch (err) {
+            console.error('Erro ao excluir acordo:', err);
+            setSnackbarSeverity('error'); setSnackbarMsg('Erro ao excluir acordo'); setSnackbarOpen(true);
+          }
+        }}
+        onClose={closeDeleteDialog}
+      />
 
       {/* Dialog de confirmação: Marcar parcela como paga (hoje) */}
-      <Dialog open={confirmMarcarOpen} onClose={() => { setConfirmMarcarOpen(false); setPendingActionParcela(null); }}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <CheckCircle color="success" sx={{ fontSize: 32 }} /> Marcar como paga
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Alert severity="success" icon={false} sx={{ flex: 1, bgcolor: 'success.light', color: 'success.contrastText', fontWeight: 500 }}>
+      <ConfirmDialog
+        open={confirmMarcarOpen}
+        title={(<><CheckCircle color="success" sx={{ fontSize: 28, mr: 1 }} /> Marcar como paga</>)}
+        content={(
+          <>
+            <Alert severity="success" icon={false} sx={{ mb: 2, bgcolor: 'success.light', color: 'success.contrastText', fontWeight: 500 }}>
               Deseja marcar esta parcela como paga hoje?
             </Alert>
-          </Box>
-          <Typography variant="body2" color="text.secondary">A data de pagamento será registrada como hoje.</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => { setConfirmMarcarOpen(false); setPendingActionParcela(null); }}>Cancelar</Button>
-          <Button variant="contained" onClick={async () => {
-            if (!pendingActionParcela) return;
-            const parcela = pendingActionParcela;
-            try {
-              setLoadingParcelaId(parcela.id);
-              // usar data atual
-              const hoje = new Date().toISOString().split('T')[0];
-              const res = await window.electronAPI.invoke('marcar-parcela-paga', parcela.id, hoje);
-              if (res.success) {
-                const detalhes = await window.electronAPI.invoke('get-acordo-details', acordoSelecionado.id);
-                setParcelas(detalhes.parcelas);
-                carregarDados();
-                if (res.acordoQuitado) {
-                  setSnackbarSeverity('success'); setSnackbarMsg('Parcela marcada como paga. Acordo quitado!');
-                } else {
-                  setSnackbarSeverity('success'); setSnackbarMsg('Parcela marcada como paga com sucesso.');
-                }
-                setSnackbarOpen(true);
+            <Typography variant="body2" color="text.secondary">A data de pagamento será registrada como hoje.</Typography>
+          </>
+        )}
+        confirmLabel="Marcar"
+        onConfirm={async () => {
+          if (!pendingActionParcela) return;
+          const parcela = pendingActionParcela;
+          try {
+            setLoadingParcelaId(parcela.id);
+            const hoje = new Date().toISOString().split('T')[0];
+            const res = await window.electronAPI.invoke('marcar-parcela-paga', parcela.id, hoje);
+            if (res.success) {
+              const detalhes = await window.electronAPI.invoke('get-acordo-details', acordoSelecionado.id);
+              setParcelas(detalhes.parcelas);
+              carregarDados();
+              if (res.acordoQuitado) {
+                setSnackbarSeverity('success'); setSnackbarMsg('Parcela marcada como paga. Acordo quitado!');
               } else {
-                setSnackbarSeverity('error'); setSnackbarMsg(res.message || 'Erro ao marcar parcela'); setSnackbarOpen(true);
+                setSnackbarSeverity('success'); setSnackbarMsg('Parcela marcada como paga com sucesso.');
               }
-            } catch (err) {
-              console.error(err);
-              setSnackbarSeverity('error'); setSnackbarMsg(err && err.message ? err.message : 'Erro ao marcar parcela'); setSnackbarOpen(true);
-            } finally {
-              setLoadingParcelaId(null);
-              setConfirmMarcarOpen(false); setPendingActionParcela(null);
+              setSnackbarOpen(true);
+            } else {
+              setSnackbarSeverity('error'); setSnackbarMsg(res.message || 'Erro ao marcar parcela'); setSnackbarOpen(true);
             }
-          }}>Marcar</Button>
-        </DialogActions>
-      </Dialog>
+          } catch (err) {
+            console.error(err);
+            setSnackbarSeverity('error'); setSnackbarMsg(err && err.message ? err.message : 'Erro ao marcar parcela'); setSnackbarOpen(true);
+          } finally {
+            setLoadingParcelaId(null);
+            setConfirmMarcarOpen(false); setPendingActionParcela(null);
+          }
+        }}
+        onClose={() => { setConfirmMarcarOpen(false); setPendingActionParcela(null); }}
+      />
 
       <CriarAcordoModal
         open={modalOpen}

@@ -228,6 +228,20 @@ npm run build               # Gerar build otimizado
 npm test                    # Executar testes
 ```
 
+### Empacotamento (desktop)
+
+```bash
+# Gerar build e empacotar
+npm run build
+npm run electron:pack    # Cria artefatos em pasta (--dir)
+npm run electron:dist    # Gera instaladores (não publica)
+```
+
+Nota de segurança: o arquivo `public/preload.js` implementa uma whitelist de canais IPC
+que o renderer pode invocar. Ao adicionar novos canais no processo main, atualize
+`public/preload.js` para permitir explicitamente o novo canal e documente-o em
+`docs/ELECTRON_IPC.md`.
+
 ## 🔧 Solução de Problem
 
 #### ❌ Erro: "Python not found"
