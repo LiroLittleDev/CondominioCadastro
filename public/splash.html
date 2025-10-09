@@ -84,7 +84,19 @@
         <div class="loading-text">Carregando sistema...</div>
     </div>
     
-    <div class="version">v3.7.0</div>
+        <div class="version" id="version">v4.0.0</div>
     <div class="developer">dev Thiago Almeida</div>
+        <script>
+            (function(){
+                try {
+                    const params = new URLSearchParams(window.location.search);
+                    const v = params.get('v');
+                    if (v) {
+                        const el = document.getElementById('version');
+                        if (el) el.textContent = `v${v}`;
+                    }
+                } catch (_) { /* ignore */ }
+            })();
+        </script>
 </body>
 </html>

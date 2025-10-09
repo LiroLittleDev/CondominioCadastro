@@ -194,6 +194,12 @@ async function ensureColumn(tableName, columnName, builderFn) {
   }
 }
 
+// Expor versão do app
+ipcMain.handle('get-app-version', async () => {
+  try { return { success: true, version: app.getVersion ? app.getVersion() : '4.0.0' }; }
+  catch (e) { return { success: true, version: '4.0.0' }; }
+});
+
 // Função para inicializar banco
 async function initializeDatabase() {
   try {
@@ -204,7 +210,7 @@ async function initializeDatabase() {
   // Criando estrutura do banco de dados (apenas quando o DB não existe)
   console.info('Criando estrutura do banco de dados...');
       
-      // Criar tabelas
+      // Criar tabelas principais em cadeia
       await knex.schema
         .createTable('blocos', function (table) {
           table.increments('id');
@@ -263,10 +269,50 @@ async function initializeDatabase() {
           table.string('status_parcela').defaultTo('Pendente');
           table.string('status_acordo').defaultTo('Ativo');
           table.timestamps(true, true);
-          
           table.foreign('pessoa_id').references('id').inTable('pessoas');
           table.index(['pessoa_id', 'status_acordo']);
         });
+
+      // Criar tabelas de estoque na criação inicial
+      await knex.schema
+        .createTable('categorias_produto', function (table) {
+          table.increments('id');
+          table.string('nome', 100).notNullable();
+          table.text('descricao');
+        })
+        .createTable('produtos', function (table) {
+          table.increments('id');
+          table.string('codigo', 50).unique();
+          table.string('nome', 255).notNullable();
+          table.integer('categoria_id').unsigned().references('id').inTable('categorias_produto');
+          table.string('unidade_medida', 20);
+          table.integer('estoque_minimo').defaultTo(0);
+          table.decimal('valor_unitario', 10, 2);
+          table.boolean('ativo').defaultTo(true);
+        })
+        .createTable('movimentacoes_estoque', function (table) {
+          table.increments('id');
+          table.integer('produto_id').unsigned().references('id').inTable('produtos');
+          table.string('tipo', 20).notNullable();
+          table.integer('quantidade').notNullable();
+          table.string('motivo', 255);
+          table.date('data_movimentacao').defaultTo(knex.fn.now());
+          table.string('responsavel', 255);
+          table.text('observacao');
+        });
+
+      // Inserir categorias padrão
+      try {
+        await knex('categorias_produto').insert([
+          { nome: 'Limpeza', descricao: 'Produtos de limpeza e higiene' },
+          { nome: 'Manutenção', descricao: 'Materiais para manutenção predial' },
+          { nome: 'Escritório', descricao: 'Material de escritório e papelaria' },
+          { nome: 'Segurança', descricao: 'Equipamentos de segurança' },
+          { nome: 'Jardinagem', descricao: 'Produtos para jardinagem' }
+        ]);
+      } catch (e) { /* pode já existir */ }
+
+      
       
 
       
@@ -371,8 +417,10 @@ function createSplashWindow() {
       contextIsolation: true
     }
   });
-
-  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+  // Carregar splash com versão dinâmica via querystring
+  let currentVersion = '4.0.0';
+  try { currentVersion = app.getVersion ? app.getVersion() : '4.0.0'; } catch(_) {}
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'), { search: `?v=${encodeURIComponent(currentVersion)}`});
   
   splashWindow.on('closed', () => {
     splashWindow = null;
@@ -1493,23 +1541,17 @@ ipcMain.handle('clear-all-data', async (event, opts = {}) => {
 // Handler para backup dos dados
 ipcMain.handle('backup-data', async (event, opts = {}) => {
   try {
-    // tabelas principais a incluir no backup
-    const tables = {
-      pessoas: knex('pessoas').select('*'),
-      vinculos: knex('vinculos').select('*'),
-      veiculos: knex('veiculos').select('*'),
-      unidades: knex('unidades').select('*'),
-      blocos: knex('blocos').select('*'),
-      acordos_parcelas: knex('acordos_parcelas').select('*'),
-      produtos: knex('produtos').select('*'),
-      movimentacoes_estoque: knex('movimentacoes_estoque').select('*'),
-      categorias_produto: knex('categorias_produto').select('*')
-    };
-
-    // executar todas as queries em paralelo
-    const results = await Promise.all(Object.values(tables));
+    // tabelas principais a incluir no backup, com verificação de existência
+    const tableNames = ['pessoas','vinculos','veiculos','unidades','blocos','acordos_parcelas','produtos','movimentacoes_estoque','categorias_produto'];
     const backupData = {};
-    Object.keys(tables).forEach((k, i) => { backupData[k] = results[i]; });
+    for (const t of tableNames) {
+      try {
+        const exists = await knex.schema.hasTable(t);
+        backupData[t] = exists ? await knex(t).select('*') : [];
+      } catch (e) {
+        backupData[t] = [];
+      }
+    }
 
     // tentar incluir o arquivo sqlite do banco (opcional — controlado por opts.includeDb)
     let dbFileBase64 = null;

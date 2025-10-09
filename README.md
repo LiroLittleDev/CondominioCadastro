@@ -343,7 +343,7 @@ Se encontrar problemas:
 
 ## 📄 Informações do Projeto
 
-- **Versão**: 1.0.0
+- **Versão**: 4.0.0
 - **Licença**: Uso interno
 - **Desenvolvido com**: ❤️ para gestão condominial
 - **Compatibilidade**: Windows

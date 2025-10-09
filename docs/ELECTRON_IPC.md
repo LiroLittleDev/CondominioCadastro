@@ -68,6 +68,7 @@ Lista de canais permitidos (whitelist)
 - delete-acordo
 - arquivar-acordo
 - desarquivar-acordo-forcar-ativo
+- get-app-version
 
 Observações de segurança
 - Evitamos expor `ipcRenderer` diretamente; em vez disso, há um wrapper que valida o canal.
@@ -83,4 +84,4 @@ Como usar
 
 
 Mantido por: equipe SGC
-Gerado automaticamente: revisão realizada em 08/10/2025
+Gerado automaticamente: revisão realizada em 09/10/2025

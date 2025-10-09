@@ -54,6 +54,7 @@ const drawerWidth = 240;
 function App() {
   // Referência de quando a aplicação iniciou (não muda durante o ciclo de vida)
   const appStartRef = useRef(new Date());
+  const [appVersion, setAppVersion] = useState('4.0.0');
   const [accessHistory, setAccessHistory] = useState([]); // histórico completo de acessos
   const [acordosPendentes, setAcordosPendentes] = useState(null); // null => loading
   const [updatingAcordos, setUpdatingAcordos] = useState(false);
@@ -136,6 +137,18 @@ function App() {
     };
   }, []);
 
+  // Buscar versão do app
+  useEffect(() => {
+    (async () => {
+      try {
+        if (window.api && typeof window.api.getAppVersion === 'function') {
+          const v = await window.api.getAppVersion();
+          if (v) setAppVersion(v);
+        }
+      } catch (_) { /* ignore */ }
+    })();
+  }, []);
+
   const fetchAcordosPendentes = async () => {
     if (!window?.electronAPI?.invoke) return;
     try {
@@ -194,8 +207,8 @@ function App() {
             {/* Linha decorativa superior */}
             <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: 3 }} />
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
-                <DashboardCustomizeIcon sx={{ color: 'white', opacity: 0.95, fontSize: 30, filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.35))' }} />
+              <DashboardCustomizeIcon sx={{ color: 'white', opacity: 0.95, fontSize: 30, filter:'drop-shadow(0 2px 4px rgba(0,0,0,0.35))' }} />
+              <Box sx={{ display:'flex', flexDirection:'column', lineHeight: 1 }}>
                 <Typography
                   variant="h6"
                   noWrap
@@ -209,6 +222,9 @@ function App() {
                   }}
                 >
                   Sistema de Gestão Condominial
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', mt: 0.3 }}>
+                  Versão {appVersion}
                 </Typography>
               </Box>
             </Box>
@@ -319,6 +335,7 @@ function App() {
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.75rem' }}>
                 Sistema de Gestão Condominial
               </Typography>
+   
             </Box>
             <style>
               {`
@@ -565,7 +582,7 @@ function App() {
 
           <Box sx={{ mt: 'auto', mb: 2, px: 2 }}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
-              Versão 3.7.0 • SGC Desktop - Desenvolvido por Thiago Almeida
+              Versão {appVersion} • SGC Desktop - Desenvolvido por Thiago Almeida
               github.com/lirolittledev
             </Typography>
           </Box>

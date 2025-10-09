@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Typography, Button, Box, CircularProgress, Alert, Paper, Grid,
   Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
-  Card, CardContent
+  Card, CardContent, Snackbar
 } from '@mui/material';
 import WarningIcon from '@mui/icons-material/Warning';
 import BackupIcon from '@mui/icons-material/Backup';
@@ -19,6 +19,8 @@ import InventoryIcon from '@mui/icons-material/Inventory';
 function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
+  const [appVersion, setAppVersion] = useState('4.0.0');
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, action: null });
   const [deleteCountdown, setDeleteCountdown] = useState(0);
   const deleteTimerRef = useRef(null);
@@ -47,6 +49,13 @@ function SettingsPage() {
     (async () => {
       await fetchStats();
       try {
+        // versão do app
+        if (window.api && typeof window.api.getAppVersion === 'function') {
+          const v = await window.api.getAppVersion();
+          if (v) setAppVersion(v);
+        }
+      } catch(_) { /* ignore */ }
+      try {
         const res = await window.api.getBackupSchedule();
         if (res && res.success) {
           setScheduleMode(res.schedule.mode || 'none');
@@ -61,6 +70,14 @@ function SettingsPage() {
 
     return () => { try { if (deleteTimerRef.current) { clearInterval(deleteTimerRef.current); deleteTimerRef.current = null; } } catch (e) {} };
   }, []);
+
+  // Abre o Snackbar sempre que houver uma nova mensagem de feedback
+  const { message: feedbackMessage } = feedback || {};
+  useEffect(() => {
+    if (feedbackMessage) {
+      setFeedbackOpen(true);
+    }
+  }, [feedbackMessage]);
 
   const fetchStats = async () => {
     try {
@@ -456,7 +473,7 @@ function SettingsPage() {
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
           <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>SGC Desktop</Typography>
-            <Typography variant="body2" color="text.secondary">Versão 3.4.0</Typography>
+            <Typography variant="body2" color="text.secondary">Versão {appVersion}</Typography>
           </Box>
           <Box sx={{ textAlign: 'right' }}>
             <Typography variant="body2">Desenvolvido por Thiago Almeida</Typography>
@@ -465,10 +482,17 @@ function SettingsPage() {
         </Box>
       </Paper>
 
-      {/* Feedback */}
-      {feedback.message && (
-        <Alert severity={feedback.type} sx={{ mb: 2 }}>{feedback.message}</Alert>
-      )}
+      {/* Feedback Snackbar flutuante visível em qualquer scroll */}
+      <Snackbar
+        open={feedbackOpen}
+        autoHideDuration={5000}
+        onClose={() => setFeedbackOpen(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={() => setFeedbackOpen(false)} severity={feedback.type || 'info'} sx={{ width: '100%' }}>
+          {feedback.message}
+        </Alert>
+      </Snackbar>
 
       {/* Dialog de Confirmação */}
       <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false, action: null })}>

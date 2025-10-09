@@ -27,7 +27,9 @@ const allowedChannels = new Set([
   'get-movimentacoes', 'create-movimentacao', 'update-movimentacao', 'delete-movimentacao',
   // Acordos
   'get-acordos', 'create-acordo', 'get-acordo-details', 'marcar-parcela-paga', 'desmarcar-parcela-paga', 'get-acordos-stats',
-  'search-pessoas-acordos', 'debug-count-pessoas', 'delete-acordo', 'arquivar-acordo', 'desarquivar-acordo-forcar-ativo'
+  'search-pessoas-acordos', 'debug-count-pessoas', 'delete-acordo', 'arquivar-acordo', 'desarquivar-acordo-forcar-ativo',
+  // Sistema
+  'get-app-version'
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -100,6 +102,14 @@ contextBridge.exposeInMainWorld("api", {
   backupData: (opts) => ipcRenderer.invoke("backup-data", opts || {}),
   importBackup: (backupData) => ipcRenderer.invoke("import-backup", backupData),
   getDetailedStats: () => ipcRenderer.invoke("get-detailed-stats"),
+  // Versão do aplicativo
+  getAppVersion: async () => {
+    try {
+      const res = await ipcRenderer.invoke('get-app-version');
+      if (res && res.success && res.version) return res.version;
+    } catch (_) {}
+    return '4.0.0';
+  },
   // Agendamento de backups automáticos
   setBackupSchedule: (schedule) => ipcRenderer.invoke('set-backup-schedule', schedule),
   getBackupSchedule: () => ipcRenderer.invoke('get-backup-schedule'),
