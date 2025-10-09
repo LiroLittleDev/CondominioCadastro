@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("path");
 const fs = require('fs');
+const os = require('os');
 
 function notifyDataChanged() {
   BrowserWindow.getAllWindows().forEach(win => {
@@ -28,6 +29,141 @@ const dbDir = path.dirname(dbPath);
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
+
+// Pasta para backups automáticos: Documents/BACKUP-SGC
+const documentsPath = app.getPath ? app.getPath('documents') : path.join(os.homedir(), 'Documents');
+const backupsDir = path.join(documentsPath, 'BACKUP-SGC');
+if (!fs.existsSync(backupsDir)) {
+  try { fs.mkdirSync(backupsDir, { recursive: true }); } catch(e) { console.warn('Não foi possível criar pasta de backups:', e.message); }
+}
+
+// Arquivo de configuração do agendamento de backup (persistência simples em userData)
+const scheduleConfigPath = path.join(app.getPath('userData'), 'backup-schedule.json');
+let backupSchedule = { mode: 'none', lastRun: null, time: '02:00', includeDb: true, weekday: 1 }; // modes: none, daily, weekly, monthly; weekday: 0=Sun..6=Sat
+try {
+  if (fs.existsSync(scheduleConfigPath)) {
+    const raw = fs.readFileSync(scheduleConfigPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    // garantir campos
+    backupSchedule = Object.assign(backupSchedule, parsed);
+    if (!backupSchedule.time) backupSchedule.time = '02:00';
+    if (typeof backupSchedule.includeDb !== 'boolean') backupSchedule.includeDb = true;
+    if (typeof backupSchedule.weekday !== 'number') backupSchedule.weekday = 1;
+  }
+} catch (e) {
+  console.warn('Falha ao ler configuração de agendamento de backup:', e.message);
+}
+
+let backupTimer = null;
+
+function persistSchedule() {
+  try { fs.writeFileSync(scheduleConfigPath, JSON.stringify(backupSchedule, null, 2)); } catch (e) { console.warn('Falha ao salvar configuração de agendamento:', e.message); }
+}
+
+async function performBackupToFolder(opts = { includeDb: true }) {
+  try {
+    // Reuse existing backup-data handler to collect data
+    const backupResult = await (async () => {
+      // Manually run the same logic as backup-data but avoid circular ipc
+      const tables = {
+        pessoas: await knex('pessoas').select('*'),
+        vinculos: await knex('vinculos').select('*'),
+        veiculos: await knex('veiculos').select('*'),
+        unidades: await knex('unidades').select('*'),
+        blocos: await knex('blocos').select('*'),
+        acordos_parcelas: await knex('acordos_parcelas').select('*'),
+        produtos: await knex('produtos').select('*'),
+        movimentacoes_estoque: await knex('movimentacoes_estoque').select('*'),
+        categorias_produto: await knex('categorias_produto').select('*')
+      };
+      const backupData = {};
+      Object.keys(tables).forEach(k => { backupData[k] = tables[k]; });
+
+      let dbFileBase64 = null;
+      if (opts.includeDb) {
+        try {
+          if (fs.existsSync(dbPath)) {
+            const buf = fs.readFileSync(dbPath);
+            dbFileBase64 = buf.toString('base64');
+          }
+        } catch (err) { console.warn('Erro ao ler DB para backup automático:', err.message); }
+      }
+
+      return { success: true, data: { timestamp: new Date().toISOString(), ...backupData, db_file_base64: dbFileBase64 } };
+    })();
+
+    if (backupResult && backupResult.success) {
+      const fileName = `backup_sgc_${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
+      const filePath = path.join(backupsDir, fileName);
+      fs.writeFileSync(filePath, JSON.stringify(backupResult.data, null, 2), 'utf8');
+      backupSchedule.lastRun = new Date().toISOString();
+      persistSchedule();
+      return { success: true, path: filePath };
+    }
+    return { success: false, message: 'Falha ao gerar backup automático' };
+  } catch (e) {
+    console.error('Erro em performBackupToFolder:', e);
+    return { success: false, message: e.message };
+  }
+}
+
+function scheduleNextRun() {
+  // Limpar timer anterior
+  try { if (backupTimer) { clearTimeout(backupTimer); backupTimer = null; } } catch(e){}
+
+  if (!backupSchedule || !backupSchedule.mode || backupSchedule.mode === 'none') return;
+
+  const now = new Date();
+  let next = null;
+  // parse time HH:MM
+  let hh = 2, mm = 0;
+  try {
+    const parts = (backupSchedule.time || '02:00').split(':');
+    hh = parseInt(parts[0], 10) || 2;
+    mm = parseInt(parts[1], 10) || 0;
+  } catch (e) { /* fallback */ }
+
+  if (backupSchedule.mode === 'daily') {
+    next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
+    if (next.getTime() <= now.getTime()) {
+      // já passou hoje -> agendar para amanhã
+      next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, hh, mm, 0);
+    }
+  } else if (backupSchedule.mode === 'weekly') {
+    // próxima ocorrência do weekday configurado (0=Dom .. 6=Sáb) às hh:mm
+    const targetWeekday = typeof backupSchedule.weekday === 'number' ? backupSchedule.weekday : 1;
+    const today = now.getDay();
+    let daysUntil = (targetWeekday - today + 7) % 7; // 0..6
+    next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntil, hh, mm, 0);
+    if (next.getTime() <= now.getTime()) {
+      // já passou hoje -> agendar para a próxima semana
+      next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (daysUntil || 7), hh, mm, 0);
+    }
+  } else if (backupSchedule.mode === 'monthly') {
+    // primeiro dia do mês às hh:mm
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    let candidate = new Date(year, month, 1, hh, mm, 0);
+    if (candidate.getTime() <= now.getTime()) {
+      candidate = new Date(year, month + 1, 1, hh, mm, 0);
+    }
+    next = candidate;
+  }
+
+  if (!next) return;
+
+  const delay = Math.max(1000, next.getTime() - now.getTime());
+  backupTimer = setTimeout(async () => {
+    try {
+      await performBackupToFolder({ includeDb: !!backupSchedule.includeDb });
+    } catch(e) { console.warn('Erro ao executar backup agendado:', e.message); }
+    // re-agendar
+    scheduleNextRun();
+  }, delay);
+}
+
+// iniciar agendamento se necessário
+scheduleNextRun();
 
 // Configuração do Knex
 const knex = require("knex")({
@@ -1166,19 +1302,47 @@ ipcMain.handle('clear-all-data', async () => {
 });
 
 // Handler para backup dos dados
-ipcMain.handle('backup-data', async () => {
+ipcMain.handle('backup-data', async (event, opts = {}) => {
   try {
-    const [pessoas, vinculos, veiculos] = await Promise.all([
-      knex('pessoas').select('*'),
-      knex('vinculos').select('*'),
-      knex('veiculos').select('*')
-    ]);
-    
+    // tabelas principais a incluir no backup
+    const tables = {
+      pessoas: knex('pessoas').select('*'),
+      vinculos: knex('vinculos').select('*'),
+      veiculos: knex('veiculos').select('*'),
+      unidades: knex('unidades').select('*'),
+      blocos: knex('blocos').select('*'),
+      acordos_parcelas: knex('acordos_parcelas').select('*'),
+      produtos: knex('produtos').select('*'),
+      movimentacoes_estoque: knex('movimentacoes_estoque').select('*'),
+      categorias_produto: knex('categorias_produto').select('*')
+    };
+
+    // executar todas as queries em paralelo
+    const results = await Promise.all(Object.values(tables));
+    const backupData = {};
+    Object.keys(tables).forEach((k, i) => { backupData[k] = results[i]; });
+
+    // tentar incluir o arquivo sqlite do banco (opcional — controlado por opts.includeDb)
+    let dbFileBase64 = null;
+    if (opts.includeDb) {
+      try {
+        // usar o dbPath que já é calculado no topo do arquivo
+        const dbFilePath = dbPath; // variável global configurada acima
+        const exists = fs.existsSync(dbFilePath);
+        if (exists) {
+          const buf = fs.readFileSync(dbFilePath);
+          dbFileBase64 = buf.toString('base64');
+        }
+      } catch (err) {
+        console.warn('Não foi possível ler o arquivo DB para incluir no backup:', err.message);
+        dbFileBase64 = null;
+      }
+    }
+
     const backup = {
       timestamp: new Date().toISOString(),
-      pessoas,
-      vinculos,
-      veiculos
+      ...backupData,
+      db_file_base64: dbFileBase64 // pode ser null se não existir ou se não solicitado
     };
     
     return { success: true, data: backup };
@@ -1249,28 +1413,76 @@ ipcMain.handle('get-veiculos-by-unidade', async (event, unidadeId) => {
 // Handler para importar dados de backup
 ipcMain.handle('import-backup', async (event, backupData) => {
   try {
+    // Se o backup contém o arquivo binário do DB, vamos sobrescrever o arquivo físico
+    if (backupData.db_file_base64) {
+      try {
+        // fechar conexões do knex para evitar lock
+        try { await knex.destroy(); } catch(e) { console.warn('Erro ao destruir knex antes de restaurar DB:', e.message); }
+
+        const buf = Buffer.from(backupData.db_file_base64, 'base64');
+        // escrever no caminho do DB (dbPath definido no topo)
+        fs.writeFileSync(dbPath, buf);
+
+        // relançar a aplicação para recarregar o DB recém-escrito
+        setTimeout(() => {
+          try {
+            app.relaunch();
+            app.exit(0);
+          } catch (err) {
+            console.error('Erro ao relançar app após restaurar DB:', err);
+          }
+        }, 500);
+
+        return { success: true, message: 'Arquivo DB restaurado com sucesso. A aplicação será reiniciada para aplicar as alterações.' };
+      } catch (err) {
+        console.error('Erro ao restaurar arquivo DB do backup:', err);
+        return { success: false, message: `Erro ao restaurar DB: ${err.message}` };
+      }
+    }
+
+    // Caso não tenha o arquivo DB, restauramos por tabelas via transaction (mais seguro para merges parciais)
     await knex.transaction(async (trx) => {
-      // Limpa dados existentes
-      await trx('vinculos').del();
-      await trx('veiculos').del();
-      await trx('pessoas').del();
-      
-      // Importa pessoas
+      // Limpar e restaurar em ordem segura
+      // remover dados que dependem de outros
+      const tablesToClear = ['vinculos', 'veiculos', 'pessoas', 'acordos_parcelas', 'movimentacoes_estoque', 'produtos'];
+      for (const t of tablesToClear) {
+        // alguns nomes de tabela podem não existir em versões antigas -> try/catch
+        try { await trx(t).del(); } catch(e) { /* ignorar */ }
+      }
+
+      // Importa outras tabelas se presentes
+      if (backupData.blocos && backupData.blocos.length > 0) {
+        try { await trx('blocos').del(); await trx('blocos').insert(backupData.blocos); } catch(e) { /* ignore */ }
+      }
+      if (backupData.unidades && backupData.unidades.length > 0) {
+        try { await trx('unidades').del(); await trx('unidades').insert(backupData.unidades); } catch(e) { /* ignore */ }
+      }
+
       if (backupData.pessoas && backupData.pessoas.length > 0) {
         await trx('pessoas').insert(backupData.pessoas);
       }
-      
-      // Importa veículos
+
       if (backupData.veiculos && backupData.veiculos.length > 0) {
         await trx('veiculos').insert(backupData.veiculos);
       }
-      
-      // Importa vínculos
+
       if (backupData.vinculos && backupData.vinculos.length > 0) {
         await trx('vinculos').insert(backupData.vinculos);
       }
+
+      if (backupData.produtos && backupData.produtos.length > 0) {
+        try { await trx('produtos').insert(backupData.produtos); } catch(e) { /* ignore */ }
+      }
+
+      if (backupData.movimentacoes_estoque && backupData.movimentacoes_estoque.length > 0) {
+        try { await trx('movimentacoes_estoque').insert(backupData.movimentacoes_estoque); } catch(e) { /* ignore */ }
+      }
+
+      if (backupData.acordos_parcelas && backupData.acordos_parcelas.length > 0) {
+        try { await trx('acordos_parcelas').insert(backupData.acordos_parcelas); } catch(e) { /* ignore */ }
+      }
     });
-    
+
     return { 
       success: true, 
       message: `Backup importado com sucesso! ${backupData.pessoas?.length || 0} pessoas, ${backupData.veiculos?.length || 0} veículos e ${backupData.vinculos?.length || 0} vínculos restaurados.`
@@ -2277,5 +2489,33 @@ ipcMain.handle('delete-acordo', async (event, acordoId) => {
   } catch (error) {
     console.error('Erro ao excluir acordo:', error);
     return { success: false, message: `Erro: ${error.message}` };
+  }
+});
+
+// Handlers para agendamento de backups
+ipcMain.handle('get-backup-schedule', async () => {
+  return { success: true, schedule: backupSchedule };
+});
+
+ipcMain.handle('set-backup-schedule', async (event, schedule) => {
+  try {
+    // expected schedule: { mode: 'none'|'daily'|'weekly'|'monthly', includeDb: boolean }
+    backupSchedule = { ...backupSchedule, ...schedule };
+    persistSchedule();
+    scheduleNextRun();
+    return { success: true, schedule: backupSchedule };
+  } catch (e) {
+    console.error('Erro ao setar schedule:', e);
+    return { success: false, message: e.message };
+  }
+});
+
+ipcMain.handle('run-backup-now', async (event, opts = {}) => {
+  try {
+    const res = await performBackupToFolder({ includeDb: !!opts.includeDb });
+    if (res.success) return { success: true, path: res.path };
+    return { success: false, message: res.message };
+  } catch (e) {
+    return { success: false, message: e.message };
   }
 });

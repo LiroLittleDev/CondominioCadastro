@@ -91,7 +91,7 @@ function App() {
                     fontSize: '0.75rem'
                   }}
                 >
-                  Versão 2.3.0 • SGC Desktop
+                  Versão 3.4.0 • SGC Desktop
                 </Typography>
               </Box>
             </Box>
@@ -115,6 +115,8 @@ function App() {
             "& .MuiDrawer-paper": {
               width: drawerWidth,
               boxSizing: "border-box",
+              display: 'flex',
+              flexDirection: 'column',
               background: 'linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%)',
               borderRight: '1px solid rgba(0,0,0,0.08)'
             },
@@ -369,6 +371,13 @@ function App() {
               />
             </ListItem>
           </List>
+
+          <Box sx={{ mt: 'auto', mb: 2, px: 2 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>
+              Versão 3.4.0 • SGC Desktop - Desenvolvido por Thiago Almeida
+              github.com/lirolittledev
+            </Typography>
+          </Box>
         </Drawer>
 
         {/* Área de Conteúdo Principal */}

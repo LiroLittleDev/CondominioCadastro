@@ -123,388 +123,345 @@ function HomePage() {
     }
   };
 
+  const highlightMatch = (text = "") => {
+    return text;
+  };
+
   return (
     <Box>
-      {/* Hero Section */}
-      <Paper 
-        elevation={0} 
-        sx={{ 
-          p: 4, 
-          mb: 4, 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-          color: 'white',
-          borderRadius: 3,
-          position: 'relative',
-          overflow: 'hidden'
-        }}
-      >
-        {/* Particles Background */}
-        <Box sx={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            width: '100px',
-            height: '100px',
-            background: 'rgba(255,255,255,0.1)',
-            borderRadius: '50%',
-            top: '10%',
-            right: '10%',
-            animation: 'float 6s ease-in-out infinite'
-          },
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            width: '60px',
-            height: '60px',
-            background: 'rgba(255,255,255,0.05)',
-            borderRadius: '50%',
-            bottom: '20%',
-            left: '15%',
-            animation: 'float 8s ease-in-out infinite reverse'
-          },
-          '@keyframes float': {
-            '0%, 100%': { transform: 'translateY(0px)' },
-            '50%': { transform: 'translateY(-20px)' }
-          },
-          '@keyframes pulse': {
-            '0%, 100%': { transform: 'scale(1)' },
-            '50%': { transform: 'scale(1.05)' }
-          }
-        }} />
-        
-        <Grid container spacing={3} alignItems="center" sx={{ position: 'relative', zIndex: 1 }}>
-          <Grid item xs={12} md={8}>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 3, 
-              mb: 2,
-              justifyContent: { xs: 'center', md: 'flex-start' }
-            }}>
-              <Box
-                component="img"
-                src="https://cdn-icons-png.flaticon.com/512/2830/2830284.png"
-                alt="SGC Logo"
-                sx={{
-                  width: { xs: 56, md: 72 },
-                  height: { xs: 56, md: 72 },
-                  filter: 'brightness(0) invert(1)',
-                  animation: 'pulse 2s ease-in-out infinite'
-                }}
-              />
-              <Box sx={{ textAlign: { xs: 'center', md: 'left' } }}>
-                <Typography 
-                  variant={isMobile ? "h3" : "h2"} 
-                  sx={{ 
-                    fontWeight: 'bold',
-                    background: 'linear-gradient(45deg, #fff 30%, #f0f0f0 90%)',
-                    backgroundClip: 'text',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                    mb: 0.5
-                  }}
-                >
-                  SGC Desktop
-                </Typography>
-                <Typography 
-                  variant="h6" 
-                  sx={{ 
-                    opacity: 0.9,
-                    fontWeight: 300,
-                    mb: 1
-                  }}
-                >
-                  Sistema de Gestão Condominial
-                </Typography>
-                <Typography 
-                  variant="body1" 
-                  sx={{ 
-                    opacity: 0.8,
-                    maxWidth: '400px'
-                  }}
-                >
-                  Gerencie moradores, veículos e unidades de forma simples e eficiente
-                </Typography>
-              </Box>
-            </Box>
-          </Grid>
-          
-          <Grid item xs={12} md={4}>
-            <Box sx={{ 
-              display: 'flex', 
-              gap: 2,
-              flexDirection: { xs: 'column', sm: 'row', md: 'column' },
-              justifyContent: 'center'
-            }}>
-            <Button
-              variant="contained"
-              startIcon={<BusinessIcon />}
-              component={Link}
-              to="/blocos"
-              size="large"
-              sx={{ 
-                bgcolor: 'rgba(255,255,255,0.15)', 
-                '&:hover': { 
-                  bgcolor: 'rgba(255,255,255,0.25)',
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 8px 25px rgba(0,0,0,0.2)'
-                },
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: 2,
-                px: 3,
-                py: 1.5,
-                transition: 'all 0.3s ease',
-                fontWeight: 600
-              }}
-              fullWidth
-            >
-              Gerenciar Blocos
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<PersonAddIcon />}
-              onClick={() => setCadastroRapidoOpen(true)}
-              size="large"
-              sx={{ 
-                borderColor: 'rgba(255,255,255,0.3)',
-                color: 'white',
-                '&:hover': { 
-                  borderColor: 'rgba(255,255,255,0.5)',
-                  bgcolor: 'rgba(255,255,255,0.1)',
-                  transform: 'translateY(-2px)'
-                },
-                borderRadius: 2,
-                px: 3,
-                py: 1.5,
-                transition: 'all 0.3s ease',
-                fontWeight: 600
-              }}
-              fullWidth
-            >
-              Cadastro Rápido
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<AssessmentIcon />}
-              component={Link}
-              to="/relatorios"
-              size="large"
-              sx={{ 
-                borderColor: 'rgba(255,255,255,0.3)',
-                color: 'white',
-                '&:hover': { 
-                  borderColor: 'rgba(255,255,255,0.5)',
-                  bgcolor: 'rgba(255,255,255,0.1)',
-                  transform: 'translateY(-2px)'
-                },
-                borderRadius: 2,
-                px: 3,
-                py: 1.5,
-                transition: 'all 0.3s ease',
-                fontWeight: 600
-              }}
-              fullWidth
-            >
-              Relatórios
-            </Button>
-            </Box>
-          </Grid>
-        </Grid>
-      </Paper>
-      {loadingStats ? (
-        <CircularProgress />
-      ) : (
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              to="/unidades"
-              title="Unidades Cadastradas"
-              subtitle="Apartamentos no condomínio"
-              value={stats.unidades}
-              color="primary.main"
-              icon={<HomeWorkIcon />}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              to="/pessoas"
-              title="Moradores Ativos"
-              subtitle="Pessoas cadastradas"
-              value={stats.pessoas}
-              color="secondary.main"
-              icon={<PeopleIcon />}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <StatCard
-              to="/veiculos"
-              title="Veículos Registrados"
-              subtitle="Carros e motos"
-              value={stats.veiculos}
-              color="success.main"
-              icon={<DirectionsCarIcon />}
-            />
-          </Grid>
-        </Grid>
-      )}
-
-      {/* Seção de Busca */}
-      <Paper 
-        elevation={2} 
-        sx={{ 
-          p: 4, 
+      <Paper
+        elevation={0}
+        sx={{
+          p: { xs: 3, md: 4 },
           mb: 4,
           borderRadius: 3,
-          background: 'linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%)',
-          border: '1px solid rgba(0,0,0,0.05)'
+          position: "relative",
+          overflow: "hidden",
+          background:
+            "radial-gradient(1200px 400px at 10% 10%, rgba(255,255,255,0.04), transparent), linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          color: "white"
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-          <Box sx={{
-            p: 1.5,
-            borderRadius: 2,
-            bgcolor: 'primary.main',
-            color: 'white',
-            mr: 2,
-            display: 'flex',
-            alignItems: 'center'
-          }}>
-            <SearchIcon />
+
+          <Box
+            component="svg"
+            viewBox="0 0 800 200"
+            preserveAspectRatio="none"
+            sx={{
+              position: "absolute",
+              bottom: -10,
+              right: -20,
+              width: { xs: 300, md: 600 },
+              opacity: 0.06,
+              transform: "rotate(8deg)",
+              zIndex: 0,
+              pointerEvents: "none"
+            }}
+          >
+            <path d="M0 100 C150 200 350 0 500 80 C650 160 800 40 800 40 L800 200 L0 200 Z" fill="#fff" />
           </Box>
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
-              Busca Universal
+
+          <Grid container spacing={3} alignItems="center" sx={{ position: "relative", zIndex: 1 }}>
+            <Grid item xs={12} md={8}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 3, mb: 2, justifyContent: { xs: "center", md: "flex-start" } }}>
+                <Box
+            sx={{
+              width: { xs: 72, md: 96 },
+              height: { xs: 72, md: 96 },
+              borderRadius: 2,
+              bgcolor: "rgba(255,255,255,0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              mr: 2,
+              boxShadow: "0 6px 18px rgba(0,0,0,0.12)"
+            }}
+            aria-hidden="true"
+                >
+            <HomeWorkIcon sx={{ color: "white", fontSize: { xs: 40, md: 56 } }} />
+                </Box>
+                <Box sx={{ textAlign: { xs: "center", md: "left" } }}>
+            <Typography
+              variant={isMobile ? "h3" : "h2"}
+              sx={{
+                fontWeight: "bold",
+                background: "linear-gradient(45deg, #fff 30%, #e8eefc 90%)",
+                backgroundClip: "text",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                textShadow: "0 6px 18px rgba(0,0,0,0.18)",
+                mb: 0.5
+              }}
+            >
+              SGC Desktop
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Encontre rapidamente moradores, veículos, unidades e blocos
+            <Typography variant="h6" sx={{ opacity: 0.95, fontWeight: 400, mb: 1 }}>
+              Sistema de Gestão Condominial
             </Typography>
-          </Box>
-          <Chip 
-            label="⚡ Rápida" 
-            size="small" 
-            color="primary" 
+            <Typography variant="body1" sx={{ opacity: 0.85, maxWidth: "560px" }}>
+              Gerencie moradores, veículos e unidades de forma simples e eficiente
+            </Typography>
+                </Box>
+              </Box>
+            </Grid>
+
+            <Grid item xs={12} md={4}>
+              <Box
+                sx={{
+            display: "flex",
+            gap: 2,
+            flexDirection: { xs: "column", sm: "row", md: "column" },
+            justifyContent: "center"
+                }}
+              >
+                <Button
+            variant="contained"
+            startIcon={<BusinessIcon />}
+            component={Link}
+            to="/blocos"
+            size="large"
+            sx={{
+              bgcolor: "rgba(255,255,255,0.12)",
+              color: "white",
+              '&:hover': {
+                bgcolor: "rgba(255,255,255,0.18)",
+                transform: "translateY(-3px)"
+              },
+              backdropFilter: "blur(6px)",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 2,
+              px: 3,
+              py: 1.25,
+              transition: "all 0.25s ease",
+              fontWeight: 700
+            }}
+            fullWidth
+                >
+            Gerenciar blocos
+                </Button>
+
+                <Button
             variant="outlined"
-            sx={{ 
-              fontWeight: 600,
-              '& .MuiChip-label': {
-                px: 1
-              }
+            startIcon={<PersonAddIcon />}
+            onClick={() => setCadastroRapidoOpen(true)}
+            size="large"
+            sx={{
+              borderColor: "rgba(255,255,255,0.22)",
+              color: "white",
+              '&:hover': {
+                borderColor: "rgba(255,255,255,0.4)",
+                bgcolor: "rgba(255,255,255,0.06)",
+                transform: "translateY(-3px)"
+              },
+              borderRadius: 2,
+              px: 3,
+              py: 1.25,
+              transition: "all 0.25s ease",
+              fontWeight: 700
+            }}
+            fullWidth
+                >
+            Cadastro rápido
+                </Button>
+
+                <Button
+            variant="outlined"
+            startIcon={<AssessmentIcon />}
+            component={Link}
+            to="/relatorios"
+            size="large"
+            sx={{
+              borderColor: "rgba(255,255,255,0.22)",
+              color: "white",
+              '&:hover': {
+                borderColor: "rgba(255,255,255,0.4)",
+                bgcolor: "rgba(255,255,255,0.06)",
+                transform: "translateY(-3px)"
+              },
+              borderRadius: 2,
+              px: 3,
+              py: 1.25,
+              transition: "all 0.25s ease",
+              fontWeight: 700
+            }}
+            fullWidth
+                >
+            Relatórios
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
+              </Paper>
+
+              {loadingStats ? (
+          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+            <CircularProgress />
+          </Box>
+              ) : (
+          <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid item xs={12} sm={6} md={4}>
+              <StatCard to="/unidades" title="Unidades" subtitle="Apartamentos" value={stats.unidades} color="primary.main" icon={<HomeWorkIcon />} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <StatCard to="/pessoas" title="Moradores" subtitle="Cadastros ativos" value={stats.pessoas} color="secondary.main" icon={<PeopleIcon />} />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <StatCard to="/veiculos" title="Veículos" subtitle="Registrados" value={stats.veiculos} color="success.main" icon={<DirectionsCarIcon />} />
+            </Grid>
+          </Grid>
+              )}
+
+              <Paper
+          elevation={2}
+          sx={{
+            p: { xs: 3, md: 4 },
+            mb: 4,
+            borderRadius: 3,
+            background: "linear-gradient(180deg, #ffffff 0%, #fbfdfe 100%)",
+            border: "1px solid rgba(0,0,0,0.04)"
+          }}
+              >
+          <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+            <Box
+              sx={{
+                p: 1.5,
+                borderRadius: 2,
+                bgcolor: "primary.main",
+                color: "white",
+                mr: 2,
+                display: "flex",
+                alignItems: "center",
+                boxShadow: "0 6px 18px rgba(102,126,234,0.12)"
+              }}
+            >
+              <SearchIcon />
+            </Box>
+
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+                Busca Global
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Encontre moradores, veículos, unidades e blocos em instantes.
+              </Typography>
+            </Box>
+
+            <Chip
+              label="⚡ Instantânea"
+              size="small"
+              color="primary"
+              variant="outlined"
+              sx={{ fontWeight: 700, borderRadius: 1.5, ml: 2 }}
+            />
+          </Box>
+
+          <TextField
+            fullWidth
+            placeholder="Busque por nome, CPF, placa, unidade ou bloco..."
+            variant="outlined"
+            value={termoBusca}
+            onChange={(e) => setTermoBusca(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <Box sx={{ mr: 1, color: "text.secondary", display: "flex", alignItems: "center" }}>
+            <SearchIcon />
+                </Box>
+              )
+            }}
+            sx={{
+              mb: 2,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                backgroundColor: "white",
+                transition: "all 0.25s ease",
+                '&:hover': { boxShadow: "0 6px 20px rgba(0,0,0,0.06)" },
+                '&.Mui-focused': { boxShadow: "0 8px 28px rgba(102,126,234,0.18)" }
+              },
+              '& .MuiOutlinedInput-input': { py: 1.5, fontSize: "1.05rem" }
             }}
           />
-        </Box>
-        <TextField
-          fullWidth
-          placeholder="Digite um nome, CPF, placa, unidade ou bloco..."
-          variant="outlined"
-          value={termoBusca}
-          onChange={(e) => setTermoBusca(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <Box sx={{ mr: 1, color: 'text.secondary', display: 'flex', alignItems: 'center' }}>
-                <SearchIcon />
-              </Box>
-            )
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 2,
-              backgroundColor: 'white',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                '& fieldset': {
-                  borderColor: 'primary.main',
-                }
-              },
-              '&.Mui-focused': {
-                boxShadow: '0 4px 20px rgba(102, 126, 234, 0.25)',
-                '& fieldset': {
-                  borderWidth: '2px'
-                }
-              }
-            },
-            '& .MuiOutlinedInput-input': {
-              py: 1.5,
-              fontSize: '1.1rem'
-            }
-          }}
-        />
-      </Paper>
-      {buscando && (
-        <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
-          <CircularProgress />
-        </Box>
-      )}
 
-      {termoBusca.length >= 2 && !buscando && (
-        <Paper elevation={2} sx={{ overflow: 'hidden' }}>
-          <List disablePadding>
-            {resultados.length > 0 ? (
-              resultados.map((resultado, index) => (
-                <ListItem
-                  button
-                  key={index}
-                  component={Link}
-                  to={resultado.path}
-                  sx={{
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                      transform: 'translateX(4px)',
-                      transition: 'all 0.2s ease'
-                    },
-                    borderBottom: index < resultados.length - 1 ? '1px solid' : 'none',
-                    borderColor: 'divider'
-                  }}
-                >
-                  <ListItemIcon>
-                    <Avatar sx={{ 
-                      bgcolor: resultado.tipo === 'Pessoa' ? 'secondary.main' : 
-                               resultado.tipo === 'Veículo' ? 'success.main' : 
-                               resultado.tipo === 'Bloco' ? 'warning.main' : 'primary.main',
-                      width: 32,
-                      height: 32
-                    }}>
-                      {getIconPorTipo(resultado.tipo)}
-                    </Avatar>
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={resultado.label}
-                    secondary={
-                      <Chip 
-                        label={resultado.tipo} 
-                        size="small" 
-                        variant="outlined"
-                        color={resultado.tipo === 'Pessoa' ? 'secondary' : 
-                               resultado.tipo === 'Veículo' ? 'success' : 'primary'}
-                      />
-                    }
-                  />
-                </ListItem>
-              ))
-            ) : (
-              <ListItem sx={{ textAlign: 'center', py: 3 }}>
-                <ListItemText 
-                  primary="Nenhum resultado encontrado" 
-                  secondary="Tente buscar por nome, CPF, placa ou número da unidade"
+          {buscando && (
+            <Box sx={{ display: "flex", justifyContent: "center", my: 2 }}>
+              <CircularProgress size={28} />
+            </Box>
+          )}
+
+          {termoBusca.length >= 2 && !buscando && (
+            <Paper elevation={0} sx={{ overflow: "hidden", borderRadius: 2 }}>
+              <List disablePadding>
+                {resultados.length > 0 ? (
+            resultados.map((resultado, index) => (
+              <ListItem
+                button
+                key={index}
+                component={Link}
+                to={resultado.path}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                  px: { xs: 2, md: 3 },
+                  py: 1.5,
+                  '&:hover': { bgcolor: "action.hover", transform: "translateX(6px)", transition: "all 0.18s ease" },
+                  borderBottom: index < resultados.length - 1 ? "1px solid" : "none",
+                  borderColor: "divider"
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 44 }}>
+                  <Avatar
+              sx={{
+                bgcolor:
+                  resultado.tipo === "Pessoa"
+                    ? "secondary.main"
+                    : resultado.tipo === "Veículo"
+                    ? "success.main"
+                    : resultado.tipo === "Bloco"
+                    ? "warning.main"
+                    : "primary.main",
+                width: 36,
+                height: 36
+              }}
+                  >
+              {getIconPorTipo(resultado.tipo)}
+                  </Avatar>
+                </ListItemIcon>
+
+                <ListItemText
+                  primary={<Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>{highlightMatch(resultado.label)}</Box>}
+                  secondary={
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Chip
+                  label={resultado.tipo}
+                  size="small"
+                  variant="outlined"
+                  color={resultado.tipo === "Pessoa" ? "secondary" : resultado.tipo === "Veículo" ? "success" : "primary"}
+                  sx={{ height: 26, fontWeight: 600 }}
+                />
+                {resultado.sub && (
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                    {resultado.sub}
+                  </Typography>
+                )}
+              </Box>
+                  }
                 />
               </ListItem>
-            )}
-          </List>
-        </Paper>
-      )}
-      
-      <CadastroRapidoModal
-        open={cadastroRapidoOpen}
-        handleClose={() => setCadastroRapidoOpen(false)}
-        onSuccess={() => {
-          // Recarregar estatísticas após cadastro
+            ))
+                ) : (
+            <ListItem sx={{ textAlign: "center", py: 4 }}>
+              <ListItemText primary="Nenhum resultado encontrado." secondary="Tente outro termo ou verifique os filtros." />
+            </ListItem>
+                )}
+              </List>
+            </Paper>
+          )}
+              </Paper>
+
+              <CadastroRapidoModal
+          open={cadastroRapidoOpen}
+          handleClose={() => setCadastroRapidoOpen(false)}
+          onSuccess={() => {
           const fetchStats = async () => {
             const data = await window.api.getDashboardStats();
             setStats(data);

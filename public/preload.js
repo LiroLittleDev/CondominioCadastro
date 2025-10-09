@@ -61,9 +61,13 @@ contextBridge.exposeInMainWorld("api", {
   saveReport: (options) => ipcRenderer.invoke("save-report", options),
   createPessoaSimples: (pessoaData) => ipcRenderer.invoke("create-pessoa-simples", pessoaData),
   clearAllData: () => ipcRenderer.invoke("clear-all-data"),
-  backupData: () => ipcRenderer.invoke("backup-data"),
+  backupData: (opts) => ipcRenderer.invoke("backup-data", opts || {}),
   importBackup: (backupData) => ipcRenderer.invoke("import-backup", backupData),
   getDetailedStats: () => ipcRenderer.invoke("get-detailed-stats"),
+  // Agendamento de backups automáticos
+  setBackupSchedule: (schedule) => ipcRenderer.invoke('set-backup-schedule', schedule),
+  getBackupSchedule: () => ipcRenderer.invoke('get-backup-schedule'),
+  runBackupNow: () => ipcRenderer.invoke('run-backup-now'),
   
   // APIs do Sistema de Estoque
   getEstoqueStats: () => ipcRenderer.invoke('get-estoque-stats'),
