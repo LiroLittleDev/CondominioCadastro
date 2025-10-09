@@ -54,6 +54,12 @@ if (typeof global.window !== 'undefined') {
 		updateProduto: async () => ({ success: true }),
 		deleteProduto: async () => ({ success: true }),
 
+		// movimentações / estoque
+		getMovimentacoes: async () => [],
+		createMovimentacao: async () => ({ success: true }),
+		updateMovimentacao: async () => ({ success: true }),
+		deleteMovimentacao: async () => ({ success: true }),
+
 		// veiculos
 		getAllVeiculos: async () => [],
 		getVeiculosByUnidade: async () => [],

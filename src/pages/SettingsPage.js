@@ -15,7 +15,6 @@ import PersonIcon from '@mui/icons-material/Person';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import InventoryIcon from '@mui/icons-material/Inventory';
-import ConfirmDialog from '../components/ConfirmDialog';
 
 function SettingsPage() {
   const [loading, setLoading] = useState(false);
@@ -41,6 +40,8 @@ function SettingsPage() {
   const [scheduleWeekday, setScheduleWeekday] = useState(1);
   const [scheduleMonthDay, setScheduleMonthDay] = useState(1);
   const [scheduleInfo, setScheduleInfo] = useState(null);
+  // option to backup before erasing DB file
+  const [clearBackupBeforeErase, setClearBackupBeforeErase] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -213,7 +214,31 @@ function SettingsPage() {
   };
 
   // --- Clear / destructive actions (concise implementations) ---
-  const handleClearData = async () => { setLoading(true); setFeedback({ type: '', message: '' }); try { const result = await window.api.clearAllData(); if (result.success) { setFeedback({ type: 'success', message: result.message }); fetchStats(); } else setFeedback({ type: 'error', message: result.message }); } catch (error) { setFeedback({ type: 'error', message: `Erro: ${error.message}` }); } setLoading(false); setConfirmDialog({ open: false, action: null }); };
+  const handleClearData = async (opts = {}) => {
+    setLoading(true);
+    setFeedback({ type: '', message: '' });
+    try {
+      const result = await window.api.clearAllData(opts);
+      // log details if present for debugging
+      if (result && result.details) {
+        console.info('clear-all-data details:', result.details);
+        const failed = result.details.filter(d => !d.ok && d.message !== 'not exists');
+        if (failed.length > 0) {
+          setFeedback({ type: 'error', message: `${result.message} (${failed.length} tabelas apresentaram erro)` });
+        } else {
+          setFeedback({ type: result.success ? 'success' : 'info', message: result.message });
+        }
+      } else {
+        if (result && result.success) setFeedback({ type: 'success', message: result.message });
+        else setFeedback({ type: 'error', message: result?.message || 'Erro ao limpar dados' });
+      }
+      if (result && result.success) fetchStats();
+    } catch (error) {
+      setFeedback({ type: 'error', message: `Erro: ${error.message}` });
+    }
+    setLoading(false);
+    setConfirmDialog({ open: false, action: null });
+  };
 
   const handleClearAcordos = async () => { setLoading(true); setFeedback({ type: '', message: '' }); try { const acordos = await window.electronAPI.invoke('get-acordos', {}); if (Array.isArray(acordos)) for (const a of acordos) try { await window.electronAPI.invoke('delete-acordo', a.id); } catch(e){ console.warn('Erro ao deletar acordo', a.id, e); } setFeedback({ type: 'success', message: 'Todos os acordos foram removidos.' }); fetchStats(); } catch (error) { setFeedback({ type: 'error', message: `Erro: ${error.message}` }); } setLoading(false); setConfirmDialog({ open: false, action: null }); };
 
@@ -221,7 +246,43 @@ function SettingsPage() {
 
   const handleClearVeiculos = async () => { setLoading(true); setFeedback({ type: '', message: '' }); try { const veiculos = await window.api.getAllVeiculos(); if (Array.isArray(veiculos)) for (const v of veiculos) try { await window.api.deleteVeiculo(v.id); } catch(e){ console.warn('Erro ao deletar veículo', v.id, e); } setFeedback({ type: 'success', message: 'Todos os veículos foram removidos.' }); fetchStats(); } catch (error) { setFeedback({ type: 'error', message: `Erro: ${error.message}` }); } setLoading(false); setConfirmDialog({ open: false, action: null }); };
 
-  const handleClearEstoque = async () => { setLoading(true); setFeedback({ type: '', message: '' }); try { const produtos = await window.api.getProdutos(); if (Array.isArray(produtos)) for (const p of produtos) try { await window.api.updateProduto(p.id, { estoque_atual: 0 }); } catch(e){ console.warn('Erro ao zerar estoque do produto', p.id, e); } setFeedback({ type: 'success', message: 'Estoque zerado para todos os produtos.' }); fetchStats(); } catch (error) { setFeedback({ type: 'error', message: `Erro: ${error.message}` }); } setLoading(false); setConfirmDialog({ open: false, action: null }); };
+  // Limpar produtos e movimentações (apaga ambos)
+  const handleClearProdutosMovimentos = async () => {
+    setLoading(true);
+    setFeedback({ type: '', message: '' });
+    try {
+      // apagar todas as movimentações
+      try {
+        const movimentacoes = await window.api.getMovimentacoes({});
+        if (Array.isArray(movimentacoes)) {
+          for (const m of movimentacoes) {
+            try { await window.api.deleteMovimentacao(m.id); } catch (e) { console.warn('Erro ao deletar movimentação', m.id, e); }
+          }
+        }
+      } catch (e) {
+        console.warn('Falha ao obter movimentações:', e);
+      }
+
+      // apagar todos os produtos
+      try {
+        const produtos = await window.api.getProdutos();
+        if (Array.isArray(produtos)) {
+          for (const p of produtos) {
+            try { await window.api.deleteProduto(p.id); } catch (e) { console.warn('Erro ao deletar produto', p.id, e); }
+          }
+        }
+      } catch (e) {
+        console.warn('Falha ao obter produtos:', e);
+      }
+
+      setFeedback({ type: 'success', message: 'Produtos e movimentações foram removidos.' });
+      fetchStats();
+    } catch (error) {
+      setFeedback({ type: 'error', message: `Erro: ${error.message}` });
+    }
+    setLoading(false);
+    setConfirmDialog({ open: false, action: null });
+  };
 
   return (
     <Box>
@@ -362,12 +423,17 @@ function SettingsPage() {
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Typography variant="subtitle1" gutterBottom color="error">Limpezas Específicas</Typography>
         <Typography paragraph color="text.secondary">Execute ações seletivas para limpar tipos de dados específicos.</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <input id="clear-backup" type="checkbox" checked={clearBackupBeforeErase} onChange={(e) => setClearBackupBeforeErase(e.target.checked)} />
+          <label htmlFor="clear-backup">Fazer backup do arquivo DB antes de apagar (recomendado)</label>
+        </Box>
+
         <Grid container spacing={2}>
           {[
             { key: 'clear_acordos', icon: <HandshakeIcon />, label: 'Limpar Acordos' },
             { key: 'clear_pessoas', icon: <PersonIcon />, label: 'Limpar Pessoas' },
             { key: 'clear_veiculos', icon: <DirectionsCarIcon />, label: 'Limpar Veículos' },
-            { key: 'clear_estoque', icon: <InventoryIcon />, label: 'Limpar Estoque' },
+            { key: 'clear_produtos_movimentos', icon: <InventoryIcon />, label: 'Limpar Produtos e Movimentos' },
             { key: 'clear_all_db', icon: <DeleteForeverIcon />, label: 'Limpar Banco (tudo)', color: 'error' }
           ].map(btn => (
             <Grid item xs={12} sm={6} md={4} key={btn.key}>
@@ -454,6 +520,7 @@ function SettingsPage() {
                       Você tem certeza que deseja <strong>EXCLUIR TODAS AS PESSOAS</strong>?
                       <br /><br />
                       Esta ação irá remover permanentemente todos os cadastros de pessoas.
+                      Ao excluir as pessoas, <strong>os veículos vinculados a elas também serão removidos</strong> automaticamente.
                     </>
                   );
                 case 'clear_veiculos':
@@ -497,8 +564,8 @@ function SettingsPage() {
               case 'clear_acordos': return handleClearAcordos();
               case 'clear_pessoas': return handleClearPessoas();
               case 'clear_veiculos': return handleClearVeiculos();
-              case 'clear_estoque': return handleClearEstoque();
-              case 'clear_all_db': return handleClearData();
+              case 'clear_produtos_movimentos': return handleClearProdutosMovimentos();
+              case 'clear_all_db': return handleClearData({ eraseDbFile: true, backup: clearBackupBeforeErase });
               default: return null;
             }
           }} color={confirmDialog.action === 'import' ? 'warning' : 'error'} variant="contained" disabled={deleteCountdown > 0}>{confirmDialog.action === 'import' ? 'Sim, Importar' : (deleteCountdown > 0 ? `Confirmar (${deleteCountdown}s)` : 'Confirmar')}</Button>

@@ -96,7 +96,7 @@ contextBridge.exposeInMainWorld("api", {
   getReportData: (filtros) => ipcRenderer.invoke("get-report-data", filtros),
   saveReport: (options) => ipcRenderer.invoke("save-report", options),
   createPessoaSimples: (pessoaData) => ipcRenderer.invoke("create-pessoa-simples", pessoaData),
-  clearAllData: () => ipcRenderer.invoke("clear-all-data"),
+  clearAllData: (opts) => ipcRenderer.invoke("clear-all-data", opts || {}),
   backupData: (opts) => ipcRenderer.invoke("backup-data", opts || {}),
   importBackup: (backupData) => ipcRenderer.invoke("import-backup", backupData),
   getDetailedStats: () => ipcRenderer.invoke("get-detailed-stats"),

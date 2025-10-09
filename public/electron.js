@@ -1289,17 +1289,185 @@ ipcMain.handle('create-pessoa-simples', async (event, pessoaData) => {
 });
 
 // Handler para limpar todos os dados
-ipcMain.handle('clear-all-data', async () => {
+ipcMain.handle('clear-all-data', async (event, opts = {}) => {
   try {
+    // Se solicitado, apagar o arquivo físico do DB (fluxo destrutivo)
+    if (opts && opts.eraseDbFile) {
+      // opcional: criar backup do arquivo DB antes
+      let backupPath = null;
+      try {
+        if (opts.backup) {
+          try {
+            // Preferir gerar um backup JSON (inclui os dados e opcionalmente o arquivo DB em base64)
+            // usando a função performBackupToFolder que já escreve JSON em Documents/BACKUP-SGC.
+            try {
+              const res = await performBackupToFolder({ includeDb: true });
+              if (res && res.success && res.path) {
+                backupPath = res.path;
+                console.info('clear-all-data: backup JSON salvo em', backupPath);
+              } else {
+                // fallback: tentar cópia binária do arquivo .db se a geração JSON falhar
+                console.warn('clear-all-data: falha ao gerar backup JSON, tentando fallback para cópia do arquivo DB');
+                const docs = app.getPath('documents');
+                const backupDir = path.join(docs, 'BACKUP-SGC');
+                if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+                const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const target = path.join(backupDir, `condominio_db_backup_${stamp}.db`);
+                if (fs.existsSync(dbPath)) fs.copyFileSync(dbPath, target);
+                backupPath = target;
+                console.info('clear-all-data: backup do DB (fallback) salvo em', target);
+              }
+            } catch (e) {
+              console.warn('clear-all-data: falha ao criar backup JSON, tentando fallback para cópia do arquivo DB:', e && e.message ? e.message : e);
+              try {
+                const docs = app.getPath('documents');
+                const backupDir = path.join(docs, 'BACKUP-SGC');
+                if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+                const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const target = path.join(backupDir, `condominio_db_backup_${stamp}.db`);
+                if (fs.existsSync(dbPath)) fs.copyFileSync(dbPath, target);
+                backupPath = target;
+                console.info('clear-all-data: backup do DB (fallback) salvo em', target);
+              } catch (e2) {
+                console.warn('clear-all-data: falha ao criar backup do DB (fallback):', e2 && e2.message ? e2.message : e2);
+              }
+            }
+          } catch (e) {
+            console.warn('clear-all-data: falha ao criar backup antes de apagar DB:', e && e.message ? e.message : e);
+          }
+        }
+
+        // destruir conexões do knex para liberar o arquivo
+        try { await knex.destroy(); } catch (e) { console.warn('clear-all-data: erro ao destruir knex:', e && e.message ? e.message : e); }
+
+        // apagar arquivo do DB
+        try {
+          if (fs.existsSync(dbPath)) {
+            fs.unlinkSync(dbPath);
+            console.info('clear-all-data: arquivo DB removido:', dbPath);
+          } else {
+            console.info('clear-all-data: arquivo DB não encontrado, nada a apagar');
+          }
+        } catch (e) {
+          console.warn('clear-all-data: falha ao apagar arquivo DB:', e && e.message ? e.message : e);
+        }
+
+        // relançar a aplicação para que ela re-crie o DB via migrations ou setup
+        setTimeout(() => {
+          try {
+            app.relaunch();
+            app.exit(0);
+          } catch (err) {
+            console.error('clear-all-data: erro ao relançar app:', err);
+          }
+        }, 500);
+
+        return { success: true, message: 'Arquivo DB apagado. A aplicação será reiniciada.', backupPath };
+      } catch (err) {
+        console.error('clear-all-data: falha durante rotina de apagar arquivo DB:', err);
+        return { success: false, message: `Erro ao apagar arquivo DB: ${err.message}` };
+      }
+    }
+    const perTableResults = [];
     await knex.transaction(async (trx) => {
-      await trx('vinculos').del();
-      await trx('veiculos').del();
-      await trx('pessoas').del();
+      // tentativa explícita em ordem segura (filhos -> pais)
+      const explicitOrder = [
+        'movimentacoes_estoque',
+        'acordos_parcelas',
+        'vinculos',
+        'veiculos',
+        'produtos',
+        'pessoas'
+      ];
+
+      for (const t of explicitOrder) {
+        try {
+          const exists = await trx.schema.hasTable(t);
+          if (!exists) { perTableResults.push({ table: t, ok: false, message: 'not exists' }); continue; }
+          await trx(t).del();
+          perTableResults.push({ table: t, ok: true });
+          console.info(`clear-all-data: tabela ${t} limpa (explícita)`);
+        } catch (e) {
+          perTableResults.push({ table: t, ok: false, message: e && e.message ? e.message : String(e) });
+          console.warn(`clear-all-data: falha ao limpar tabela ${t} (explícita):`, e && e.message ? e.message : e);
+        }
+      }
+
+      // agora executar limpeza dinâmica para quaisquer outras tabelas que possam existir
+      const tablesRes = await trx.raw("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';");
+      const tableRows = (tablesRes && tablesRes[0]) ? tablesRes[0] : tablesRes;
+      const tableNames = Array.isArray(tableRows) ? tableRows.map(r => r.name).filter(Boolean) : [];
+
+      // construir grafo de dependências: edge child -> parent (A depende de B)
+      const depGraph = {};
+      for (const t of tableNames) depGraph[t] = new Set();
+
+      for (const t of tableNames) {
+        try {
+          const fkRes = await trx.raw(`PRAGMA foreign_key_list(${t});`);
+          const fkRows = fkRes && fkRes[0] ? fkRes[0] : fkRes;
+          if (Array.isArray(fkRows)) {
+            for (const fk of fkRows) {
+              if (fk && fk.table) {
+                depGraph[t].add(fk.table);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('clear-all-data: não foi possível ler foreign keys de', t, e && e.message ? e.message : e);
+        }
+      }
+
+      // topological sort on depGraph (child -> parent). Kahn produces parents-first; we reverse for deletion.
+      const inDegree = {};
+      for (const t of Object.keys(depGraph)) inDegree[t] = depGraph[t].size;
+      const parentToChildren = {};
+      for (const t of Object.keys(depGraph)) parentToChildren[t] = new Set();
+      for (const [child, parents] of Object.entries(depGraph)) {
+        for (const parent of parents) {
+          if (!parentToChildren[parent]) parentToChildren[parent] = new Set();
+          parentToChildren[parent].add(child);
+        }
+      }
+
+      const queue = [];
+      for (const t of Object.keys(inDegree)) if (inDegree[t] === 0) queue.push(t);
+      const topoOrder = [];
+      while (queue.length) {
+        const n = queue.shift();
+        topoOrder.push(n);
+        const children = parentToChildren[n] || new Set();
+        for (const c of children) {
+          inDegree[c] = (inDegree[c] || 0) - 1;
+          if (inDegree[c] === 0) queue.push(c);
+        }
+      }
+
+      const deleteOrder = topoOrder.length ? topoOrder.reverse() : tableNames;
+
+      // excluir em deleteOrder, pulando tabelas já tentadas explicitamente
+      const tried = new Set(explicitOrder);
+      for (const t of deleteOrder) {
+        if (tried.has(t)) continue;
+        try {
+          const exists = await trx.schema.hasTable(t);
+          if (!exists) { perTableResults.push({ table: t, ok: false, message: 'not exists' }); continue; }
+          await trx(t).del();
+          perTableResults.push({ table: t, ok: true });
+          console.info(`clear-all-data: tabela ${t} limpa (dinâmica)`);
+        } catch (e) {
+          perTableResults.push({ table: t, ok: false, message: e && e.message ? e.message : String(e) });
+          console.warn(`clear-all-data: falha ao limpar tabela ${t} (dinâmica):`, e && e.message ? e.message : e);
+        }
+      }
     });
-    return { success: true, message: 'Todos os dados foram removidos com sucesso!' };
+
+    const success = perTableResults.every(r => r.ok || r.message === 'not exists');
+    const message = success ? 'Todos os dados foram removidos com sucesso!' : 'Limpeza executada com alguns erros. Verifique detalhes.';
+    return { success, message, details: perTableResults };
   } catch (error) {
     console.error('Erro ao limpar dados:', error);
-    return { success: false, message: `Erro: ${error.message}` };
+    return { success: false, message: `Erro: ${error.message}`, details: [{ table: 'transaction', ok: false, message: error.message }] };
   }
 });
 
@@ -1444,12 +1612,30 @@ ipcMain.handle('import-backup', async (event, backupData) => {
 
     // Caso não tenha o arquivo DB, restauramos por tabelas via transaction (mais seguro para merges parciais)
     await knex.transaction(async (trx) => {
-      // Limpar e restaurar em ordem segura
-      // remover dados que dependem de outros
-      const tablesToClear = ['vinculos', 'veiculos', 'pessoas', 'acordos_parcelas', 'movimentacoes_estoque', 'produtos'];
+      // Limpar e restaurar em ordem segura (tabelas dependentes primeiro)
+      // ordem sugerida:
+      // 1) movimentacoes_estoque (depende de produtos)
+      // 2) acordos_parcelas (depende de pessoas)
+      // 3) vinculos (depende de pessoas/unidades)
+      // 4) veiculos (depende de pessoas)
+      // 5) produtos
+      // 6) pessoas
+      const tablesToClear = [
+        'movimentacoes_estoque',
+        'acordos_parcelas',
+        'vinculos',
+        'veiculos',
+        'produtos',
+        'pessoas'
+      ];
+
       for (const t of tablesToClear) {
-        // alguns nomes de tabela podem não existir em versões antigas -> try/catch
-        try { await trx(t).del(); } catch(e) { /* ignorar */ }
+        try {
+          await trx(t).del();
+          console.info(`clear-all-data: tabela ${t} limpa`);
+        } catch (e) {
+          console.warn(`clear-all-data: falha ao limpar tabela ${t}:`, e && e.message ? e.message : e);
+        }
       }
 
       // Importa outras tabelas se presentes

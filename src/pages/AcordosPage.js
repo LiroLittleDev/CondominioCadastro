@@ -558,11 +558,11 @@ const AcordosPage = () => {
 
                 <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle2" color="text.secondary">Resumo do Acordo</Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.5 }}>R$ {Math.round((acordoSelecionado.valor_total || 0) * 100).toLocaleString('pt-BR')}</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.5 }}>R$ {(Number(acordoSelecionado.valor_total || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
                   <Grid container spacing={1} sx={{ mt: 1 }}>
                     <Grid item xs={4}>
                       <Typography variant="caption" color="text.secondary">Entrada</Typography>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>R$ {Math.round(entradaValor * 100).toLocaleString('pt-BR')}</Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>R$ {Number(entradaValor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
                     </Grid>
                     <Grid item xs={4}>
                       <Typography variant="caption" color="text.secondary">Parcelas</Typography>
@@ -570,7 +570,7 @@ const AcordosPage = () => {
                     </Grid>
                     <Grid item xs={4}>
                       <Typography variant="caption" color="text.secondary">Restante</Typography>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>R$ {Math.round(esperadoValor * 100).toLocaleString('pt-BR')}</Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>R$ {Number(esperadoValor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
                     </Grid>
                   </Grid>
                 </Box>
