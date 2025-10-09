@@ -72,8 +72,12 @@ function ProdutoModal({ open, handleClose, produto, onSuccess }) {
     try {
       let result;
       if (produto) {
-        // Ao editar, por aqui apenas atualizamos nome e categoria (ações restritas)
-        const updateData = { nome: formData.nome, categoria_id: formData.categoria_id };
+        // Ao editar, também permitimos alterar o estoque mínimo
+        const updateData = {
+          nome: formData.nome,
+          categoria_id: formData.categoria_id,
+          estoque_minimo: parseInt(formData.estoque_minimo, 10) || 0
+        };
         result = await window.api.updateProduto(produto.id, updateData);
       } else {
         // Ao criar, enviamos apenas os campos necessários: nome, categoria e estoque_minimo
@@ -144,7 +148,7 @@ function ProdutoModal({ open, handleClose, produto, onSuccess }) {
                   const val = e.target.value;
                   setEstoqueMinimoOption(val);
                   if (val === 'other') {
-                    // manter o valor atual em formData
+                    // mantém o valor atual numérico em formData
                     setFormData({...formData});
                   } else {
                     setFormData({...formData, estoque_minimo: parseInt(val, 10) || 0});

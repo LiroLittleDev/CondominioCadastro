@@ -2,7 +2,7 @@
   "name": "sgc-desktop",
   "main": "public/electron.js",
   "homepage": "./",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "author": "SGC Desktop",
   "description": "Sistema de Gestão Condominial - Solução completa para administração de condomínios",
   "private": true,
@@ -16,6 +16,7 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "dayjs": "^1.11.18",
+    "electron-updater": "^6.6.2",
     "exceljs": "^4.4.0",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
@@ -82,12 +83,12 @@
       "public/electron.js",
       "public/preload.js",
       "public/splash.html",
-      "public/icon.ico",
+      "public/favicon.ico",
       "node_modules/**/*"
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/icon.ico",
+      "icon": "public/favicon.ico",
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
@@ -95,9 +96,18 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "SGC Desktop"
+      "shortcutName": "SGC Desktop",
+      "installerIcon": "public/favicon.ico",
+      "uninstallerIcon": "public/favicon.ico"
     },
     "compression": "store",
-    "forceCodeSigning": false
+    "forceCodeSigning": false,
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "LiroLittleDev",
+        "repo": "sgc-desktop"
+      }
+    ]
   }
 }

@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, shell } = require("electron");
+const { autoUpdater } = require('electron-updater');
 const path = require("path");
 const fs = require('fs');
 const os = require('os');
@@ -21,6 +22,32 @@ if (isDev) {
   const userDataPath = app.getPath('userData');
   dbPath = path.join(userDataPath, 'condominio.db');
 }
+// Auto update (somente quando empacotado)
+function setupAutoUpdate() {
+  try {
+    if (!app.isPackaged) return;
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.on('error', (err) => console.warn('AutoUpdater error:', err?.message || err));
+    autoUpdater.on('update-available', (info) => console.info('Update available:', info?.version));
+    autoUpdater.on('update-not-available', () => console.info('No updates available'));
+    autoUpdater.on('update-downloaded', () => console.info('Update ready, will install on quit'));
+    // Iniciar checagem
+    setTimeout(() => { try { autoUpdater.checkForUpdatesAndNotify(); } catch(_) {} }, 3000);
+  } catch (e) {
+    console.warn('Failed to initialize auto-updater:', e?.message || e);
+  }
+}
+
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    if (!app.isPackaged) return { success: false, message: 'Somente em produção' };
+    const res = await autoUpdater.checkForUpdates();
+    return { success: true, result: res?.updateInfo || null };
+  } catch (e) {
+    return { success: false, message: e?.message || String(e) };
+  }
+});
 
 // Caminho do banco de dados (para debug/diagnóstico). Em produção isto pode apontar para userData.
 console.info('Caminho do banco:', dbPath);
@@ -200,6 +227,43 @@ ipcMain.handle('get-app-version', async () => {
   catch (e) { return { success: true, version: '4.0.0' }; }
 });
 
+// Ícone em tempo de execução: permitir sobreposição por arquivo em userData/app-icon.ico
+function getRuntimeIconPath() {
+  try {
+    const customIco = path.join(app.getPath('userData'), 'app-icon.ico');
+    if (fs.existsSync(customIco)) return customIco;
+  } catch (_) { /* ignore */ }
+  const candidates = [
+    path.join(__dirname, 'icon.ico'),
+    path.join(__dirname, 'favicon.ico')
+  ];
+  for (const p of candidates) { try { if (fs.existsSync(p)) return p; } catch(_){} }
+  return undefined;
+}
+
+ipcMain.handle('set-app-icon', async (event, sourcePath) => {
+  try {
+    if (!sourcePath || typeof sourcePath !== 'string') return { success: false, message: 'Caminho inválido.' };
+    const ext = path.extname(sourcePath).toLowerCase();
+    if (ext !== '.ico') return { success: false, message: 'Selecione um arquivo .ico' };
+    const target = path.join(app.getPath('userData'), 'app-icon.ico');
+    fs.copyFileSync(sourcePath, target);
+    return { success: true, message: 'Ícone atualizado. Reinicie o app para aplicar.' };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+});
+
+ipcMain.handle('clear-app-icon', async () => {
+  try {
+    const target = path.join(app.getPath('userData'), 'app-icon.ico');
+    if (fs.existsSync(target)) fs.unlinkSync(target);
+    return { success: true, message: 'Ícone personalizado removido. Reinicie o app para aplicar.' };
+  } catch (e) {
+    return { success: false, message: e.message };
+  }
+});
+
 // Função para inicializar banco
 async function initializeDatabase() {
   try {
@@ -301,14 +365,15 @@ async function initializeDatabase() {
           table.text('observacao');
         });
 
-      // Inserir categorias padrão
+      // Inserir categorias padrão (inclui Consumo)
       try {
         await knex('categorias_produto').insert([
           { nome: 'Limpeza', descricao: 'Produtos de limpeza e higiene' },
           { nome: 'Manutenção', descricao: 'Materiais para manutenção predial' },
           { nome: 'Escritório', descricao: 'Material de escritório e papelaria' },
           { nome: 'Segurança', descricao: 'Equipamentos de segurança' },
-          { nome: 'Jardinagem', descricao: 'Produtos para jardinagem' }
+          { nome: 'Jardinagem', descricao: 'Produtos para jardinagem' },
+          { nome: 'Consumo', descricao: 'Produtos de consumo como café, açúcar, etc.' }
         ]);
       } catch (e) { /* pode já existir */ }
 
@@ -375,17 +440,36 @@ async function initializeDatabase() {
             table.text('observacao');
           });
         
-        // Inserir categorias padrão
+        // Inserir categorias padrão (inclui Consumo)
         await knex('categorias_produto').insert([
           { nome: 'Limpeza', descricao: 'Produtos de limpeza e higiene' },
           { nome: 'Manutenção', descricao: 'Materiais para manutenção predial' },
           { nome: 'Escritório', descricao: 'Material de escritório e papelaria' },
           { nome: 'Segurança', descricao: 'Equipamentos de segurança' },
-          { nome: 'Jardinagem', descricao: 'Produtos para jardinagem' }
+          { nome: 'Jardinagem', descricao: 'Produtos para jardinagem' },
+          { nome: 'Consumo', descricao: 'Produtos de consumo como café, açúcar, etc.' }
         ]);
         
         console.log('✅ Tabelas de estoque criadas!');
       }
+
+      // Garantir que categorias padrão existam em bancos antigos (sem duplicar)
+      try {
+        const defaults = [
+          { nome: 'Limpeza', descricao: 'Produtos de limpeza e higiene' },
+          { nome: 'Manutenção', descricao: 'Materiais para manutenção predial' },
+          { nome: 'Escritório', descricao: 'Material de escritório e papelaria' },
+          { nome: 'Segurança', descricao: 'Equipamentos de segurança' },
+          { nome: 'Jardinagem', descricao: 'Produtos para jardinagem' },
+          { nome: 'Consumo', descricao: 'Produtos de consumo como café, açúcar, etc.' }
+        ];
+        for (const cat of defaults) {
+          try {
+            const exists = await knex('categorias_produto').where({ nome: cat.nome }).first();
+            if (!exists) { await knex('categorias_produto').insert(cat); }
+          } catch (e) { /* ignore */ }
+        }
+      } catch (e) { /* ignore */ }
 
       // Migrações leves: garantir colunas ausentes em DBs antigos
       // pessoas.rg é usada em cadastros; alguns bancos antigos podem não ter esta coluna
@@ -412,6 +496,7 @@ function createSplashWindow() {
     transparent: false,
     center: true,
     resizable: false,
+    icon: getRuntimeIconPath(),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true
@@ -436,7 +521,7 @@ function createMainWindow() {
     resizable: false,
     maximizable: false,
     autoHideMenuBar: true,
-    icon: path.join(__dirname, 'favicon.ico'),
+    icon: getRuntimeIconPath(),
     title: 'SGC Desktop - Sistema de Gestão Condominial',
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -2076,6 +2161,8 @@ app.on("window-all-closed", () => {
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  // Inicializa auto update em produção
+  setupAutoUpdate();
 });
 
 // Handlers do Sistema de Estoque
@@ -2095,7 +2182,8 @@ ipcMain.handle('get-estoque-stats', async () => {
         GROUP BY produto_id
       ) as estoque`), 'produtos.id', 'estoque.produto_id')
       .where('produtos.ativo', true)
-      .whereRaw('COALESCE(estoque.estoque_atual, 0) <= produtos.estoque_minimo')
+      // Baixo estoque: estoque > 0 e <= MAX(1, estoque_minimo)
+      .whereRaw('COALESCE(estoque.estoque_atual, 0) > 0 AND COALESCE(estoque.estoque_atual, 0) <= CASE WHEN produtos.estoque_minimo IS NULL OR produtos.estoque_minimo < 1 THEN 1 ELSE produtos.estoque_minimo END')
       .count('produtos.id as count');
     
     const produtosSemEstoque = await knex('produtos')
@@ -2152,7 +2240,8 @@ ipcMain.handle('get-produtos', async (event, filtros = {}) => {
     }
     
     if (filtros.status === 'baixo-estoque') {
-      query = query.whereRaw('COALESCE(estoque.estoque_atual, 0) <= produtos.estoque_minimo');
+      // Baixo estoque: estoque > 0 e <= MAX(1, estoque_minimo)
+      query = query.whereRaw('COALESCE(estoque.estoque_atual, 0) > 0 AND COALESCE(estoque.estoque_atual, 0) <= CASE WHEN produtos.estoque_minimo IS NULL OR produtos.estoque_minimo < 1 THEN 1 ELSE produtos.estoque_minimo END');
     } else if (filtros.status === 'sem-estoque') {
       query = query.whereRaw('COALESCE(estoque.estoque_atual, 0) = 0');
     }
@@ -2766,5 +2855,17 @@ ipcMain.handle('run-backup-now', async (event, opts = {}) => {
     return { success: false, message: res.message };
   } catch (e) {
     return { success: false, message: e.message };
+  }
+});
+
+ipcMain.handle('open-external', async (event, url) => {
+  try {
+    if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
+      return { success: false, message: 'URL inválida' };
+    }
+    await shell.openExternal(url);
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: e?.message || String(e) };
   }
 });

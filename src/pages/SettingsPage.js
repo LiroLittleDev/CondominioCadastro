@@ -44,6 +44,8 @@ function SettingsPage() {
   const [scheduleInfo, setScheduleInfo] = useState(null);
   // option to backup before erasing DB file
   const [clearBackupBeforeErase, setClearBackupBeforeErase] = useState(true);
+  // Updates feedback
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -236,6 +238,33 @@ function SettingsPage() {
     }
     else setFeedback({ type: 'error', message: res?.message || 'Erro ao executar backup agora' });
     setLoading(false);
+  };
+
+  // --- Updates ---
+  const handleCheckUpdates = async () => {
+    try {
+      setUpdating(true);
+      const res = await window.api.checkForUpdates();
+      if (res && res.success) {
+        if (res.result && res.result.version) {
+          setFeedback({ type: 'info', message: `Atualização encontrada: v${res.result.version}. Será baixada em background.` });
+        } else {
+          setFeedback({ type: 'success', message: 'Nenhuma atualização disponível.' });
+        }
+      } else {
+        setFeedback({ type: 'error', message: res?.message || 'Falha ao verificar atualizações.' });
+      }
+    } catch (e) {
+      setFeedback({ type: 'error', message: e?.message || 'Erro ao verificar atualizações.' });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleOpenReleases = async () => {
+    try {
+      await window.api.openExternal('https://github.com/LiroLittleDev/sgc-desktop/releases');
+    } catch (_) { /* ignore */ }
   };
 
   // --- Clear / destructive actions (concise implementations) ---
@@ -442,6 +471,27 @@ function SettingsPage() {
           </Grid>
 
         </Grid>
+      </Paper>
+
+      {/* Atualizações */}
+      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <CloudUploadIcon sx={{ mr: 1 }} />
+          <Typography variant="h6">Atualizações</Typography>
+        </Box>
+        <Typography paragraph color="text.secondary">
+          O aplicativo verifica atualizações automaticamente em segundo plano. Você também pode:
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Button variant="contained" onClick={handleCheckUpdates} disabled={updating}>
+            {updating ? <CircularProgress size={18} sx={{ mr: 1 }} /> : null}
+            Verificar atualizações agora
+          </Button>
+          <Button variant="outlined" onClick={handleOpenReleases}>Baixar manualmente (Releases)</Button>
+        </Box>
+        <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+          Se uma atualização estiver disponível, ela será baixada automaticamente e instalada ao fechar o aplicativo.
+        </Typography>
       </Paper>
 
       {/* Limpezas Específicas - seção separada abaixo de Import/Export */}

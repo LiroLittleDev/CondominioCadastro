@@ -29,6 +29,21 @@ function ProdutosPage() {
   const [produtoModal, setProdutoModal] = useState({ open: false, produto: null });
   const [deleteModal, setDeleteModal] = useState({ open: false, produto: null });
 
+  // Parse numérico robusto: aceita number ou string com vírgula (ex.: "1,00")
+  const parseNum = (v) => {
+    if (v == null) return 0;
+    if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
+    if (typeof v === 'string') {
+      const s = v.trim();
+      if (!s) return 0;
+      // Normaliza: remove separador de milhar ponto e troca vírgula por ponto
+      const norm = s.replace(/\./g, '').replace(',', '.');
+      const n = Number(norm);
+      return Number.isFinite(n) ? n : 0;
+    }
+    return 0;
+  };
+
   const fetchData = useCallback(async () => {
     try {
       const [produtosData, categoriasData] = await Promise.all([
@@ -59,10 +74,16 @@ function ProdutosPage() {
   };
 
   const getEstoqueStatus = (produto) => {
-    const estoque = produto.estoque_atual || 0;
-    if (estoque === 0) return { label: 'Sem Estoque', color: 'error' };
-    if (estoque <= produto.estoque_minimo) return { label: 'Baixo Estoque', color: 'warning' };
-    return { label: 'Normal', color: 'success' };
+    const estoque = parseNum(produto.estoque_atual);
+    const minimo = parseNum(produto.estoque_minimo);
+    const lowThreshold = Math.max(1, minimo || 0);
+    if (estoque <= 0) {
+      return { label: 'Sem Estoque', color: 'error', isSemEstoque: true, isBaixoEstoque: false };
+    }
+    if (estoque <= lowThreshold) {
+      return { label: 'Baixo Estoque', color: 'warning', isSemEstoque: false, isBaixoEstoque: true };
+    }
+    return { label: 'Normal', color: 'success', isSemEstoque: false, isBaixoEstoque: false };
   };
 
   return (
@@ -154,6 +175,7 @@ function ProdutosPage() {
           <TableBody>
             {produtos.map((produto) => {
               const status = getEstoqueStatus(produto);
+              const estoqueVal = parseNum(produto.estoque_atual);
               return (
                 <TableRow key={produto.id}>
                   <TableCell align="center">
@@ -164,8 +186,8 @@ function ProdutosPage() {
                   <TableCell align="center">{produto.categoria_nome}</TableCell>
                   <TableCell align="center">
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {produto.estoque_atual || 0} {produto.unidade_medida}
-                      {status.color === 'warning' && (
+                      {estoqueVal} {produto.unidade_medida}
+                      {status.isBaixoEstoque && (
                         <WarningIcon color="warning" sx={{ ml: 1, fontSize: 16 }} />
                       )}
                     </Box>

@@ -29,7 +29,7 @@ const allowedChannels = new Set([
   'get-acordos', 'create-acordo', 'get-acordo-details', 'marcar-parcela-paga', 'desmarcar-parcela-paga', 'get-acordos-stats',
   'search-pessoas-acordos', 'debug-count-pessoas', 'delete-acordo', 'arquivar-acordo', 'desarquivar-acordo-forcar-ativo',
   // Sistema
-  'get-app-version'
+  'get-app-version', 'set-app-icon', 'clear-app-icon'
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -110,6 +110,9 @@ contextBridge.exposeInMainWorld("api", {
     } catch (_) {}
     return '4.0.0';
   },
+  // Atualizações
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  openExternal: (url) => ipcRenderer.invoke('open-external', url),
   // Agendamento de backups automáticos
   setBackupSchedule: (schedule) => ipcRenderer.invoke('set-backup-schedule', schedule),
   getBackupSchedule: () => ipcRenderer.invoke('get-backup-schedule'),
@@ -136,6 +139,9 @@ contextBridge.exposeInMainWorld("api", {
   searchPessoasAcordos: (termo) => ipcRenderer.invoke('search-pessoas-acordos', termo),
   debugCountPessoas: () => ipcRenderer.invoke('debug-count-pessoas'),
   // (dev) sendDebug removido — não expor função de debug do renderer no preload
+  // Ícone do aplicativo
+  setAppIcon: (filePath) => ipcRenderer.invoke('set-app-icon', filePath),
+  clearAppIcon: () => ipcRenderer.invoke('clear-app-icon'),
   // Registrar um listener para mudanças de dados disparadas pelo main
   onDataChanged: (callback) => {
     const listener = () => callback();
