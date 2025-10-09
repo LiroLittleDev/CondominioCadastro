@@ -1,6 +1,6 @@
 // import { useNavigate } from "react-router-dom"; // removido (não utilizado)
 import React, { useState, useEffect } from 'react';
-import { Typography, Box, Paper, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { Box, Paper, CircularProgress, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 // import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PageHeader from '../components/PageHeader';

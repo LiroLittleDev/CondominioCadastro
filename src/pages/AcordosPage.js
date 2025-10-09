@@ -8,7 +8,7 @@ import {
   Drawer, TextField, LinearProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Avatar, Snackbar, Alert, CircularProgress, Tabs, Tab, Badge
 } from '@mui/material';
 // Removed ArrowBack navigation (only Blocos keeps it)
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom'; // removido (não utilizado)
 import { Add, Visibility, AttachMoney, Assignment, Schedule, CheckCircle, Payment, Close, Archive, Unarchive, Undo, Delete } from '@mui/icons-material';
 import CriarAcordoModal from '../components/CriarAcordoModal';
 import ConfirmDialog from '../components/ConfirmDialog';

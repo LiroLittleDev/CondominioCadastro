@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Typography, Box, Grid, Card, CardContent, Button, IconButton } from '@mui/material';
+import { Typography, Box, Grid, Card, CardContent, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 // import { useNavigate } from 'react-router-dom'; // removido (não utilizado)
 import InventoryIcon from '@mui/icons-material/Inventory';

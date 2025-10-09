@@ -2,8 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Typography, Box, Button, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Paper, IconButton, Chip, TextField, FormControl,
-  InputLabel, Select, MenuItem, Grid, Dialog, DialogTitle, DialogContent,
-  DialogActions, Alert
+  InputLabel, Select, MenuItem, Grid, Alert
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 // import { useNavigate } from 'react-router-dom'; // removido (não utilizado)
