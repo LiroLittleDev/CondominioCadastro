@@ -81,7 +81,7 @@ function SettingsPage() {
       const status = p?.status || 'unknown';
       const version = p?.version;
       setUpdateInfo((prev) => ({ ...prev, status, version: version || prev.version }));
-      if (status === 'available' && version) setFeedback({ type: 'info', message: `Atualização disponível: v${version}.` });
+  if (status === 'available' && version) setFeedback({ type: 'info', message: `Atualização disponível: v${version}. Você decide quando baixar.` });
       if (status === 'not-available') setFeedback({ type: 'success', message: `Você já está na versão mais recente (v${appVersion}).` });
       if (status === 'downloaded' && version) setFeedback({ type: 'success', message: `Atualização baixada: v${version}. Clique em Reiniciar para aplicar.` });
     }) : null;
@@ -98,7 +98,7 @@ function SettingsPage() {
       try { if (typeof offProg === 'function') offProg(); } catch(_) {}
       try { if (typeof offErr === 'function') offErr(); } catch(_) {}
     };
-  }, []);
+  }, [appVersion]);
 
   // Abre o Snackbar sempre que houver uma nova mensagem de feedback
   const { message: feedbackMessage } = feedback || {};
@@ -274,22 +274,9 @@ function SettingsPage() {
       const res = await window.api.checkForUpdates();
       if (res && res.success && res.result && res.result.version) {
         const version = res.result.version;
-        const confirm = window.confirm(`Atualização encontrada: v${version}. Deseja baixar agora?`);
-        if (confirm) {
-          try {
-            const dl = await window.api.downloadUpdate();
-            if (!dl || !dl.success) {
-              setFeedback({ type: 'error', message: dl?.message || 'Falha ao iniciar download.' });
-            } else {
-              setFeedback({ type: 'info', message: `Baixando atualização v${version}...` });
-              setUpdateInfo((prev) => ({ ...prev, status: 'downloading', version }));
-            }
-          } catch (e) {
-            setFeedback({ type: 'error', message: e?.message || 'Erro ao baixar atualização.' });
-          }
-        } else {
-          setFeedback({ type: 'info', message: 'Download cancelado pelo usuário.' });
-        }
+        // Não iniciar automaticamente: apenas informar e habilitar o botão de baixar
+        setFeedback({ type: 'info', message: `Atualização disponível: v${version}. Clique em "Baixar atualização" quando quiser.` });
+        setUpdateInfo((prev) => ({ ...prev, status: 'available', version }));
       } else if (res && res.success) {
         setFeedback({ type: 'success', message: `Nenhuma atualização disponível. Você está em v${appVersion}.` });
       } else {
@@ -545,7 +532,7 @@ function SettingsPage() {
         </Box>
         <Typography paragraph color="text.secondary">Versão atual: v{appVersion}</Typography>
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap', mb: 1 }}>
-          <Button variant="contained" onClick={handleCheckUpdates} disabled={updating || updateInfo.status === 'downloading'} startIcon={<CloudUploadIcon />}>{updating ? <CircularProgress size={20} /> : 'Verificar atualizações agora'}</Button>
+          <Button variant="contained" onClick={handleCheckUpdates} disabled={updating || updateInfo.status === 'downloading'} startIcon={<CloudUploadIcon />}>{updating ? <CircularProgress size={20} /> : 'Verificar atualizações'}</Button>
           <Button variant="outlined" onClick={handleOpenReleases}>Baixar manualmente (Releases)</Button>
           {updateInfo?.status === 'downloaded' && (
             <Button color="success" variant="contained" onClick={handleRestartToUpdate}>Reiniciar agora para atualizar</Button>

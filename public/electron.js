@@ -30,9 +30,9 @@ function setupAutoUpdate() {
       console.info('AutoUpdate: modo desenvolvimento — forçando uso do dev-app-update.yml.');
       try { autoUpdater.forceDevUpdateConfig = true; } catch(_) {}
     }
-    // Não baixar automaticamente: perguntaremos ao usuário no renderer
-    autoUpdater.autoDownload = false;
-    autoUpdater.autoInstallOnAppQuit = true;
+  // Não baixar automaticamente e não instalar automaticamente ao sair
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
     autoUpdater.on('error', (err) => {
       const msg = err?.stack || err?.message || String(err);
       console.warn('AutoUpdater error:', msg);

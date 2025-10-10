@@ -221,7 +221,7 @@ function App() {
                     textShadow: '0 2px 4px rgba(0,0,0,0.35)'
                   }}
                 >
-                  Sistema de Gestão Condominial
+                  Sistema de Gestão Condomineis
                 </Typography>
                 <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', mt: 0.3 }}>
                   Versão {appVersion}
