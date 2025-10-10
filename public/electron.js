@@ -33,7 +33,11 @@ function setupAutoUpdate() {
     // Não baixar automaticamente: perguntaremos ao usuário no renderer
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
-    autoUpdater.on('error', (err) => console.warn('AutoUpdater error:', err?.message || err));
+    autoUpdater.on('error', (err) => {
+      const msg = err?.stack || err?.message || String(err);
+      console.warn('AutoUpdater error:', msg);
+      try { BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-error', { message: msg })); } catch(_) {}
+    });
     autoUpdater.on('update-available', (info) => {
       console.info('Update available:', info?.version);
       try { BrowserWindow.getAllWindows().forEach(w => w.webContents.send('update-status', { status: 'available', version: info?.version })); } catch(_) {}

@@ -89,9 +89,14 @@ function SettingsPage() {
       const percent = typeof p?.percent === 'number' ? Math.max(0, Math.min(100, p.percent)) : 0;
       setUpdateInfo((prev) => ({ ...prev, progress: percent }));
     }) : null;
+    const offErr = window.api.onUpdateError ? window.api.onUpdateError((p) => {
+      const msg = p?.message || 'Falha desconhecida ao verificar/baixar atualização.';
+      setFeedback({ type: 'error', message: `Atualizações: ${msg}` });
+    }) : null;
     return () => {
       try { if (typeof offStatus === 'function') offStatus(); } catch(_) {}
       try { if (typeof offProg === 'function') offProg(); } catch(_) {}
+      try { if (typeof offErr === 'function') offErr(); } catch(_) {}
     };
   }, []);
 
@@ -288,7 +293,12 @@ function SettingsPage() {
       } else if (res && res.success) {
         setFeedback({ type: 'success', message: `Nenhuma atualização disponível. Você está em v${appVersion}.` });
       } else {
-        setFeedback({ type: 'error', message: res?.message || 'Falha ao verificar atualizações.' });
+        let msg = res?.message || 'Falha ao verificar atualizações.';
+        // Dica: quando GitHub retorna HTML/texto ou 0 bytes, normalmente é por rate limit ou falta de token/perm.
+        if (msg && msg.includes('github.com') && msg.includes('Headers')) {
+          msg = 'Falha ao acessar GitHub Releases. Verifique se o repositório é público ou defina GH_TOKEN no ambiente do app/CI.';
+        }
+        setFeedback({ type: 'error', message: msg });
       }
     } catch (e) {
       setFeedback({ type: 'error', message: e?.message || 'Erro ao verificar atualizações.' });

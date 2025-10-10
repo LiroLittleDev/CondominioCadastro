@@ -125,6 +125,11 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.on('update-progress', listener);
     return () => ipcRenderer.removeListener('update-progress', listener);
   },
+  onUpdateError: (cb) => {
+    const listener = (_e, payload) => { try { cb(payload); } catch(_) {} };
+    ipcRenderer.on('update-error', listener);
+    return () => ipcRenderer.removeListener('update-error', listener);
+  },
   // Agendamento de backups automáticos
   setBackupSchedule: (schedule) => ipcRenderer.invoke('set-backup-schedule', schedule),
   getBackupSchedule: () => ipcRenderer.invoke('get-backup-schedule'),
