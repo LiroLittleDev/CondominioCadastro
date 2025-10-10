@@ -67,6 +67,9 @@ if (!fs.existsSync(backupsDir)) {
 
 // Arquivo de configuração do agendamento de backup (persistência simples em userData)
 const scheduleConfigPath = path.join(app.getPath('userData'), 'backup-schedule.json');
+
+// Splash configuration persisted in userData
+const splashConfigPath = path.join(app.getPath('userData'), 'splash.json');
 let backupSchedule = { mode: 'none', lastRun: null, time: '02:00', includeDb: true, weekday: 1 }; // modes: none, daily, weekly, monthly; weekday: 0=Sun..6=Sat
 try {
   if (fs.existsSync(scheduleConfigPath)) {
@@ -225,6 +228,47 @@ async function ensureColumn(tableName, columnName, builderFn) {
 ipcMain.handle('get-app-version', async () => {
   try { return { success: true, version: app.getVersion ? app.getVersion() : '4.0.0' }; }
   catch (e) { return { success: true, version: '4.0.0' }; }
+});
+
+// Splash GET/SET handlers
+ipcMain.handle('get-splash-config', async () => {
+  try {
+    if (fs.existsSync(splashConfigPath)) {
+      const raw = fs.readFileSync(splashConfigPath, 'utf8');
+      const parsed = JSON.parse(raw);
+      return { success: true, config: parsed };
+    }
+    return { success: true, config: null };
+  } catch (e) { return { success: false, message: e.message }; }
+});
+
+ipcMain.handle('set-splash-config', async (event, config) => {
+  try {
+    fs.writeFileSync(splashConfigPath, JSON.stringify(config || {}, null, 2), 'utf8');
+    // If splash window is open, update it immediately
+    try {
+      const primary = config && config.primary ? String(config.primary) : null;
+      if (primary && splashWindow && !splashWindow.isDestroyed() && splashWindow.webContents) {
+        const safePrimary = JSON.stringify(primary);
+        const js = `(function(primary){
+          try {
+            document.body.style.background = primary;
+            function hexToRgb(hex){ const h = hex.replace('#',''); const bigint = parseInt(h,16); return [(bigint>>16)&255, (bigint>>8)&255, bigint&255]; }
+            function luminance(r,g,b){ const a=[r,g,b].map(function(v){ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }); return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2]; }
+            const rgb = hexToRgb(primary);
+            const lum = luminance(rgb[0], rgb[1], rgb[2]);
+            const contrast = lum > 0.5 ? '#000000' : '#ffffff';
+            const contrastFaded = lum > 0.5 ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.3)';
+            document.body.style.color = contrast;
+            document.body.style.setProperty('--splash-contrast', contrast);
+            document.body.style.setProperty('--splash-contrast-faded', contrastFaded);
+          } catch(e) { /* ignore */ }
+        })(${safePrimary});`;
+        splashWindow.webContents.executeJavaScript(js).catch(()=>{});
+      }
+    } catch(e) { /* ignore */ }
+    return { success: true };
+  } catch (e) { return { success: false, message: e.message }; }
 });
 
 // Ícone em tempo de execução: permitir sobreposição por arquivo em userData/app-icon.ico
@@ -505,7 +549,18 @@ function createSplashWindow() {
   // Carregar splash com versão dinâmica via querystring
   let currentVersion = '4.0.0';
   try { currentVersion = app.getVersion ? app.getVersion() : '4.0.0'; } catch(_) {}
-  splashWindow.loadFile(path.join(__dirname, 'splash.html'), { search: `?v=${encodeURIComponent(currentVersion)}`});
+  // try to include persisted splash primary color from userData
+  let splashSearch = `?v=${encodeURIComponent(currentVersion)}`;
+  try {
+    if (fs.existsSync(splashConfigPath)) {
+      const raw = fs.readFileSync(splashConfigPath, 'utf8');
+      const parsed = JSON.parse(raw || '{}');
+      if (parsed && parsed.primary) {
+        splashSearch += `&splash=${encodeURIComponent(parsed.primary)}`;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'), { search: splashSearch });
   
   splashWindow.on('closed', () => {
     splashWindow = null;

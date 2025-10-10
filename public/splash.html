@@ -8,7 +8,9 @@
         body {
             margin: 0;
             padding: 0;
-            background: linear-gradient(135deg, #7728e6 0%, #6326e7 100%);
+            /* background will be set dynamically based on the user's selected theme (single color)
+               CSS variables --splash-contrast and --splash-contrast-faded are set by script */
+            background: #764ba2;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -41,8 +43,8 @@
         .spinner {
             width: 50px;
             height: 50px;
-            border: 5px solid rgba(255,255,255,0.3);
-            border-top: 5px solid white;
+            border: 5px solid var(--splash-contrast-faded, rgba(255,255,255,0.3));
+            border-top: 5px solid var(--splash-contrast, white);
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-bottom: 20px;
@@ -96,6 +98,72 @@
                         if (el) el.textContent = `v${v}`;
                     }
                 } catch (_) { /* ignore */ }
+            })();
+        </script>
+        <script>
+            // Apply theme-based background using the user's saved `appTheme` (localStorage)
+            // Use only a single primary color and compute contrast for text/spinner.
+            (function(){
+                try {
+                    // prefer query param 'splash' (passed by electron main), then saved localStorage splashPrimary
+                    const params = new URLSearchParams(window.location.search);
+                    const splashParam = params.get('splash');
+                    const savedPrimary = splashParam || ((localStorage && localStorage.getItem && localStorage.getItem('splashPrimary')) || null);
+                    if (savedPrimary) {
+                        document.body.style.background = savedPrimary;
+                        var primary = savedPrimary;
+                    } else {
+                        const themeKey = (localStorage && localStorage.getItem && localStorage.getItem('appTheme')) || 'default';
+                        // attempt to fetch themes.json generated at build/start
+                        try {
+                            fetch('/themes.json').then(res => {
+                                if (!res.ok) throw new Error('no themes.json');
+                                return res.json();
+                            }).then(map => {
+                                const c = map[themeKey] || map.default || '#764ba2';
+                                document.body.style.background = c;
+                                setupContrast(c);
+                            }).catch(() => {
+                                // fallback map
+                                const map = { default: '#764ba2', blue: '#1565c0', green: '#2e7d32', orange: '#ef6c00' };
+                                const primaryFromMap = map[themeKey] || map.default;
+                                document.body.style.background = primaryFromMap;
+                                setupContrast(primaryFromMap);
+                            });
+                            // stop further processing here because contrast setup will be called by promise
+                            return;
+                        } catch (e) {
+                            const map = { default: '#764ba2', blue: '#1565c0', green: '#2e7d32', orange: '#ef6c00' };
+                            const primaryFromMap = map[themeKey] || map.default;
+                            document.body.style.background = primaryFromMap;
+                            var primary = primaryFromMap;
+                        }
+                    }
+
+                    // compute contrast color (black or white) based on luminance
+                    function hexToRgb(hex) {
+                        const h = hex.replace('#','');
+                        const bigint = parseInt(h, 16);
+                        return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+                    }
+                    function luminance(r,g,b){
+                        const a = [r,g,b].map(function(v){ v /= 255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); });
+                        return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+                    }
+                    function setupContrast(primaryColor) {
+                        const [r,g,b] = hexToRgb(primaryColor);
+                        const lum = luminance(r,g,b);
+                        const contrast = lum > 0.5 ? '#000000' : '#ffffff';
+                        const contrastFaded = lum > 0.5 ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.3)';
+                        document.body.style.color = contrast;
+                        document.body.style.setProperty('--splash-contrast', contrast);
+                        document.body.style.setProperty('--splash-contrast-faded', contrastFaded);
+                    }
+                    // if primary already defined synchronously, setup contrast now
+                    try { if (typeof primary === 'string') setupContrast(primary); } catch(e){}
+                } catch (e) {
+                    // ignore if localStorage unavailable
+                }
             })();
         </script>
 </body>

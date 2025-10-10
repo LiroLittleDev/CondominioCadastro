@@ -19,6 +19,7 @@ import {
   Chip,
   Avatar
 } from "@mui/material";
+import { alpha } from '@mui/material/styles';
 import { Drawer, Divider, IconButton, Alert } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -195,9 +196,8 @@ function HomePage() {
           borderRadius: 3,
           position: "relative",
           overflow: "hidden",
-          background:
-            "radial-gradient(1200px 400px at 10% 10%, rgba(255,255,255,0.04), transparent), linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          color: "white"
+          background: (theme) => `radial-gradient(1200px 400px at 10% 10%, ${alpha(theme.palette.primary.contrastText, 0.06)}, transparent), linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          color: 'primary.contrastText'
         }}
       >
 
@@ -216,7 +216,7 @@ function HomePage() {
               pointerEvents: "none"
             }}
           >
-            <path d="M0 100 C150 200 350 0 500 80 C650 160 800 40 800 40 L800 200 L0 200 Z" fill="#fff" />
+            <path d="M0 100 C150 200 350 0 500 80 C650 160 800 40 800 40 L800 200 L0 200 Z" fill={theme.palette.primary.contrastText} />
           </Box>
 
           <Grid container spacing={3} alignItems="center" sx={{ position: "relative", zIndex: 1 }}>
@@ -227,36 +227,25 @@ function HomePage() {
               width: { xs: 72, md: 96 },
               height: { xs: 72, md: 96 },
               borderRadius: 2,
-              bgcolor: "rgba(255,255,255,0.12)",
+              bgcolor: (theme) => alpha(theme.palette.primary.contrastText, 0.12),
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               mr: 2,
-              boxShadow: "0 6px 18px rgba(0,0,0,0.12)"
+              boxShadow: (theme) => `0 6px 18px ${alpha(theme.palette.primary.main, 0.12)}`
             }}
             aria-hidden="true"
                 >
-            <HomeWorkIcon sx={{ color: "white", fontSize: { xs: 40, md: 56 } }} />
+            <HomeWorkIcon sx={{ color: 'primary.contrastText', fontSize: { xs: 40, md: 56 } }} />
                 </Box>
                 <Box sx={{ textAlign: { xs: "center", md: "left" } }}>
-            <Typography
-              variant={isMobile ? "h3" : "h2"}
-              sx={{
-                fontWeight: "bold",
-                background: "linear-gradient(45deg, #fff 30%, #e8eefc 90%)",
-                backgroundClip: "text",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                textShadow: "0 6px 18px rgba(0,0,0,0.18)",
-                mb: 0.5
-              }}
-            >
+            <Typography variant={isMobile ? 'h3' : 'h2'} sx={{ fontWeight: 'bold', color: 'primary.contrastText', mb: 0.5 }}>
               SGC Desktop
             </Typography>
-            <Typography variant="h6" sx={{ opacity: 0.95, fontWeight: 400, mb: 1 }}>
+            <Typography variant="h6" sx={{ opacity: 0.95, fontWeight: 400, mb: 1, color: 'primary.contrastText' }}>
               Sistema de Gestão Condominial
             </Typography>
-            <Typography variant="body1" sx={{ opacity: 0.85, maxWidth: "560px" }}>
+            <Typography variant="body1" sx={{ opacity: 0.9, maxWidth: '560px', color: 'primary.contrastText' }}>
               Gerencie moradores, veículos e unidades de forma simples e eficiente
             </Typography>
                 </Box>
@@ -279,18 +268,18 @@ function HomePage() {
             to="/blocos"
             size="large"
             sx={{
-              bgcolor: "rgba(255,255,255,0.12)",
-              color: "white",
+              bgcolor: (theme) => alpha(theme.palette.primary.contrastText, 0.12),
+              color: 'primary.contrastText',
               '&:hover': {
-                bgcolor: "rgba(255,255,255,0.18)",
-                transform: "translateY(-3px)"
+                bgcolor: (theme) => alpha(theme.palette.primary.contrastText, 0.18),
+                transform: 'translateY(-3px)'
               },
-              backdropFilter: "blur(6px)",
-              border: "1px solid rgba(255,255,255,0.12)",
+              backdropFilter: 'blur(6px)',
+              border: (theme) => `1px solid ${alpha(theme.palette.primary.contrastText, 0.12)}`,
               borderRadius: 2,
               px: 3,
               py: 1.25,
-              transition: "all 0.25s ease",
+              transition: 'all 0.25s ease',
               fontWeight: 700
             }}
             fullWidth
@@ -304,17 +293,17 @@ function HomePage() {
             onClick={() => setCadastroRapidoOpen(true)}
             size="large"
             sx={{
-              borderColor: "rgba(255,255,255,0.22)",
-              color: "white",
+              borderColor: (theme) => alpha(theme.palette.primary.contrastText, 0.22),
+              color: 'primary.contrastText',
               '&:hover': {
-                borderColor: "rgba(255,255,255,0.4)",
-                bgcolor: "rgba(255,255,255,0.06)",
-                transform: "translateY(-3px)"
+                borderColor: (theme) => alpha(theme.palette.primary.contrastText, 0.4),
+                bgcolor: (theme) => alpha(theme.palette.primary.contrastText, 0.06),
+                transform: 'translateY(-3px)'
               },
               borderRadius: 2,
               px: 3,
               py: 1.25,
-              transition: "all 0.25s ease",
+              transition: 'all 0.25s ease',
               fontWeight: 700
             }}
             fullWidth
@@ -329,17 +318,17 @@ function HomePage() {
             to="/relatorios"
             size="large"
             sx={{
-              borderColor: "rgba(255,255,255,0.22)",
-              color: "white",
+              borderColor: (theme) => alpha(theme.palette.primary.contrastText, 0.22),
+              color: 'primary.contrastText',
               '&:hover': {
-                borderColor: "rgba(255,255,255,0.4)",
-                bgcolor: "rgba(255,255,255,0.06)",
-                transform: "translateY(-3px)"
+                borderColor: (theme) => alpha(theme.palette.primary.contrastText, 0.4),
+                bgcolor: (theme) => alpha(theme.palette.primary.contrastText, 0.06),
+                transform: 'translateY(-3px)'
               },
               borderRadius: 2,
               px: 3,
               py: 1.25,
-              transition: "all 0.25s ease",
+              transition: 'all 0.25s ease',
               fontWeight: 700
             }}
             fullWidth

@@ -110,6 +110,13 @@ contextBridge.exposeInMainWorld("api", {
     } catch (_) {}
     return '4.0.0';
   },
+  // Splash configuration persisted in userData (main)
+  getSplashConfig: async () => {
+    try { return await ipcRenderer.invoke('get-splash-config'); } catch (e) { return { success: false }; }
+  },
+  setSplashConfig: async (config) => {
+    try { return await ipcRenderer.invoke('set-splash-config', config); } catch (e) { return { success: false }; }
+  },
   // Atualizações
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),

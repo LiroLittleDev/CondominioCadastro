@@ -30,12 +30,14 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "clean": "rimraf build node_modules/.cache",
+  "clean": "rimraf build node_modules/.cache",
+  "prestart": "node scripts/generate-themes.js",
     "electron:start": "npm run clean && concurrently \"npm start\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
     "electron:fast": "concurrently \"npm start\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
     "electron:only": "electron .",
-    "start": "cross-env BROWSER=none react-scripts start",
-    "build": "react-scripts build",
+  "start": "cross-env BROWSER=none react-scripts start",
+  "build": "react-scripts build",
+  "prebuild": "node scripts/generate-themes.js",
     "electron:build": "npm run build && electron-builder",
     "electron:dist": "npm run build && electron-builder --publish=never",
     "electron:pack": "npm run build && electron-builder --dir",

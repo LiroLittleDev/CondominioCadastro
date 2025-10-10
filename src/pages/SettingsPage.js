@@ -2,8 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Typography, Button, Box, CircularProgress, Alert, Paper, Grid,
   Dialog, DialogTitle, DialogContent, DialogActions, DialogContentText,
-  Card, CardContent, Snackbar
+  Card, CardContent, Snackbar,
+  FormControl, FormLabel, RadioGroup, FormControlLabel, Radio
 } from '@mui/material';
+// Previews always use light mode
+import { Link } from 'react-router-dom';
+import { alpha } from '@mui/material/styles';
+import { themes, themeKeys } from '../themes';
 import WarningIcon from '@mui/icons-material/Warning';
 import BackupIcon from '@mui/icons-material/Backup';
 import RestoreIcon from '@mui/icons-material/Restore';
@@ -11,10 +16,17 @@ import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import BusinessIcon from '@mui/icons-material/Business';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CloudSyncIcon from '@mui/icons-material/CloudSync';
+import UpdateIcon from '@mui/icons-material/Update';
 import PersonIcon from '@mui/icons-material/Person';
+import HomeIcon from '@mui/icons-material/Home';
+import PeopleIcon from '@mui/icons-material/People';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import SettingsIcon from '@mui/icons-material/Settings';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import HandshakeIcon from '@mui/icons-material/Handshake';
 import InventoryIcon from '@mui/icons-material/Inventory';
+import PaletteIcon from '@mui/icons-material/Palette';
 
 function SettingsPage() {
   const [loading, setLoading] = useState(false);
@@ -34,6 +46,27 @@ function SettingsPage() {
 
   // Progress modal
   const [progressMessage, setProgressMessage] = useState('');
+
+  // Theme selection state (local UI)
+  const [selectedTheme, setSelectedTheme] = useState(() => {
+    try { return localStorage.getItem('appTheme') || 'default'; } catch (e) { return 'default'; }
+  });
+  const applyThemeChange = (key) => {
+    try { localStorage.setItem('appTheme', key); } catch (e) {}
+    try {
+      // persist primary color for splash usage
+      const preview = (themes[key] && themes[key]('light')) || null;
+      const primary = preview?.palette?.primary?.main || null;
+      if (primary) {
+        try { localStorage.setItem('splashPrimary', primary); } catch (e) {}
+        try { if (window.api && typeof window.api.setSplashConfig === 'function') window.api.setSplashConfig({ primary, key }); } catch (e) {}
+      }
+    } catch (e) {}
+    try { window.dispatchEvent(new CustomEvent('app:themeChange', { detail: { key } })); } catch (e) {}
+    setFeedback({ type: 'success', message: `Tema aplicado.` });
+  };
+
+  // splash color is updated automatically when applyThemeChange is called
 
   // Schedule
   const [scheduleMode, setScheduleMode] = useState('none');
@@ -364,11 +397,11 @@ function SettingsPage() {
 
       {/* Backup + Import/Export Section */}
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}><BackupIcon sx={{ mr: 1 }} /><Typography variant="h6">Backup e Importação / Exportação</Typography></Box>
+  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}><CloudSyncIcon sx={{ mr: 1 }} /><Typography variant="h6">Backup e Importação / Exportação</Typography></Box>
 
         <Grid container spacing={3}>
           {/* Manual Backup Card */}
-          <Grid item xs={12} md={5}>
+          <Grid item xs={12} md={12}>
             <Card variant="outlined" sx={{ p: 2 }}>
               <Typography variant="subtitle1">Backup Manual</Typography>
               <Typography paragraph color="text.secondary">Exporta todos os dados do sistema em formato JSON.</Typography>
@@ -376,13 +409,13 @@ function SettingsPage() {
                 <input id="include-db-manual" type="checkbox" checked={includeDb} onChange={(e) => setIncludeDb(e.target.checked)} />
                 <label htmlFor="include-db-manual">Incluir arquivo do banco (condominio.db)</label>
               </Box>
-              <Button variant="outlined" onClick={handleBackup} startIcon={<BackupIcon />} fullWidth disabled={loading}>{loading ? <CircularProgress size={20} /> : 'Baixar Backup'}</Button>
+              <Button variant="outlined" onClick={handleBackup} startIcon={<BackupIcon />} disabled={loading} sx={{ minWidth: 160 }}>{loading ? <CircularProgress size={20} /> : 'Baixar Backup'}</Button>
               <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>Os backups manuais baixados contêm os dados selecionados.</Typography>
             </Card>
           </Grid>
 
           {/* Automatic Backup Card */}
-          <Grid item xs={12} md={7}>
+          <Grid item xs={12} md={12}>
             <Card variant="outlined" sx={{ p: 2 }}>
               <Typography variant="subtitle1">Backup Automático</Typography>
               <Typography paragraph color="text.secondary">Configure backups regulares que serão salvos automaticamente na pasta Documentos/BACKUP-SGC.</Typography>
@@ -443,31 +476,33 @@ function SettingsPage() {
           </Grid>
 
           {/* Import Card (placed under the backups) */}
-          <Grid item xs={12} md={4}>
-            <Typography variant="subtitle1" color="primary">Importar Backup</Typography>
-            <Typography paragraph color="text.secondary">Restaura dados de um arquivo de backup JSON.</Typography>
-            <Box sx={{ mb: 1 }}>
-              <input id="backup-file-input" type="file" accept=".json" onChange={handleFileChange} style={{ display: 'none' }} />
-              <label htmlFor="backup-file-input">
-                <Button variant="outlined" component="span" startIcon={<CloudUploadIcon />} fullWidth sx={{ mb: 1 }}>Selecionar Arquivo</Button>
-              </label>
-            </Box>
-            {importPreview && (
+          <Grid item xs={12} md={12}>
+            <Card variant="outlined" sx={{ p: 2 }}>
+              <Typography variant="subtitle1" color="primary">Importar Backup</Typography>
+              <Typography paragraph color="text.secondary">Restaura dados de um arquivo de backup JSON.</Typography>
               <Box sx={{ mb: 1 }}>
-                <Typography variant="body2">Preview do backup:</Typography>
-                <Typography variant="caption" color="text.secondary">Pessoas: {importPreview.pessoas} — Veículos: {importPreview.veiculos} — Vínculos: {importPreview.vinculos}</Typography>
-                {importPreview.temDb && (
-                  <Alert severity="warning" sx={{ mt: 1 }}>Este arquivo contém o arquivo binário do banco (DB). A restauração irá sobrescrever o arquivo atual e reiniciar a aplicação.</Alert>
-                )}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                  <input type="checkbox" id="pre-backup" checked={preBackupBeforeRestore} onChange={(e) => setPreBackupBeforeRestore(e.target.checked)} />
-                  <label htmlFor="pre-backup">Fazer backup atual automaticamente antes de restaurar (recomendado)</label>
-                </Box>
+                <input id="backup-file-input" type="file" accept=".json" onChange={handleFileChange} style={{ display: 'none' }} />
+                <label htmlFor="backup-file-input">
+                  <Button variant="outlined" component="span" startIcon={<CloudUploadIcon />} sx={{ mb: 1, minWidth: 160 }}>Selecionar Arquivo</Button>
+                </label>
               </Box>
-            )}
-            {importFile && (
-              <Button variant="contained" onClick={() => openConfirmDialog('import')} disabled={loading} startIcon={<RestoreIcon />} fullWidth>Importar Dados</Button>
-            )}
+              {importPreview && (
+                <Box sx={{ mb: 1 }}>
+                  <Typography variant="body2">Preview do backup:</Typography>
+                  <Typography variant="caption" color="text.secondary">Pessoas: {importPreview.pessoas} — Veículos: {importPreview.veiculos} — Vínculos: {importPreview.vinculos}</Typography>
+                  {importPreview.temDb && (
+                    <Alert severity="warning" sx={{ mt: 1 }}>Este arquivo contém o arquivo binário do banco (DB). A restauração irá sobrescrever o arquivo atual e reiniciar a aplicação.</Alert>
+                  )}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                    <input type="checkbox" id="pre-backup" checked={preBackupBeforeRestore} onChange={(e) => setPreBackupBeforeRestore(e.target.checked)} />
+                    <label htmlFor="pre-backup">Fazer backup atual automaticamente antes de restaurar (recomendado)</label>
+                  </Box>
+                </Box>
+              )}
+              {importFile && (
+                <Button variant="contained" onClick={() => openConfirmDialog('import')} disabled={loading} startIcon={<RestoreIcon />} sx={{ minWidth: 160 }}>Importar Dados</Button>
+              )}
+            </Card>
           </Grid>
 
         </Grid>
@@ -476,7 +511,7 @@ function SettingsPage() {
       {/* Atualizações */}
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <CloudUploadIcon sx={{ mr: 1 }} />
+          <UpdateIcon sx={{ mr: 1 }} />
           <Typography variant="h6">Atualizações</Typography>
         </Box>
         <Typography paragraph color="text.secondary">
@@ -492,6 +527,60 @@ function SettingsPage() {
         <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
           Se uma atualização estiver disponível, ela será baixada automaticamente e instalada ao fechar o aplicativo.
         </Typography>
+      </Paper>
+
+      {/* Tema (visual previews + selector) */}
+      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <PaletteIcon sx={{ mr: 1 }} />
+          <Typography variant="h6">Aparência</Typography>
+        </Box>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Escolha um tema e o modo (claro/escuro). Clique no cartão do tema para aplicar.</Typography>
+
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          {themeKeys.map((k) => {
+            // Build a preview theme instance for each key (always light mode)
+            const preview = (themes[k] && themes[k]('light')) || null;
+            const primaryMain = preview?.palette?.primary?.main || '#888';
+            const contrastText = preview?.palette?.primary?.contrastText || '#fff';
+            const bodyBg = preview?.palette?.background?.default || '#fff';
+            const sampleTitle = 'SGC Desktop';
+            return (
+              <Grid item xs={12} sm={6} md={3} key={k}>
+                <Card
+                  variant="outlined"
+                  onClick={() => { setSelectedTheme(k); applyThemeChange(k); }}
+                  sx={{
+                    cursor: 'pointer',
+                    border: selectedTheme === k ? `2px solid ${alpha(primaryMain, 0.9)}` : '1px solid',
+                    borderColor: selectedTheme === k ? primaryMain : 'divider',
+                    transition: 'transform 200ms ease, box-shadow 200ms ease',
+                    '&:hover': { transform: 'translateY(-4px)', boxShadow: 6 }
+                  }}
+                >
+                  <Box sx={{ bgcolor: primaryMain, color: contrastText, p: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{sampleTitle}</Typography>
+                    <Typography variant="caption">Versão {appVersion}</Typography>
+                  </Box>
+                  <CardContent sx={{ bgcolor: bodyBg }}>
+                    <Typography variant="body2" sx={{ mb: 1, textTransform: 'capitalize' }}>{k}</Typography>
+                    <Box sx={{ height: 28, display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <Box sx={{ width: 36, height: 18, bgcolor: primaryMain, borderRadius: 0.5, boxShadow: `0 1px 0 ${alpha(primaryMain, 0.15)}` }} />
+                      <Typography variant="caption" color="text.secondary">Principal</Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
+
+        {/* splash color is updated automatically when selecting a theme */}
+
+  {/* App uses light mode only */}
+
+        {/* Navegação rápida removida */}
       </Paper>
 
       {/* Limpezas Específicas - seção separada abaixo de Import/Export */}
