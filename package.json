@@ -2,9 +2,9 @@
   "name": "sgc-desktop",
   "main": "public/electron.js",
   "homepage": "./",
-  "version": "4.1.1",
+  "version": "4.1.2",
   "author": "SGC Desktop",
-  "description": "Sistema de Gestão Condominial - Solução completa para administração de condomínios",
+  "description": "Sistema de Gestão Condominial - Desktop",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.11.4",

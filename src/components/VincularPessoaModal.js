@@ -64,8 +64,13 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
   useEffect(() => {
     if (open) {
       clearForm();
-      setCpf(""); // Limpa o CPF apenas quando o modal abre
-      setRg(""); // Limpa o RG também
+      setCpf(''); // Limpa o CPF apenas quando o modal abre
+      setRg(''); // Limpa o RG também
+    } else {
+      // Ao fechar, garantir que não sobrem dados
+      clearForm();
+      setCpf('');
+      setRg('');
     }
   }, [open]);
 
@@ -242,7 +247,11 @@ function VincularPessoaModal({ open, handleClose, unidade, onSuccess }) {
     setLoading(false);
 
     if (result.success) {
-      onSuccess();
+      // Limpar o formulário para evitar que dados anteriores permaneçam ao reabrir o modal
+      clearForm();
+      setFeedback({ type: 'success', message: result.message || 'Pessoa vinculada com sucesso.' });
+      // Notificar o pai (que normalmente fecha o modal) e atualizar lista
+      try { onSuccess(); } catch (e) { /* ignore */ }
     } else {
       setFeedback({ type: "error", message: result.message });
     }

@@ -23,6 +23,7 @@ import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
 import FingerprintIcon from "@mui/icons-material/Fingerprint";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
+import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
 import Chip from "@mui/material/Chip";
 import AdicionarVeiculoModal from "../components/AdicionarVeiculoModal";
 import EditIcon from "@mui/icons-material/Edit";
@@ -386,7 +387,7 @@ function PessoaPage() {
           
           {pessoa.rg && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <FingerprintIcon sx={{ color: "secondary.main", fontSize: "1rem" }} />
+              <AssignmentIndIcon sx={{ color: "primary.main", fontSize: "1rem" }} />
               <Typography variant="body1" sx={{ fontWeight: "500" }}>
                 RG: {pessoa.rg}
               </Typography>

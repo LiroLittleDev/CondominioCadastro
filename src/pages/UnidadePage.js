@@ -21,6 +21,7 @@ import Chip from "@mui/material/Chip";
 import FingerprintIcon from "@mui/icons-material/Fingerprint";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
+import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
 import LinkOffIcon from "@mui/icons-material/LinkOff";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -245,6 +246,14 @@ function UnidadePage() {
                           <FingerprintIcon sx={{ mr: 1, fontSize: "1rem", color: "primary.main" }} />
                           <Typography variant="body2" sx={{ fontWeight: "500" }}>
                             {formatCPF(pessoa.cpf)}
+                          </Typography>
+                        </Box>
+                      )}
+                      {pessoa.rg && (
+                        <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+                          <AssignmentIndIcon sx={{ mr: 1, fontSize: "1rem", color: "primary.main" }} />
+                          <Typography variant="body2" sx={{ fontWeight: "500" }}>
+                            {pessoa.rg}
                           </Typography>
                         </Box>
                       )}
