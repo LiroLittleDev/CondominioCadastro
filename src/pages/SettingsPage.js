@@ -388,6 +388,56 @@ function SettingsPage() {
         </Paper>
       )}
 
+       {/* Tema (visual previews + selector) */}
+      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+          <PaletteIcon sx={{ mr: 1 }} />
+          <Typography variant="h6">Aparência</Typography>
+        </Box>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Escolha um tema. Clique no cartão do tema para aplicar.</Typography>
+
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          {themeKeys.map((k) => {
+            // Build a preview theme instance for each key (always light mode)
+            const preview = (themes[k] && themes[k]('light')) || null;
+            const primaryMain = preview?.palette?.primary?.main || '#888';
+            const contrastText = preview?.palette?.primary?.contrastText || '#fff';
+            const bodyBg = preview?.palette?.background?.default || '#fff';
+            const sampleTitle = 'SGC Desktop';
+            return (
+              <Grid item xs={12} sm={6} md={3} key={k}>
+                <Card
+                  variant="outlined"
+                  onClick={() => { setSelectedTheme(k); applyThemeChange(k); }}
+                  sx={{
+                    cursor: 'pointer',
+                    border: selectedTheme === k ? `2px solid ${alpha(primaryMain, 0.9)}` : '1px solid',
+                    borderColor: selectedTheme === k ? primaryMain : 'divider',
+                    transition: 'transform 200ms ease, box-shadow 200ms ease',
+                    '&:hover': { transform: 'translateY(-4px)', boxShadow: 6 }
+                  }}
+                >
+                  <Box sx={{ bgcolor: primaryMain, color: contrastText, p: 1.5 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{sampleTitle}</Typography>
+                    <Typography variant="caption">Versão {appVersion}</Typography>
+                  </Box>
+                  <CardContent sx={{ bgcolor: bodyBg }}>
+                    <Typography variant="body2" sx={{ mb: 1, textTransform: 'capitalize' }}>{k}</Typography>
+                    <Box sx={{ height: 28, display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <Box sx={{ width: 36, height: 18, bgcolor: primaryMain, borderRadius: 0.5, boxShadow: `0 1px 0 ${alpha(primaryMain, 0.15)}` }} />
+                      <Typography variant="caption" color="text.secondary">Principal</Typography>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
+
+   
+      </Paper>
+
       {/* Ações Iniciais */}
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}><BusinessIcon sx={{ mr: 1 }} /><Typography variant="h6">Configuração Inicial</Typography></Box>
@@ -529,61 +579,9 @@ function SettingsPage() {
         </Typography>
       </Paper>
 
-      {/* Tema (visual previews + selector) */}
-      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <PaletteIcon sx={{ mr: 1 }} />
-          <Typography variant="h6">Aparência</Typography>
-        </Box>
+     
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>Escolha um tema e o modo (claro/escuro). Clique no cartão do tema para aplicar.</Typography>
 
-        <Grid container spacing={2} sx={{ mb: 2 }}>
-          {themeKeys.map((k) => {
-            // Build a preview theme instance for each key (always light mode)
-            const preview = (themes[k] && themes[k]('light')) || null;
-            const primaryMain = preview?.palette?.primary?.main || '#888';
-            const contrastText = preview?.palette?.primary?.contrastText || '#fff';
-            const bodyBg = preview?.palette?.background?.default || '#fff';
-            const sampleTitle = 'SGC Desktop';
-            return (
-              <Grid item xs={12} sm={6} md={3} key={k}>
-                <Card
-                  variant="outlined"
-                  onClick={() => { setSelectedTheme(k); applyThemeChange(k); }}
-                  sx={{
-                    cursor: 'pointer',
-                    border: selectedTheme === k ? `2px solid ${alpha(primaryMain, 0.9)}` : '1px solid',
-                    borderColor: selectedTheme === k ? primaryMain : 'divider',
-                    transition: 'transform 200ms ease, box-shadow 200ms ease',
-                    '&:hover': { transform: 'translateY(-4px)', boxShadow: 6 }
-                  }}
-                >
-                  <Box sx={{ bgcolor: primaryMain, color: contrastText, p: 1.5 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{sampleTitle}</Typography>
-                    <Typography variant="caption">Versão {appVersion}</Typography>
-                  </Box>
-                  <CardContent sx={{ bgcolor: bodyBg }}>
-                    <Typography variant="body2" sx={{ mb: 1, textTransform: 'capitalize' }}>{k}</Typography>
-                    <Box sx={{ height: 28, display: 'flex', gap: 1, alignItems: 'center' }}>
-                      <Box sx={{ width: 36, height: 18, bgcolor: primaryMain, borderRadius: 0.5, boxShadow: `0 1px 0 ${alpha(primaryMain, 0.15)}` }} />
-                      <Typography variant="caption" color="text.secondary">Principal</Typography>
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Grid>
-            );
-          })}
-        </Grid>
-
-        {/* splash color is updated automatically when selecting a theme */}
-
-  {/* App uses light mode only */}
-
-        {/* Navegação rápida removida */}
-      </Paper>
-
-      {/* Limpezas Específicas - seção separada abaixo de Import/Export */}
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Typography variant="subtitle1" gutterBottom color="error">Limpezas Específicas</Typography>
         <Typography paragraph color="text.secondary">Execute ações seletivas para limpar tipos de dados específicos.</Typography>

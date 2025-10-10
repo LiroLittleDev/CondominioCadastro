@@ -194,6 +194,7 @@ function HomePage() {
           p: { xs: 3, md: 4 },
           mb: 4,
           borderRadius: 3,
+          marginTop: -1,
           position: "relative",
           overflow: "hidden",
           background: (theme) => `radial-gradient(1200px 400px at 10% 10%, ${alpha(theme.palette.primary.contrastText, 0.06)}, transparent), linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
@@ -341,7 +342,7 @@ function HomePage() {
               </Paper>
 
               {loadingStats ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+          <Box sx={{ display: "flex", justifyContent: "center", marginTop: -1, py: 6 }}>
             <CircularProgress />
           </Box>
               ) : (
@@ -364,6 +365,7 @@ function HomePage() {
             p: { xs: 3, md: 4 },
             mb: 4,
             borderRadius: 3,
+            marginTop: -1,
             background: "linear-gradient(180deg, #ffffff 0%, #fbfdfe 100%)",
             border: "1px solid rgba(0,0,0,0.04)"
           }}

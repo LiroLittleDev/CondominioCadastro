@@ -187,7 +187,23 @@ export default function App() {
           <Drawer sx={{ width: drawerWidth, flexShrink: 0, "& .MuiDrawer-paper": { width: drawerWidth, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', background: (theme) => theme.palette.background.paper, borderRight: '1px solid rgba(0,0,0,0.08)' } }} variant="permanent" anchor="left">
             <Toolbar sx={{ minHeight: '80px !important', justifyContent: 'center', background: (theme) => `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`, boxShadow: '0 4px 6px rgba(0,0,0,0.1)', padding: '10px 0' }}>
               <Box sx={{ textAlign: 'center', width: '100%' }}>
-                <Avatar sx={{ marginTop: 2, width: 48, height: 48, bgcolor: 'primary.main', mb: 1, mx: 'auto' }}>
+                <Avatar
+                  sx={{
+                    marginTop: 2,
+                    width: 48,
+                    height: 48,
+                    bgcolor: 'primary.main',
+                    mb: 1,
+                    mx: 'auto',
+                    // gentle vertical bobbing animation
+                    '@keyframes bob': {
+                      '0%': { transform: 'translateY(0px)' },
+                      '50%': { transform: 'translateY(-6px)' },
+                      '100%': { transform: 'translateY(0px)' }
+                    },
+                    animation: 'bob 3s ease-in-out infinite'
+                  }}
+                >
                   <HomeWorkIcon sx={{ color: 'white', fontSize: { xs: 30, md: 30 } }} />
                 </Avatar>
                 <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.contrastText' }}>SGC Desktop</Typography>
@@ -232,7 +248,9 @@ export default function App() {
             </List>
 
             <Box sx={{ mt: 'auto', mb: 2, px: 2 }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>Versão {appVersion} • SGC Desktop - Desenvolvido por Thiago Almeida</Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.75rem' }}>Versão {appVersion} • SGC Desktop - Desenvolvido por Thiago Almeida
+              github.com/LiroLittleDev
+              </Typography>
             </Box>
           </Drawer>
 
