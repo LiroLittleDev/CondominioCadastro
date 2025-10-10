@@ -2,7 +2,7 @@
   "name": "sgc-desktop",
   "main": "public/electron.js",
   "homepage": "./",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "author": "SGC Desktop",
   "description": "Sistema de Gestão Condominial - Solução completa para administração de condomínios",
   "private": true,
@@ -73,7 +73,7 @@
   },
   "build": {
     "appId": "com.sgc.desktop",
-    "productName": "SGC Desktop - Sistema de Gestão Condominial",
+    "productName": "SGC Desktop - Install",
     "copyright": "Copyright © 2024 SGC Desktop",
     "directories": {
       "output": "dist"
@@ -106,7 +106,7 @@
       {
         "provider": "github",
         "owner": "LiroLittleDev",
-        "repo": "sgc-desktop"
+        "repo": "SGC-CONDOMINIO"
       }
     ]
   }
