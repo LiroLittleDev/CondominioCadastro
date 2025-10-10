@@ -114,6 +114,7 @@ contextBridge.exposeInMainWorld("api", {
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
   onUpdateStatus: (cb) => {
     const listener = (_e, payload) => { try { cb(payload); } catch(_) {} };
     ipcRenderer.on('update-status', listener);
