@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, shell } = require("electron");
-const { autoUpdater } = require('electron-updater');
+// Nota: electron-updater removido — atualizações automáticas foram desativadas neste build.
 const path = require("path");
 const fs = require('fs');
 const os = require('os');
@@ -23,30 +23,11 @@ if (isDev) {
   dbPath = path.join(userDataPath, 'condominio.db');
 }
 // Auto update (somente quando empacotado)
-function setupAutoUpdate() {
-  try {
-    if (!app.isPackaged) return;
-    autoUpdater.autoDownload = true;
-    autoUpdater.autoInstallOnAppQuit = true;
-    autoUpdater.on('error', (err) => console.warn('AutoUpdater error:', err?.message || err));
-    autoUpdater.on('update-available', (info) => console.info('Update available:', info?.version));
-    autoUpdater.on('update-not-available', () => console.info('No updates available'));
-    autoUpdater.on('update-downloaded', () => console.info('Update ready, will install on quit'));
-    // Iniciar checagem
-    setTimeout(() => { try { autoUpdater.checkForUpdatesAndNotify(); } catch(_) {} }, 3000);
-  } catch (e) {
-    console.warn('Failed to initialize auto-updater:', e?.message || e);
-  }
-}
+// setupAutoUpdate() removido — nenhuma rotina de atualização automática será executada.
 
 ipcMain.handle('check-for-updates', async () => {
-  try {
-    if (!app.isPackaged) return { success: false, message: 'Somente em produção' };
-    const res = await autoUpdater.checkForUpdates();
-    return { success: true, result: res?.updateInfo || null };
-  } catch (e) {
-    return { success: false, message: e?.message || String(e) };
-  }
+  // Atualizações automáticas foram removidas; endpoint mantido para compatibilidade.
+  return { success: false, message: 'Atualizador desativado: electron-updater removido do sistema.' };
 });
 
 // Caminho do banco de dados (para debug/diagnóstico). Em produção isto pode apontar para userData.

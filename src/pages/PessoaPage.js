@@ -136,26 +136,25 @@ function PessoaPage() {
 
   const handleDeletePessoa = async () => {
     if (!pessoa) return;
+    // Abrir um único diálogo de confirmação que executa a exclusão quando confirmado.
     setConfirmDialog({
       open: true,
       title: 'Excluir pessoa',
-      content: `Tem certeza que deseja EXCLUIR PERMANENTEMENTE '${pessoa.nome_completo}' e todos os seus dados?`,
+      content: `Tem certeza que deseja EXCLUIR PERMANENTEMENTE '${pessoa.nome_completo}' e todos os seus dados? Esta ação não pode ser desfeita.`,
+      destructive: true,
+      confirmLabel: 'Excluir',
       onConfirm: async () => {
-        setConfirmDialog({
-          open: true,
-          title: 'Confirmação final',
-          content: 'Esta ação não pode ser desfeita. Confirma a exclusão permanente?',
-          onConfirm: async () => {
-            const result = await window.api.deletePessoa(pessoa.id);
-            if (result.success) {
-              setErrorDialog({ open: true, message: result.message });
-              navigate(-1);
-            } else {
-              setErrorDialog({ open: true, message: `Erro ao excluir: ${result.message}` });
-            }
-            setConfirmDialog({ ...confirmDialog, open: false });
+        try {
+          const result = await window.api.deletePessoa(pessoa.id);
+          if (result && result.success) {
+            // navegar para trás após exclusão bem-sucedida
+            navigate(-1);
+          } else {
+            setErrorDialog({ open: true, message: `Erro ao excluir: ${result?.message || 'Erro desconhecido'}` });
           }
-        });
+        } catch (e) {
+          setErrorDialog({ open: true, message: `Erro ao excluir: ${e?.message || String(e)}` });
+        }
       }
     });
   };
@@ -432,15 +431,31 @@ function PessoaPage() {
         <List disablePadding>
           {vinculosAtivos.length > 0 ? (
             vinculosAtivos.map((vinculo) => (
-              <ListItem key={vinculo.id} divider>
+              <ListItem key={vinculo.id} divider button onClick={() => {
+                const unidadeId = vinculo.unidade_id || vinculo.unidadeId || vinculo.unidade || null;
+                if (unidadeId) navigate(`/unidade/${unidadeId}`);
+              }}>
                 <ListItemText
                   primary={
                     <Box
                       sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
                     >
-                      <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                        {vinculo.nome_bloco} - Apto {vinculo.numero_apartamento}
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Button
+                          variant="text"
+                          color="primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const unidadeId = vinculo.unidade_id || vinculo.unidadeId || vinculo.unidade || null;
+                            if (unidadeId) navigate(`/unidade/${unidadeId}`);
+                          }}
+                          sx={{ textTransform: 'none', p: 0, minWidth: 'auto' }}
+                          title={`Abrir bloco ${vinculo.nome_bloco } / apto ${vinculo.numero_apartamento}`}
+                        >
+                          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>{vinculo.nome_bloco}</Typography>
+                        </Button>
+                        <Typography color="primary" variant="h6" sx={{ fontWeight: 'bold' }}>- Apto {vinculo.numero_apartamento}</Typography>
+                      </Box>
                       <Chip
                         label={vinculo.tipo_vinculo}
                         size="small"
@@ -477,7 +492,7 @@ function PessoaPage() {
                 <Box sx={{ display: "flex", gap: 0.5 }}>
                   <IconButton
                     size="small"
-                    onClick={() => handleOpenEditarVinculoModal(vinculo)}
+                    onClick={(e) => { e.stopPropagation(); handleOpenEditarVinculoModal(vinculo); }}
                     sx={{ color: "primary.main" }}
                     title="Editar vínculo"
                   >
@@ -485,7 +500,7 @@ function PessoaPage() {
                   </IconButton>
                   <IconButton
                     size="small"
-                    onClick={() => handleDesvincular(vinculo)}
+                    onClick={(e) => { e.stopPropagation(); handleDesvincular(vinculo); }}
                     sx={{ color: "warning.main" }}
                     title="Desvincular"
                   >
@@ -533,10 +548,15 @@ function PessoaPage() {
                 <ListItem
                   key={vinculo.id}
                   divider
+                  button
+                  onClick={() => {
+                    const unidadeId = vinculo.unidade_id || vinculo.unidadeId || vinculo.unidade || null;
+                    if (unidadeId) navigate(`/unidade/${unidadeId}`);
+                  }}
                   secondaryAction={
                     <IconButton
                       size="small"
-                      onClick={() => handleDeleteVinculo(vinculo)}
+                      onClick={(e) => { e.stopPropagation(); handleDeleteVinculo(vinculo); }}
                       sx={{ color: "error.main" }}
                       title="Excluir registro histórico"
                     >
@@ -546,11 +566,26 @@ function PessoaPage() {
                 >
                   <ListItemText
                     primary={vinculo.tipo_vinculo}
-                    secondary={`${vinculo.nome_bloco} - Apto ${
-                      vinculo.numero_apartamento
-                    } | Encerrado em: ${new Date(
-                      vinculo.data_fim
-                    ).toLocaleDateString("pt-BR")}`}
+                    secondary={(
+                      <Box>
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                          <Button
+                            variant="text"
+                            color="primary"
+                            onClick={() => {
+                              const blocoId = vinculo.bloco_id || vinculo.blocoId || vinculo.bloco || null;
+                              if (blocoId) navigate(`/blocos?bloco=${blocoId}`);
+                            }}
+                            sx={{ textTransform: 'none', p: 0, minWidth: 'auto' }}
+                            title={`Abrir bloco ${vinculo.nome_bloco}`}
+                          >
+                            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>{vinculo.nome_bloco}</Typography>
+                          </Button>
+                          <Typography variant="body2" color="primary" sx={{ fontWeight: 'bold' }}>- Apto {vinculo.numero_apartamento}</Typography>
+                        </Box>
+                        <Typography variant="caption" color="text.secondary">Encerrado em: {new Date(vinculo.data_fim).toLocaleDateString('pt-BR')}</Typography>
+                      </Box>
+                    )}
                   />
                 </ListItem>
               )
